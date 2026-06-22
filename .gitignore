@@ -1,0 +1,59 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Runtime / build
+node_modules/
+dist/
+build/
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Logs / temp
+*.log
+logs/
+tmp/
+temp/
+
+# Local data and exports - never commit real client, tax, receipt or office data
+data/
+storage/
+exports/
+uploads/
+downloads/
+fixtures/private/
+mandanten/
+belege/
+kanzlei/
+agenda/
+elster/
+
+# Databases / local state
+*.sqlite
+*.sqlite3
+*.db
+*.duckdb
+
+# Secrets / credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+*.age
+*.gpg
+secrets/
+vault/
+
+# Tool caches
+.cache/
