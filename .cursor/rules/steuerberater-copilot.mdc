@@ -1,0 +1,28 @@
+---
+description: Compliance-first Guardrails für den Steuerberater-Copilot
+alwaysApply: true
+---
+
+# Steuerberater-Copilot Guardrails
+
+Zentrale Agentenregeln: `AGENTS.md`. MCP-Grenzen: `docs/04-mcp/agent-mcp-boundaries.md`.
+
+Leitbild:
+
+```text
+KI bereitet vor.
+Die Kanzlei prüft.
+Der Steuerberater entscheidet.
+```
+
+Erst prüfen, dann ändern. Zu Beginn eines Tasks aktuellen `main`, Arbeitsbaum und relevante Dateien prüfen; danach auf einem eigenen Arbeitsbranch arbeiten.
+
+Pflichtgrenzen (Details in `AGENTS.md`):
+
+- keine echten Daten, Secrets oder produktiven Schnittstellen
+- keine produktiven MCP-Server
+- keine steuerlichen Entscheidungen oder individuelle Steuerberatung durch Agenten
+- Entwürfe und Human Review für steuerlich relevante Ergebnisse
+- keine alten PR-Inhalte duplizieren
+
+Keine riskanten Tool- oder Command-Automationen einbauen.
