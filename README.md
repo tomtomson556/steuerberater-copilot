@@ -57,5 +57,12 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 
 - [Projektbrief](docs/00-project/project-brief.md)
 - [Glossar](docs/00-project/glossary.md)
+- [Security Baseline Policy](docs/02-security/security-baseline-policy.md)
+
+## Lokale Validierung
+
+```bash
+python tools/policy_claim_check.py
+```
 
 Weitere Richtlinien (Recht, Sicherheit, Architektur, Human Review) folgen in separaten Dokumenten und Pull Requests.
