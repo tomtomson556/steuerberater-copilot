@@ -58,6 +58,7 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [Projektbrief](docs/00-project/project-brief.md)
 - [Glossar](docs/00-project/glossary.md)
 - [Security Baseline Policy](docs/02-security/security-baseline-policy.md)
+- [MVP Scope and Roadmap](docs/10-mvp-scope/mvp-scope-and-roadmap.md)
 
 ## Lokale Validierung
 
