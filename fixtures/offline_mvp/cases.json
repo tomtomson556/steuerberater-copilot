@@ -24,6 +24,10 @@
     "missing_items": [
       "Quellenbezug fuer Beispiel-Dokument DOCUMENT_001",
       "Zeitraumabgrenzung fuer synthetische Zahlungsuebersicht"
+    ],
+    "mock_risk_signals": [
+      "document_preparation",
+      "high_uncertainty"
     ]
   },
   {
@@ -42,6 +46,52 @@
     "notes": [
       "Mock-Workflow erzeugt keine Berechnungen und keine fachliche Freigabe."
     ],
-    "missing_items": []
+    "missing_items": [],
+    "mock_risk_signals": [
+      "internal_admin_note"
+    ]
+  },
+  {
+    "case_id": "CASE_003",
+    "client_ref": "CLIENT_003",
+    "scenario": "synthetische Dokumentenvorsortierung fuer interne Rueckfragen",
+    "period": "2026-Q2",
+    "documents": [
+      {
+        "document_id": "DOCUMENT_004",
+        "label": "synthetische Dokumentenliste",
+        "period": "2026-Q2",
+        "source_note": "Abstraktes Fixture ohne Originaldokumente oder echte Metadaten"
+      }
+    ],
+    "notes": [
+      "Fixture markiert nur interne Review-Relevanz im Offline-MVP."
+    ],
+    "missing_items": [],
+    "mock_risk_signals": [
+      "document_preparation",
+      "question_list_preparation"
+    ]
+  },
+  {
+    "case_id": "CASE_004",
+    "client_ref": "CLIENT_004",
+    "scenario": "synthetischer Stop-Marker fuer zusaetzliche Review-Klaerung",
+    "period": "2026-Q3",
+    "documents": [
+      {
+        "document_id": "DOCUMENT_005",
+        "label": "synthetischer Klaerungsmarker",
+        "period": "2026-Q3",
+        "source_note": "Abstraktes Fixture fuer Stop- und Eskalationspfad ohne echte Daten"
+      }
+    ],
+    "notes": [
+      "Stop-Marker bleibt interne Mock-Steuerung ohne produktive Wirkung."
+    ],
+    "missing_items": [],
+    "mock_risk_signals": [
+      "synthetic_stop_review_marker"
+    ]
   }
 ]
