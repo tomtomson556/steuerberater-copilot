@@ -1,0 +1,47 @@
+[
+  {
+    "case_id": "CASE_001",
+    "client_ref": "CLIENT_001",
+    "scenario": "synthetische Belegvorbereitung fuer interne Kanzlei-Sichtung",
+    "period": "2025-Q4",
+    "documents": [
+      {
+        "document_id": "DOCUMENT_001",
+        "label": "synthetische Rechnungsliste",
+        "period": "2025-Q4",
+        "source_note": "Fixture ohne Originalbelege, PII, Metadaten oder produktive Systemdaten"
+      },
+      {
+        "document_id": "DOCUMENT_002",
+        "label": "synthetische Zahlungsuebersicht",
+        "period": "2025-Q4",
+        "source_note": "Fixture ohne Bankdaten, Kontonummern oder echte Transaktionen"
+      }
+    ],
+    "notes": [
+      "Nur Offline-MVP Beispiel fuer Entwurf, Reviewstatus und Rueckfragenliste."
+    ],
+    "missing_items": [
+      "Quellenbezug fuer Beispiel-Dokument DOCUMENT_001",
+      "Zeitraumabgrenzung fuer synthetische Zahlungsuebersicht"
+    ]
+  },
+  {
+    "case_id": "CASE_002",
+    "client_ref": "CLIENT_002",
+    "scenario": "synthetische Mandantenaufnahme als interner Entwurf",
+    "period": "2026-Q1",
+    "documents": [
+      {
+        "document_id": "DOCUMENT_003",
+        "label": "synthetischer Aufnahmebogen",
+        "period": "2026-Q1",
+        "source_note": "Generisches Fixture ohne echte Mandanten-, Kanzlei- oder Steuerdaten"
+      }
+    ],
+    "notes": [
+      "Mock-Workflow erzeugt keine Berechnungen und keine fachliche Freigabe."
+    ],
+    "missing_items": []
+  }
+]
