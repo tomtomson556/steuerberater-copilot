@@ -12,6 +12,8 @@ from .models import (
     GatewayDecision,
     GatewayResult,
     IntakeCase,
+    RiskClassification,
+    RiskLevel,
     ReviewStatus,
     SyntheticDocument,
     WorkflowOutput,
@@ -35,8 +37,14 @@ def build_mock_workflow(case: IntakeCase) -> WorkflowOutput:
     """Build a draft-only workflow result without external systems."""
 
     gateway = run_mock_gateway(case)
-    draft_package = build_draft_package(case, gateway)
-    return WorkflowOutput(intake=case, gateway=gateway, draft_package=draft_package)
+    risk_classification = classify_internal_risk(case, gateway)
+    draft_package = build_draft_package(case, gateway, risk_classification)
+    return WorkflowOutput(
+        intake=case,
+        gateway=gateway,
+        risk_classification=risk_classification,
+        draft_package=draft_package,
+    )
 
 
 def run_mock_gateway(case: IntakeCase) -> GatewayResult:
@@ -69,12 +77,55 @@ def run_mock_gateway(case: IntakeCase) -> GatewayResult:
     )
 
 
-def build_draft_package(case: IntakeCase, gateway: GatewayResult) -> DraftPackage:
+def classify_internal_risk(
+    case: IntakeCase, gateway: GatewayResult
+) -> RiskClassification:
+    """Classify internal MVP review routing from synthetic mock signals only."""
+
+    signals = set(case.mock_risk_signals)
+    basis: list[str] = []
+
+    if gateway.decision is GatewayDecision.ESCALATE:
+        basis.extend(gateway.escalation_reasons)
+    if case.missing_items:
+        basis.append("missing_fixture_context")
+    basis.extend(sorted(signals))
+
+    if gateway.decision is GatewayDecision.BLOCK or "synthetic_stop_review_marker" in signals:
+        risk_level = RiskLevel.CLASS_D
+    elif (
+        gateway.decision is GatewayDecision.ESCALATE
+        or case.missing_items
+        or signals.intersection(
+            {
+                "client_communication_draft",
+                "handoff_preparation",
+                "high_uncertainty",
+            }
+        )
+    ):
+        risk_level = RiskLevel.CLASS_C
+    elif signals.intersection({"document_preparation", "question_list_preparation"}):
+        risk_level = RiskLevel.CLASS_B
+    else:
+        risk_level = RiskLevel.CLASS_A
+
+    return RiskClassification(
+        risk_level=risk_level,
+        review_required=risk_level in {RiskLevel.CLASS_B, RiskLevel.CLASS_C, RiskLevel.CLASS_D},
+        basis=tuple(basis or ("synthetic_internal_admin_fixture",)),
+    )
+
+
+def build_draft_package(
+    case: IntakeCase, gateway: GatewayResult, risk_classification: RiskClassification
+) -> DraftPackage:
     """Create internal draft material for human review."""
 
     review_status = (
         ReviewStatus.ESCALATED
         if gateway.decision is GatewayDecision.ESCALATE
+        or risk_classification.risk_level is RiskLevel.CLASS_D
         else ReviewStatus.DRAFT
     )
     document_labels = ", ".join(document.label for document in case.documents)
@@ -83,10 +134,17 @@ def build_draft_package(case: IntakeCase, gateway: GatewayResult) -> DraftPackag
     return DraftPackage(
         title=f"Offline-MVP Entwurf fuer {case.case_id}",
         review_status=review_status,
+        risk_classification=risk_classification,
+        review_required=risk_classification.review_required,
         summary_points=(
             f"Szenario: {case.scenario}.",
             f"Zeitraum: {case.period}.",
             f"Synthetische Dokumenthinweise: {document_labels}.",
+            (
+                "Interne RiskLevel-Markierung: "
+                f"Klasse {risk_classification.risk_level.value}; "
+                "nur Routing- und Review-Grundlage."
+            ),
             "Alle Inhalte sind interne Vorbereitung und benoetigen Human Review.",
         ),
         question_drafts=tuple(f"Bitte im Review klaeren: {item}." for item in missing_items),
@@ -115,4 +173,5 @@ def _case_from_mapping(raw_case: dict[str, Any]) -> IntakeCase:
         documents=documents,
         notes=tuple(raw_case.get("notes", ())),
         missing_items=tuple(raw_case.get("missing_items", ())),
+        mock_risk_signals=tuple(raw_case.get("mock_risk_signals", ())),
     )
