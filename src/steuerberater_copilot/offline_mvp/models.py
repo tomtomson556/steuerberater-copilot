@@ -36,6 +36,13 @@ class RiskLevel(StrEnum):
     CLASS_D = "D"
 
 
+class ReviewGateStatus(StrEnum):
+    """Deterministic offline gate status after internal risk classification."""
+
+    ALLOWED_OFFLINE_MOCK_CONTINUATION = "allowed_offline_mock_continuation"
+    REQUIRES_HUMAN_REVIEW = "requires_human_review"
+
+
 @dataclass(frozen=True)
 class SyntheticDocument:
     """A synthetic document descriptor, not an original document."""
@@ -83,6 +90,16 @@ class RiskClassification:
 
 
 @dataclass(frozen=True)
+class ReviewGateDecision:
+    """Human review gate decision derived from the internal risk class."""
+
+    status: ReviewGateStatus
+    allows_offline_mock_continuation: bool
+    risk_classification: RiskClassification
+    reason: str
+
+
+@dataclass(frozen=True)
 class DraftPackage:
     """Prepared internal draft material for human review."""
 
@@ -108,4 +125,5 @@ class WorkflowOutput:
     intake: IntakeCase
     gateway: GatewayResult
     risk_classification: RiskClassification
+    review_gate: ReviewGateDecision
     draft_package: DraftPackage
