@@ -7,6 +7,14 @@ project reviewable and compliance-first. The quality gates check implementation
 behavior, documentation boundaries, and pull request readiness for the local MVP
 scope.
 
+This strategy follows the project principle:
+
+```text
+KI bereitet vor.
+Die Kanzlei prüft.
+Der Steuerberater entscheidet.
+```
+
 All outputs remain drafts. Human Review is a mandatory project rule before any
 output is relied on or used fachlich by the Kanzlei.
 
