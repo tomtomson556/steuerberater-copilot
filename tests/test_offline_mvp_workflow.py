@@ -3,10 +3,10 @@ from pathlib import Path
 from steuerberater_copilot.offline_mvp.models import (
     GatewayDecision,
     IntakeCase,
-    RiskClassification,
-    RiskLevel,
     ReviewGateStatus,
     ReviewStatus,
+    RiskClassification,
+    RiskLevel,
     SyntheticDocument,
 )
 from steuerberater_copilot.offline_mvp.workflow import (
@@ -16,7 +16,6 @@ from steuerberater_copilot.offline_mvp.workflow import (
     run_human_review_gate,
     run_mock_gateway,
 )
-
 
 FIXTURE_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "offline_mvp" / "cases.json"
 
@@ -168,7 +167,10 @@ def test_review_gate_stops_b_c_and_d_without_substantive_output():
         assert output.draft_package.review_required is True
         assert output.draft_package.question_drafts == ()
         assert all("Szenario:" not in point for point in output.draft_package.summary_points)
-        assert all("Synthetische Dokumenthinweise:" not in point for point in output.draft_package.summary_points)
+        assert all(
+            "Synthetische Dokumenthinweise:" not in point
+            for point in output.draft_package.summary_points
+        )
         assert any("gestoppt" in point for point in output.draft_package.summary_points)
 
 

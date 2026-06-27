@@ -12,15 +12,14 @@ from .models import (
     GatewayDecision,
     GatewayResult,
     IntakeCase,
-    RiskClassification,
-    RiskLevel,
     ReviewGateDecision,
     ReviewGateStatus,
     ReviewStatus,
+    RiskClassification,
+    RiskLevel,
     SyntheticDocument,
     WorkflowOutput,
 )
-
 
 PSEUDONYM_RE = re.compile(r"^(CLIENT|CASE|DOCUMENT)_[0-9]{3}$")
 DEFAULT_FIXTURE_PATH = (
@@ -178,7 +177,8 @@ def build_draft_package(
             ),
             question_drafts=(),
             handoff_notes=(
-                "Keine automatische Rueckfragenliste oder fachliche Inhaltsausgabe vor Human Review.",
+                "Keine automatische Rueckfragenliste oder fachliche Inhaltsausgabe "
+                "vor Human Review.",
                 "keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
             ),
         )
