@@ -2,7 +2,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "tools" / "policy_claim_check.py"
 SPEC = importlib.util.spec_from_file_location("policy_claim_check", SCRIPT_PATH)
 policy_claim_check = importlib.util.module_from_spec(SPEC)

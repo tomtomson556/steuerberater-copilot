@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import argparse
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
-
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,7 +22,10 @@ RISKY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("KI-Steuerberater", re.compile(r"\bKI[- ]?Steuerberater\b", re.IGNORECASE)),
     ("production-ready", re.compile(r"\bproduction[- ]ready\b", re.IGNORECASE)),
     ("fully compliant", re.compile(r"\bfully\s+compliant\b", re.IGNORECASE)),
-    ("verbindliche Steuerberatung", re.compile(r"\bverbindliche\s+Steuerberatung\b", re.IGNORECASE)),
+    (
+        "verbindliche Steuerberatung",
+        re.compile(r"\bverbindliche\s+Steuerberatung\b", re.IGNORECASE),
+    ),
 )
 
 NEGATIVE_CONTEXT_RE = re.compile(

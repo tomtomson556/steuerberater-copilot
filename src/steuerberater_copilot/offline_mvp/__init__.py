@@ -5,11 +5,11 @@ from .models import (
     GatewayDecision,
     GatewayResult,
     IntakeCase,
-    RiskClassification,
-    RiskLevel,
     ReviewGateDecision,
     ReviewGateStatus,
     ReviewStatus,
+    RiskClassification,
+    RiskLevel,
     SyntheticDocument,
     WorkflowOutput,
 )
