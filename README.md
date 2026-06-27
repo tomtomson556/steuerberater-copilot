@@ -60,10 +60,23 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [Security Baseline Policy](docs/02-security/security-baseline-policy.md)
 - [MVP Scope and Roadmap](docs/10-mvp-scope/mvp-scope-and-roadmap.md)
 
-## Lokale Validierung
+## Lokale Entwickler-Validierung
+
+Installiere das Projekt lokal mit den Entwicklungswerkzeugen:
 
 ```bash
+python -m pip install -e ".[dev]"
+```
+
+Fuehre vor einem Pull Request die lokalen Checks aus:
+
+```bash
+ruff check .
+pytest -q
 python tools/policy_claim_check.py
 ```
+
+Der editable install kann Python-Paketmetadaten wie `*.egg-info/` erzeugen. Diese
+lokalen Artefakte werden durch `.gitignore` ignoriert.
 
 Weitere Richtlinien (Recht, Sicherheit, Architektur, Human Review) folgen in separaten Dokumenten und Pull Requests.
