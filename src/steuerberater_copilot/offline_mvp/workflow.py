@@ -14,6 +14,8 @@ from .models import (
     IntakeCase,
     RiskClassification,
     RiskLevel,
+    ReviewGateDecision,
+    ReviewGateStatus,
     ReviewStatus,
     SyntheticDocument,
     WorkflowOutput,
@@ -38,11 +40,13 @@ def build_mock_workflow(case: IntakeCase) -> WorkflowOutput:
 
     gateway = run_mock_gateway(case)
     risk_classification = classify_internal_risk(case, gateway)
-    draft_package = build_draft_package(case, gateway, risk_classification)
+    review_gate = run_human_review_gate(risk_classification)
+    draft_package = build_draft_package(case, gateway, risk_classification, review_gate)
     return WorkflowOutput(
         intake=case,
         gateway=gateway,
         risk_classification=risk_classification,
+        review_gate=review_gate,
         draft_package=draft_package,
     )
 
@@ -117,10 +121,67 @@ def classify_internal_risk(
     )
 
 
+def run_human_review_gate(
+    risk_classification: RiskClassification,
+) -> ReviewGateDecision:
+    """Gate offline mock continuation from the existing internal risk class."""
+
+    if risk_classification.risk_level is RiskLevel.CLASS_A:
+        return ReviewGateDecision(
+            status=ReviewGateStatus.ALLOWED_OFFLINE_MOCK_CONTINUATION,
+            allows_offline_mock_continuation=True,
+            risk_classification=risk_classification,
+            reason="RiskLevel A permits offline mock continuation only.",
+        )
+
+    return ReviewGateDecision(
+        status=ReviewGateStatus.REQUIRES_HUMAN_REVIEW,
+        allows_offline_mock_continuation=False,
+        risk_classification=risk_classification,
+        reason=(
+            f"RiskLevel {risk_classification.risk_level.value} requires human review "
+            "before any offline mock continuation."
+        ),
+    )
+
+
 def build_draft_package(
-    case: IntakeCase, gateway: GatewayResult, risk_classification: RiskClassification
+    case: IntakeCase,
+    gateway: GatewayResult,
+    risk_classification: RiskClassification,
+    review_gate: ReviewGateDecision,
 ) -> DraftPackage:
     """Create internal draft material for human review."""
+
+    if not review_gate.allows_offline_mock_continuation:
+        review_status = (
+            ReviewStatus.ESCALATED
+            if gateway.decision is GatewayDecision.ESCALATE
+            or risk_classification.risk_level is RiskLevel.CLASS_D
+            else ReviewStatus.IN_REVIEW
+        )
+        return DraftPackage(
+            title=f"Offline-MVP Human Review Gate fuer {case.case_id}",
+            review_status=review_status,
+            risk_classification=risk_classification,
+            review_required=True,
+            summary_points=(
+                (
+                    "Human Review Gate: automatische Offline-Mock-Fortsetzung "
+                    "gestoppt."
+                ),
+                (
+                    "Interne RiskLevel-Markierung: "
+                    f"Klasse {risk_classification.risk_level.value}; "
+                    "nur Routing- und Review-Grundlage."
+                ),
+            ),
+            question_drafts=(),
+            handoff_notes=(
+                "Keine automatische Rueckfragenliste oder fachliche Inhaltsausgabe vor Human Review.",
+                "keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
+            ),
+        )
 
     review_status = (
         ReviewStatus.ESCALATED
@@ -145,7 +206,7 @@ def build_draft_package(
                 f"Klasse {risk_classification.risk_level.value}; "
                 "nur Routing- und Review-Grundlage."
             ),
-            "Alle Inhalte sind interne Vorbereitung und benoetigen Human Review.",
+            "RiskLevel A erlaubt nur die Offline-Mock-Fortsetzung ohne produktive Wirkung.",
         ),
         question_drafts=tuple(f"Bitte im Review klaeren: {item}." for item in missing_items),
         handoff_notes=(

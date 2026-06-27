@@ -7,11 +7,13 @@ from .models import (
     IntakeCase,
     RiskClassification,
     RiskLevel,
+    ReviewGateDecision,
+    ReviewGateStatus,
     ReviewStatus,
     SyntheticDocument,
     WorkflowOutput,
 )
-from .workflow import build_mock_workflow, classify_internal_risk
+from .workflow import build_mock_workflow, classify_internal_risk, run_human_review_gate
 
 __all__ = [
     "DraftPackage",
@@ -20,9 +22,12 @@ __all__ = [
     "IntakeCase",
     "RiskClassification",
     "RiskLevel",
+    "ReviewGateDecision",
+    "ReviewGateStatus",
     "ReviewStatus",
     "SyntheticDocument",
     "WorkflowOutput",
     "build_mock_workflow",
     "classify_internal_risk",
+    "run_human_review_gate",
 ]

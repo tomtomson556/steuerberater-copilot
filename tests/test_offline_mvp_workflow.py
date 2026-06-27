@@ -5,6 +5,7 @@ from steuerberater_copilot.offline_mvp.models import (
     IntakeCase,
     RiskClassification,
     RiskLevel,
+    ReviewGateStatus,
     ReviewStatus,
     SyntheticDocument,
 )
@@ -12,6 +13,7 @@ from steuerberater_copilot.offline_mvp.workflow import (
     build_mock_workflow,
     classify_internal_risk,
     load_fixture_cases,
+    run_human_review_gate,
     run_mock_gateway,
 )
 
@@ -50,11 +52,14 @@ def test_mock_workflow_keeps_outputs_as_review_drafts():
     assert output.gateway.decision == GatewayDecision.ESCALATE
     assert output.risk_classification.risk_level == RiskLevel.CLASS_C
     assert output.risk_classification.review_required is True
+    assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
+    assert output.review_gate.allows_offline_mock_continuation is False
+    assert output.review_gate.risk_classification == output.risk_classification
     assert output.draft_package.review_status == ReviewStatus.ESCALATED
     assert output.draft_package.review_required is True
     assert output.draft_package.risk_classification == output.risk_classification
-    assert "Entwurf" in output.draft_package.title
-    assert output.draft_package.question_drafts
+    assert "Human Review Gate" in output.draft_package.title
+    assert output.draft_package.question_drafts == ()
     assert any("Human Review" in point for point in output.draft_package.summary_points)
     assert any("Klasse C" in point for point in output.draft_package.summary_points)
 
@@ -75,6 +80,8 @@ def test_mock_workflow_has_no_productive_handoff_or_tax_calculation_claims():
 
     assert output.gateway.decision == GatewayDecision.ALLOW_DRAFT
     assert output.risk_classification.risk_level == RiskLevel.CLASS_A
+    assert output.review_gate.status == ReviewGateStatus.ALLOWED_OFFLINE_MOCK_CONTINUATION
+    assert output.review_gate.allows_offline_mock_continuation is True
     assert output.draft_package.review_required is False
     assert output.draft_package.review_status == ReviewStatus.DRAFT
     assert "Keine Steuerberatung" in combined_text
@@ -100,6 +107,71 @@ def test_deterministic_risk_classification_covers_fixture_levels():
     assert classifications["CASE_004"].review_required is True
 
 
+def test_human_review_gate_covers_risk_levels_a_to_d():
+    classifications = {
+        RiskLevel.CLASS_A: RiskClassification(
+            risk_level=RiskLevel.CLASS_A,
+            review_required=False,
+            basis=("synthetic_internal_admin_fixture",),
+        ),
+        RiskLevel.CLASS_B: RiskClassification(
+            risk_level=RiskLevel.CLASS_B,
+            review_required=True,
+            basis=("document_preparation",),
+        ),
+        RiskLevel.CLASS_C: RiskClassification(
+            risk_level=RiskLevel.CLASS_C,
+            review_required=True,
+            basis=("high_uncertainty",),
+        ),
+        RiskLevel.CLASS_D: RiskClassification(
+            risk_level=RiskLevel.CLASS_D,
+            review_required=True,
+            basis=("synthetic_stop_review_marker",),
+        ),
+    }
+
+    decisions = {
+        risk_level: run_human_review_gate(classification)
+        for risk_level, classification in classifications.items()
+    }
+
+    assert decisions[RiskLevel.CLASS_A].status == (
+        ReviewGateStatus.ALLOWED_OFFLINE_MOCK_CONTINUATION
+    )
+    assert classifications[RiskLevel.CLASS_A].review_required is False
+    assert decisions[RiskLevel.CLASS_A].allows_offline_mock_continuation is True
+    for risk_level in (RiskLevel.CLASS_B, RiskLevel.CLASS_C, RiskLevel.CLASS_D):
+        assert decisions[risk_level].status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
+        assert classifications[risk_level].review_required is True
+        assert decisions[risk_level].allows_offline_mock_continuation is False
+        assert decisions[risk_level].risk_classification == classifications[risk_level]
+
+
+def test_review_gate_stops_b_c_and_d_without_substantive_output():
+    cases = {case.case_id: case for case in load_fixture_cases(FIXTURE_PATH)}
+
+    outputs = (
+        build_mock_workflow(cases["CASE_003"]),
+        build_mock_workflow(cases["CASE_001"]),
+        build_mock_workflow(cases["CASE_004"]),
+    )
+
+    assert {output.risk_classification.risk_level for output in outputs} == {
+        RiskLevel.CLASS_B,
+        RiskLevel.CLASS_C,
+        RiskLevel.CLASS_D,
+    }
+    for output in outputs:
+        assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
+        assert output.review_gate.allows_offline_mock_continuation is False
+        assert output.draft_package.review_required is True
+        assert output.draft_package.question_drafts == ()
+        assert all("Szenario:" not in point for point in output.draft_package.summary_points)
+        assert all("Synthetische Dokumenthinweise:" not in point for point in output.draft_package.summary_points)
+        assert any("gestoppt" in point for point in output.draft_package.summary_points)
+
+
 def test_stop_marker_keeps_human_review_visible_without_productive_action():
     case = load_fixture_cases(FIXTURE_PATH)[3]
 
@@ -114,6 +186,8 @@ def test_stop_marker_keeps_human_review_visible_without_productive_action():
 
     assert output.gateway.decision == GatewayDecision.ALLOW_DRAFT
     assert output.risk_classification.risk_level == RiskLevel.CLASS_D
+    assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
+    assert output.review_gate.allows_offline_mock_continuation is False
     assert output.draft_package.review_status == ReviewStatus.ESCALATED
     assert output.draft_package.review_required is True
     assert "keine Agenda-, DATEV- oder ELSTER-Uebertragung" in combined_text
@@ -140,6 +214,7 @@ def test_gateway_escalates_non_synthetic_references():
 
     assert output.gateway.decision == GatewayDecision.ESCALATE
     assert output.risk_classification.risk_level == RiskLevel.CLASS_C
+    assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
     assert output.draft_package.review_required is True
     assert output.draft_package.review_status == ReviewStatus.ESCALATED
     assert "case_id_must_be_synthetic" in output.gateway.escalation_reasons
