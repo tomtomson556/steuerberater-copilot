@@ -184,8 +184,6 @@ def build_draft_package(
         else ReviewStatus.DRAFT
     )
     document_labels = ", ".join(document.label for document in case.documents)
-    missing_items = case.missing_items or ("Keine offenen Beispielpunkte im Fixture markiert.",)
-
     return DraftPackage(
         title=f"Offline-MVP Entwurf fuer {case.case_id}",
         review_status=review_status,
@@ -202,7 +200,9 @@ def build_draft_package(
             ),
             "RiskLevel A erlaubt nur die Offline-Mock-Fortsetzung ohne produktive Wirkung.",
         ),
-        question_drafts=tuple(f"Bitte im Review klaeren: {item}." for item in missing_items),
+        question_drafts=tuple(
+            f"Bitte im Review klaeren: {item}." for item in case.missing_items
+        ),
         handoff_notes=(
             "Nur manueller Handoff-Entwurf; keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
             "Vor jeder fachlichen Nutzung sind Gateway- und Kanzlei-Review zu pruefen.",
