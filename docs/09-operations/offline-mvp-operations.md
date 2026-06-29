@@ -26,6 +26,7 @@ Production operations are explicitly out of scope at the current stage.
 
 - run the local verification commands from `README.md`
 - inspect synthetic fixtures in `fixtures/offline_mvp/cases.json`
+- run the local JSON CLI against synthetic fixtures only
 - run tests for the offline MVP
 - review draft outputs as internal preparation material
 - open small pull requests for documented, reviewed changes
@@ -51,3 +52,16 @@ ruff check .
 pytest -q
 python tools/policy_claim_check.py
 ```
+
+## Local JSON CLI
+
+After installing the project locally, the offline MVP can emit structured JSON
+for synthetic fixtures:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --case CASE_001
+python -m steuerberater_copilot.offline_mvp --all
+python -m steuerberater_copilot.offline_mvp --list-cases
+```
+
+The CLI is local-only and reads only the repository's synthetic fixture cases.
