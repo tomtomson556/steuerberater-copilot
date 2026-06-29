@@ -74,6 +74,7 @@ class GatewayResult:
     decision: GatewayDecision
     checks: tuple[str, ...]
     escalation_reasons: tuple[str, ...] = ()
+    block_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
