@@ -46,7 +46,11 @@ The automated tests currently cover:
 - `review_required` behavior for internal risk classifications
 - Human Review Gate stop behavior for B, C, and D
 - draft-only workflow output boundaries
+- offline MVP CLI JSON contract boundaries
 - policy claim checker behavior for allowed and blocked Markdown wording
+
+The current CLI JSON contract is documented in
+[offline-mvp-cli-json-contract.md](offline-mvp-cli-json-contract.md).
 
 ## Quality Boundaries
 
