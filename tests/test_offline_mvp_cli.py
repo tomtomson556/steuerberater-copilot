@@ -42,6 +42,7 @@ def test_cli_case_002_allows_draft_when_existing_logic_allows_it():
     assert payload["draft"]["available"] is True
     assert payload["draft"]["draft_only"] is True
     assert payload["draft"]["summary_points"]
+    assert payload["draft"]["questions"] == []
 
 
 def test_cli_escalated_case_has_no_available_draft():
