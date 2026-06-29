@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +19,13 @@ from .models import (
     SyntheticDocument,
     WorkflowOutput,
 )
+from .privacy_gateway import (
+    combine_gateway_results,
+    privacy_gateway_request_from_case,
+    run_request_gateway_check,
+    run_response_gateway_check,
+)
 
-PSEUDONYM_RE = re.compile(r"^(CLIENT|CASE|DOCUMENT)_[0-9]{3}$")
 DEFAULT_FIXTURE_PATH = (
     Path(__file__).resolve().parents[3] / "fixtures" / "offline_mvp" / "cases.json"
 )
@@ -41,6 +45,7 @@ def build_mock_workflow(case: IntakeCase) -> WorkflowOutput:
     risk_classification = classify_internal_risk(case, gateway)
     review_gate = run_human_review_gate(risk_classification)
     draft_package = build_draft_package(case, gateway, risk_classification, review_gate)
+    gateway = combine_gateway_results(gateway, run_response_gateway_check(draft_package))
     return WorkflowOutput(
         intake=case,
         gateway=gateway,
@@ -53,30 +58,17 @@ def build_mock_workflow(case: IntakeCase) -> WorkflowOutput:
 def run_mock_gateway(case: IntakeCase) -> GatewayResult:
     """Apply minimal mock checks that mirror the documented gateway boundary."""
 
-    checks = [
-        "synthetic_case_reference",
-        "synthetic_client_reference",
-        "synthetic_document_references",
-        "offline_no_productive_integration",
-    ]
-    escalation_reasons: list[str] = []
+    gateway = run_request_gateway_check(privacy_gateway_request_from_case(case))
+    if not case.missing_items:
+        return gateway
 
-    if not PSEUDONYM_RE.fullmatch(case.case_id):
-        escalation_reasons.append("case_id_must_be_synthetic")
-    if not PSEUDONYM_RE.fullmatch(case.client_ref):
-        escalation_reasons.append("client_ref_must_be_synthetic")
-    for document in case.documents:
-        if not PSEUDONYM_RE.fullmatch(document.document_id):
-            escalation_reasons.append("document_id_must_be_synthetic")
-            break
-    if case.missing_items:
-        escalation_reasons.append("missing_context_requires_review")
-
-    decision = GatewayDecision.ESCALATE if escalation_reasons else GatewayDecision.ALLOW_DRAFT
-    return GatewayResult(
-        decision=decision,
-        checks=tuple(checks),
-        escalation_reasons=tuple(escalation_reasons),
+    return combine_gateway_results(
+        gateway,
+        GatewayResult(
+            decision=GatewayDecision.ESCALATE,
+            checks=("request_missing_context",),
+            escalation_reasons=("missing_context_requires_review",),
+        ),
     )
 
 
@@ -88,6 +80,8 @@ def classify_internal_risk(
     signals = set(case.mock_risk_signals)
     basis: list[str] = []
 
+    if gateway.decision is GatewayDecision.BLOCK:
+        basis.extend(gateway.block_reasons)
     if gateway.decision is GatewayDecision.ESCALATE:
         basis.extend(gateway.escalation_reasons)
     if case.missing_items:
