@@ -1,10 +1,22 @@
-# Agenten-Guardrails
+# Development Agent Instructions
 
-## Projekt
+These instructions apply only to development agents that modify this repository,
+such as Codex, GitHub Copilot, Cursor, DeepSeek via GitHub Copilot, or other
+coding assistants.
 
-Dieses Repository gehört zum **Steuerberater-Copilot** / **Steuer-Vorbereitungsassistent**.
+These instructions are not runtime instructions for the future
+steuerberater-copilot application, client-facing AI, Kanzlei-facing AI,
+productive advisory system, or tax assistant.
 
-Verbindliches Leitbild:
+This file is the central repository instruction for development agent behavior,
+where supported by the respective tool.
+
+## Project Scope
+
+This project is compliance-first, offline-only, deterministic, and currently
+non-productive.
+
+The binding project principle is:
 
 ```text
 KI bereitet vor.
@@ -12,23 +24,24 @@ Die Kanzlei prüft.
 Der Steuerberater entscheidet.
 ```
 
-Agenten unterstützen die Arbeit am Repository. Sie treffen keine steuerlichen Entscheidungen, geben keine individuelle Steuerberatung und führen keine steuerlich wirksamen Handlungen aus. Steuerlich relevante Ergebnisse bleiben Entwürfe und benötigen Human Review.
+Development agents support repository work only. They do not make tax decisions,
+provide individual tax advice, or perform tax-relevant actions. Tax-relevant
+outputs remain drafts and require Human Review.
 
-Kontrollpunkte liegen vor und neben dem Modell — insbesondere im **Policy- und Privacy-Gateway** — nicht im Modell selbst.
+Controls sit before and beside the model, especially in the Policy and Privacy
+Gateway, not inside the model itself.
 
-## Weitere Agenten-Dateien
+## Related Agent Files
 
-| Datei | Zweck |
+| File | Purpose |
 | --- | --- |
-| `.github/copilot-instructions.md` | Kurzfassung für GitHub Copilot / VS Code |
-| `.cursor/rules/steuerberater-copilot.mdc` | Cursor-Projektregel |
-| `docs/04-mcp/agent-mcp-boundaries.md` | MCP-Grenzen für Agentenarbeit |
+| `.github/copilot-instructions.md` | Short instructions for GitHub Copilot and coding assistants |
+| `.cursor/rules/steuerberater-copilot.mdc` | Cursor project rule, if present |
+| `docs/04-mcp/agent-mcp-boundaries.md` | MCP boundaries for repository agent work |
 
-Diese Datei ist die zentrale Agenten-Anweisung für Codex und andere Agenten, soweit vom jeweiligen Werkzeug unterstützt.
+## Required Startup Workflow
 
-## Pflichtworkflow zu Beginn eines Tasks
-
-Zu Beginn jedes Tasks müssen Agenten den aktuellen Zustand prüfen:
+At the start of each task, agents must inspect the current repository state:
 
 ```bash
 pwd
@@ -39,11 +52,77 @@ git pull --ff-only origin main
 git log --oneline --max-count=5
 ```
 
-Danach muss ein eigener, kleiner Arbeitsbranch verwendet werden. Relevante vorhandene Dateien müssen gelesen werden, bevor neue Inhalte erzeugt oder bestehende Inhalte geändert werden. Bereits gemergte PR-Inhalte dürfen nicht erneut erzeugt oder dupliziert werden.
+After that, agents must use their own small working branch. Agents must read
+relevant existing files before creating new content or changing existing
+content. Already merged pull request content must not be recreated or
+duplicated.
 
-## Pflichtworkflow nach Änderungen
+## Development Agent Rules
 
-Nach jeder Änderung müssen Agenten den Arbeitsstand prüfen:
+- Agents may only prepare small, reviewable pull requests.
+- Agents must never push directly to `main`.
+- Agents must never merge pull requests.
+- Merges are performed only by the user in the terminal.
+- Squash merge is the standard merge method.
+- `main` remains protected.
+- CI must be green before merge.
+- Required Status Check remains binding.
+- Human Review remains the fachliche project rule.
+- Scope must be clarified and kept narrow before changes are made.
+
+## Forbidden Changes
+
+Agents must not introduce, generate, configure, use, or weaken any of the
+following:
+
+- productive integrations
+- real Mandanten-, Beleg-, Steuer-, Kanzlei-, or metadata
+- derived confidential content in public LLMs
+- secrets, tokens, credentials, certificates, or private keys
+- tax advice
+- tax calculation logic
+- external services
+- automatic submission or transmission
+- Agenda integration
+- DATEV integration
+- ELSTER integration
+- banking integration
+- email integration
+- cloud integration
+- API integration
+- productive MCP servers or productive MCP configuration
+- autonomous tax decisions
+- direct write access to Agenda, DATEV, ELSTER, banking, email, cloud, API, or
+  client systems
+- productive data paths in development or test contexts
+- weakening of Compliance, Privacy, Security, AI Transparency, StBerG, Human
+  Review, Risk Classification, Offline MVP Operations, Testing/Quality, or
+  Release Governance policies
+
+The LLM must not receive direct access to databases, file systems, object
+storage, Agenda, DATEV, ELSTER, banking systems, email systems, cloud systems,
+audit logs, token maps, or secrets.
+
+## Risk Behavior
+
+- `RiskLevel A` may continue only as offline mock behavior.
+- `RiskLevel B`, `RiskLevel C`, and `RiskLevel D` must stop before automatic
+  continuation and require Human Review.
+- Human Review must never be bypassed, removed, or weakened.
+
+## MCP Boundaries
+
+MCP use for repository agent work is currently limited to documentation or
+read-only access to public or explicitly approved documentation sources.
+
+Productive MCP servers, MCPs with real or derived confidential content, MCPs
+with repository secrets, and MCP write tools for productive systems are not
+allowed. MCP must not bypass the Policy and Privacy Gateway. Details are
+documented in `docs/04-mcp/agent-mcp-boundaries.md`.
+
+## Required Workflow After Changes
+
+After changes, agents must inspect the working state:
 
 ```bash
 git status --short
@@ -52,36 +131,26 @@ git diff --stat
 git diff
 ```
 
-Bei neuen untracked Dateien müssen die betroffenen Dateien zusätzlich direkt gelesen werden, weil `git diff` untracked Inhalte nicht vollständig zeigt.
+For new untracked files, agents must also read the affected files directly
+because `git diff` does not fully show untracked content.
 
-## Verbotene Inhalte und Aktionen
+## Required Local Verification Before PR
 
-Agenten dürfen nicht einführen, erzeugen, konfigurieren oder verwenden:
+Before opening a pull request, agents must run:
 
-- echte Mandanten-, Beleg-, Steuer-, Kanzlei- oder Metadaten
-- abgeleitete vertrauliche Inhalte in Public-LLMs
-- Secrets, Tokens, Zugangsdaten, Zertifikate oder private Schlüssel
-- produktive Agenda-, ELSTER-, Cloud-, Storage-, Datenbank- oder Mandantensystem-Anbindungen
-- direkte Schreibzugriffe auf Agenda, ELSTER oder Mandantensysteme
-- produktive MCP-Server oder produktive MCP-Konfigurationen
-- autonome steuerliche Entscheidungen
-- individuelle Steuerberatung durch ein Modell
-- produktive Datenpfade in Entwicklungs- oder Testkontexten
+```bash
+ruff check .
+pytest -q
+python tools/policy_claim_check.py
+```
 
-Das LLM erhält keinen direkten Zugriff auf Datenbanken, Dateisysteme, Object Storage, Agenda, ELSTER, Audit-Logs, Token-Maps oder Secrets.
+## Required Final Output From Agents
 
-## MCP-Grenzen
+Agents must report:
 
-MCP darf für Agentenarbeit in diesem Repository zunächst nur dokumentativ oder read-only für öffentliche oder ausdrücklich freigegebene Dokumentationsquellen gedacht werden.
-
-Nicht erlaubt sind produktive MCP-Server, MCPs mit echten oder abgeleiteten vertraulichen Inhalten, MCPs mit Secrets im Repository und Schreibtools auf produktive Systeme. MCP darf das Policy- und Privacy-Gateway nicht umgehen. Details stehen in `docs/04-mcp/agent-mcp-boundaries.md`.
-
-## PR-Regeln
-
-- Kleine Branches verwenden.
-- Kleine, reviewbare Pull Requests erstellen.
-- Scope vor Änderungen klären und eng halten.
-- Keine alten PR-Inhalte duplizieren.
-- Keine produktiven Integrationen nebenbei aktivieren.
-- Kein Merge ohne Human Review.
-- Nach einem Merge `main` aktualisieren und `git status --short` prüfen.
+- branch name
+- commit hash
+- PR URL
+- changed files
+- verification results
+- explicit note that the pull request was not merged

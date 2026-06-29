@@ -1,10 +1,15 @@
 # GitHub Copilot Instructions
 
-Dieses Repository gehört zum **Steuerberater-Copilot** / **Steuer-Vorbereitungsassistent**.
+These are repository development instructions for GitHub Copilot and coding
+assistants only.
 
-**Zentrale Agentenregeln:** `AGENTS.md` — dort stehen Pflichtworkflows, verbotene Aktionen, PR-Regeln und Verweise auf MCP-Grenzen.
+They are not runtime instructions for the future steuerberater-copilot
+application or any tax advisory AI.
 
-Leitbild:
+Follow `AGENTS.md` as the central source for repository development agent
+behavior.
+
+Project principle:
 
 ```text
 KI bereitet vor.
@@ -12,12 +17,24 @@ Die Kanzlei prüft.
 Der Steuerberater entscheidet.
 ```
 
-Arbeite compliance-first: erst prüfen, dann ändern. Lies vorhandene Dateien und prüfe den Git-Zustand, bevor du Änderungen vorschlägst oder umsetzt.
+Required behavior:
 
-Harte Grenzen (Auszug — vollständig in `AGENTS.md`):
+- Do not push directly to `main`.
+- Do not merge pull requests.
+- Prepare only small, reviewable pull requests.
+- Do not add productive integrations.
+- Do not use real data.
+- Do not implement tax advice.
+- Do not implement tax calculation logic.
+- Do not add external services or APIs.
+- Do not add Agenda, DATEV, ELSTER, banking, email, cloud, or API integrations.
+- Do not weaken Human Review or existing policies.
+- Preserve offline-only and deterministic project boundaries.
 
-- keine echten Daten, Secrets oder produktiven Integrationen
-- keine produktiven MCP-Server; MCP-Grenzen siehe `docs/04-mcp/agent-mcp-boundaries.md`
-- keine autonomen steuerlichen Entscheidungen oder individuelle Steuerberatung durch KI
-- steuerlich relevante Ergebnisse bleiben Entwürfe und benötigen Human Review
-- keine alten PR-Inhalte duplizieren; kleine, reviewbare Pull Requests
+Required local checks before a pull request:
+
+```bash
+ruff check .
+pytest -q
+python tools/policy_claim_check.py
+```
