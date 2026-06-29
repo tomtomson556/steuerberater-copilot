@@ -51,6 +51,8 @@ def _workflow_to_json(output: WorkflowOutput) -> dict[str, Any]:
         and output.risk_classification.risk_level is RiskLevel.CLASS_A
         and output.review_gate.allows_offline_mock_continuation
     )
+    summary = list(output.draft_package.summary_points) if draft_available else []
+    questions = list(output.draft_package.question_drafts) if draft_available else []
 
     return {
         "case_id": output.intake.case_id,
@@ -67,6 +69,7 @@ def _workflow_to_json(output: WorkflowOutput) -> dict[str, Any]:
         },
         "review_gate": {
             "status": output.review_gate.status.value,
+            "decision": output.review_gate.status.value,
             "allows_offline_mock_continuation": (
                 output.review_gate.allows_offline_mock_continuation
             ),
@@ -76,10 +79,9 @@ def _workflow_to_json(output: WorkflowOutput) -> dict[str, Any]:
             "available": draft_available,
             "draft_only": True,
             "review_status": output.draft_package.review_status.value,
-            "summary_points": (
-                list(output.draft_package.summary_points) if draft_available else []
-            ),
-            "questions": list(output.draft_package.question_drafts) if draft_available else [],
+            "summary": summary,
+            "summary_points": summary,
+            "questions": questions,
             "handoff_notes": list(output.draft_package.handoff_notes),
             "disclaimers": list(output.draft_package.disclaimers),
         },
