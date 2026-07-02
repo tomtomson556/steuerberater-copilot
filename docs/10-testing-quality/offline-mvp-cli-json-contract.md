@@ -6,8 +6,7 @@ This document describes the currently stabilized CLI JSON output contract for
 the offline MVP.
 
 It applies to the local, deterministic, synthetic, draft-only offline MVP. It
-serves as a reference for tests, later API or UI decisions, and human review
-processes.
+serves as a reference for tests and human review processes.
 
 This is not a productive interface. It provides no tax advice, no tax
 calculation logic, and no external integration.
@@ -42,6 +41,12 @@ Each workflow JSON object contains these top-level fields:
 Tests should rely on these field names, not on pretty-printing or object key
 order.
 
+## Workflow Object Contract
+
+Each workflow JSON object currently contains exactly these nested objects and
+fields. Tests should treat the field names and value semantics as the contract,
+not the pretty-printing or object key order.
+
 ## Gateway Contract
 
 `gateway` contains:
@@ -49,6 +54,16 @@ order.
 - `decision`
 - `reasons`
 - `block_reasons`
+- `checks`
+
+The field types are:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `decision` | string | deterministic gateway result |
+| `reasons` | array of strings | escalation reasons |
+| `block_reasons` | array of strings | block reasons |
+| `checks` | array of strings | request- and response-side check labels |
 
 The current `decision` values are:
 
@@ -71,6 +86,15 @@ re-identification risk, or missing context.
 
 - `level`
 - `review_required`
+- `basis`
+
+The field types are:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `level` | string | internal RiskLevel marker |
+| `review_required` | boolean | whether Human Review is required before continuation |
+| `basis` | array of strings | deterministic routing basis from synthetic signals and gateway results |
 
 The current `level` values are `A`, `B`, `C`, and `D`.
 
@@ -86,6 +110,17 @@ Human Review and lead to `draft.available == false`.
 
 - `status`
 - `decision`
+- `allows_offline_mock_continuation`
+- `reason`
+
+The field types are:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `status` | string | deterministic Review Gate status |
+| `decision` | string | current alias of `status` |
+| `allows_offline_mock_continuation` | boolean | whether the offline mock may continue |
+| `reason` | string | human-readable gate reason |
 
 `review_gate.decision` is currently an alias of `review_gate.status`.
 
@@ -103,6 +138,22 @@ Human Review must not be bypassed, removed, or weakened.
 - `summary`
 - `summary_points`
 - `questions`
+- `review_status`
+- `handoff_notes`
+- `disclaimers`
+
+The field types are:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `available` | boolean | whether draft material is exposed in the CLI output |
+| `draft_only` | boolean | explicit draft-only marker |
+| `summary` | array of strings | visible summary points when a draft is available |
+| `summary_points` | array of strings | backward-compatible mirror of `summary` |
+| `questions` | array of strings | visible question drafts when a draft is available |
+| `review_status` | string | review status label for the draft package |
+| `handoff_notes` | array of strings | manual handoff and review notes |
+| `disclaimers` | array of strings | draft-only and review boundary notices |
 
 `draft.summary` is currently an alias of `draft.summary_points`.
 `summary_points` remains available for backward compatibility.
@@ -149,6 +200,3 @@ CLI-first/API-second interface decision.
 
 The CLI is the first supported entry point for the offline MVP. JSON output is
 the primary machine-readable interface in this phase.
-
-Later API or UI work should orient itself around the stabilized CLI JSON
-contract and may follow only after a separate decision or ADR.
