@@ -56,3 +56,16 @@ def test_allows_negative_context_for_project_boundary(tmp_path):
     path = write_markdown(tmp_path, "Dieses Projekt ist kein KI-Steuerberater.\n")
 
     assert policy_claim_check.check_file(path) == []
+
+
+def test_ignores_pytest_cache_markdown_files(tmp_path):
+    cache_dir = tmp_path / ".pytest_cache"
+    cache_dir.mkdir()
+    ignored_path = cache_dir / "README.md"
+    ignored_path.write_text("Das System ist DSGVO-konform.\n", encoding="utf-8")
+
+    files = policy_claim_check.markdown_files(tmp_path)
+    findings = policy_claim_check.check_paths(files)
+
+    assert ignored_path not in files
+    assert findings == []

@@ -64,7 +64,7 @@ class Finding:
 
 
 def markdown_files(root: Path) -> list[Path]:
-    ignored_parts = {".git", ".venv", "venv", "__pycache__"}
+    ignored_parts = {".git", ".pytest_cache", ".venv", "venv", "__pycache__"}
     files: list[Path] = []
     for path in root.rglob("*.md"):
         if any(part in ignored_parts for part in path.parts):
