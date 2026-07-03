@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  checks:
-    name: Ruff, tests, and policy claim check
+  policy-and-tests:
+    name: Policy claim check and tests
     runs-on: ubuntu-latest
 
     steps:
