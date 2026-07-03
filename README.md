@@ -61,6 +61,7 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [MVP Scope and Roadmap](docs/10-mvp-scope/mvp-scope-and-roadmap.md)
 - [Offline MVP Operations Guide](docs/09-operations/offline-mvp-operations.md)
 - [Offline MVP CLI JSON Contract](docs/10-testing-quality/offline-mvp-cli-json-contract.md)
+- [GoBD-Oriented Storage Baseline](docs/08-gobd-storage/gobd-storage-baseline.md)
 
 ## Lokale Entwickler-Validierung
 

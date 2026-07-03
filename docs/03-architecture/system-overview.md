@@ -12,6 +12,10 @@ The interface baseline remains CLI-first/API-second as documented in
 [ADR 002](../15-decisions/adr/adr-002-cli-first-api-second.md). The current
 implemented interface is the local CLI and its stable JSON output.
 
+Future GoBD-oriented storage considerations are documented as a baseline in
+[gobd-storage-baseline.md](../08-gobd-storage/gobd-storage-baseline.md). The
+current offline MVP does not implement productive document storage.
+
 ## Current Flow
 
 ```text
