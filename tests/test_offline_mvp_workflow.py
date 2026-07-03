@@ -58,7 +58,12 @@ def test_mock_workflow_keeps_outputs_as_review_drafts():
     assert output.draft_package.review_required is True
     assert output.draft_package.risk_classification == output.risk_classification
     assert "Human Review Gate" in output.draft_package.title
-    assert output.draft_package.question_drafts == ()
+    assert output.draft_package.question_drafts == (
+        "Bitte im Human Review intern klaeren: "
+        "Quellenbezug fuer Beispiel-Dokument DOCUMENT_001.",
+        "Bitte im Human Review intern klaeren: "
+        "Zeitraumabgrenzung fuer synthetische Zahlungsuebersicht.",
+    )
     assert any("Human Review" in point for point in output.draft_package.summary_points)
     assert any("Klasse C" in point for point in output.draft_package.summary_points)
 
@@ -165,7 +170,10 @@ def test_review_gate_stops_b_c_and_d_without_substantive_output():
         assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
         assert output.review_gate.allows_offline_mock_continuation is False
         assert output.draft_package.review_required is True
-        assert output.draft_package.question_drafts == ()
+        if output.intake.missing_items:
+            assert output.draft_package.question_drafts
+        else:
+            assert output.draft_package.question_drafts == ()
         assert all("Szenario:" not in point for point in output.draft_package.summary_points)
         assert all(
             "Synthetische Dokumenthinweise:" not in point

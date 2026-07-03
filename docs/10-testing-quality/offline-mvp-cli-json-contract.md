@@ -146,17 +146,26 @@ The field types are:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `available` | boolean | whether draft material is exposed in the CLI output |
+| `available` | boolean | whether a complete draft is exposed in the CLI output |
 | `draft_only` | boolean | explicit draft-only marker |
 | `summary` | array of strings | visible summary points when a draft is available |
 | `summary_points` | array of strings | backward-compatible mirror of `summary` |
-| `questions` | array of strings | visible question drafts when a draft is available |
+| `questions` | array of strings | internal, review-bound question drafts derived from synthetic missing items |
 | `review_status` | string | review status label for the draft package |
 | `handoff_notes` | array of strings | manual handoff and review notes |
 | `disclaimers` | array of strings | draft-only and review boundary notices |
 
 `draft.summary` is currently an alias of `draft.summary_points`.
 `summary_points` remains available for backward compatibility.
+
+`draft.available == false` means no complete, substantively usable draft is
+available. `draft.questions` may still contain internal, review-bound question
+drafts when synthetic missing items can be surfaced for Kanzlei review.
+
+Visible `draft.questions` do not allow offline mock continuation. They are not
+client communication, not tax advice, not a productive handoff, and not an
+approval to continue automatically. Human Review remains mandatory whenever the
+Review Gate requires it.
 
 `draft_only` remains explicitly visible in the JSON output.
 
@@ -169,14 +178,16 @@ The current fixture semantics are:
 
 | Case | Gateway | RiskLevel | Draft available | Questions |
 | --- | --- | --- | --- | --- |
-| `CASE_001` | `escalate` | `C` | `false` | `[]` |
+| `CASE_001` | `escalate` | `C` | `false` | review-bound internal question drafts |
 | `CASE_002` | `allow_draft` | `A` | `true` | `[]` |
 | `CASE_003` | `allow_draft` | `B` | `false` | `[]` |
 | `CASE_004` | `allow_draft` | `D` | `false` | `[]` |
 
 `CASE_002` is the only positive draft case.
 
-`CASE_001` is explicitly not a positive draft case.
+`CASE_001` is explicitly not a positive draft case. Its visible questions are
+only internal, review-bound preparation from synthetic missing items and do not
+change the Review Gate result.
 
 ## Non-Goals
 

@@ -111,11 +111,26 @@ def test_cli_escalated_case_has_no_available_draft():
     _assert_cli_json_contract(payload)
     assert payload["gateway"]["decision"] == "escalate"
     assert payload["risk"]["level"] == "C"
+    assert payload["review_gate"]["status"] == "requires_human_review"
     assert payload["review_gate"]["allows_offline_mock_continuation"] is False
     assert payload["draft"]["available"] is False
     assert payload["draft"]["summary"] == []
     assert payload["draft"]["summary_points"] == []
-    assert payload["draft"]["questions"] == []
+    assert payload["draft"]["questions"] == [
+        "Bitte im Human Review intern klaeren: "
+        "Quellenbezug fuer Beispiel-Dokument DOCUMENT_001.",
+        "Bitte im Human Review intern klaeren: "
+        "Zeitraumabgrenzung fuer synthetische Zahlungsuebersicht.",
+    ]
+    assert all(isinstance(question, str) for question in payload["draft"]["questions"])
+    assert any(
+        "Quellenbezug fuer Beispiel-Dokument DOCUMENT_001" in question
+        for question in payload["draft"]["questions"]
+    )
+    assert any(
+        "Zeitraumabgrenzung fuer synthetische Zahlungsuebersicht" in question
+        for question in payload["draft"]["questions"]
+    )
 
 
 def test_cli_fixture_cases_keep_expected_gateway_risk_and_draft_semantics():
@@ -133,9 +148,14 @@ def test_cli_fixture_cases_keep_expected_gateway_risk_and_draft_semantics():
         assert item["review_gate"]["status"] == expected["review_gate_status"]
 
     assert by_case_id["CASE_002"]["draft"]["questions"] == []
+    assert by_case_id["CASE_001"]["draft"]["questions"]
+    assert by_case_id["CASE_001"]["review_gate"][
+        "allows_offline_mock_continuation"
+    ] is False
+    for case_id in ("CASE_003", "CASE_004"):
+        assert by_case_id[case_id]["draft"]["questions"] == []
     for case_id in ("CASE_001", "CASE_003", "CASE_004"):
         assert by_case_id[case_id]["draft"]["available"] is False
-        assert by_case_id[case_id]["draft"]["questions"] == []
         assert by_case_id[case_id]["draft"]["summary"] == []
         assert by_case_id[case_id]["draft"]["summary_points"] == []
 
