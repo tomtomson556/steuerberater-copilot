@@ -65,3 +65,26 @@ python -m steuerberater_copilot.offline_mvp --list-cases
 ```
 
 The CLI is local-only and reads only the repository's synthetic fixture cases.
+
+The stabilized CLI JSON output contract is documented in
+[offline-mvp-cli-json-contract.md](../10-testing-quality/offline-mvp-cli-json-contract.md).
+
+### Draft and question semantics
+
+The CLI JSON object includes a `draft` section. Operators and developers should
+interpret it as follows:
+
+- `draft.available == false` means no complete, substantively usable draft is
+  exposed. It does not mean the `draft` object is empty.
+- `draft.questions` may contain internal, review-bound question drafts derived
+  from synthetic missing items, even when `draft.available` remains `false`.
+- Visible `draft.questions` are preparation for Kanzlei review only. They are not
+  client communication, not tax advice, not a productive handoff, and not
+  permission to continue automatically.
+- `review_gate.allows_offline_mock_continuation` and `draft.available` remain
+  the binding continuation signals. Visible questions do not weaken or bypass
+  Human Review.
+
+For example, `CASE_001` may surface review-bound `draft.questions` while
+`draft.available` stays `false` and `review_gate.allows_offline_mock_continuation`
+stays `false`. The Kanzlei reviews; the Steuerberater decides.
