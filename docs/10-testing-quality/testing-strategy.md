@@ -46,6 +46,10 @@ The automated tests currently cover:
 - `review_required` behavior for internal risk classifications
 - Human Review Gate stop behavior for B, C, and D
 - draft-only workflow output boundaries
+- review-bound question drafts in CLI JSON output, including visibility when
+  `draft.available` is `false`
+- `CASE_001` securing visible review-bound `draft.questions` while the Review
+  Gate and `draft.available` remain restrictive
 - offline MVP CLI JSON contract boundaries
 - policy claim checker behavior for allowed and blocked Markdown wording
 
