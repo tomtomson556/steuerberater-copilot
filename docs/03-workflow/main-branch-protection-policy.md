@@ -21,9 +21,9 @@ bleiben Entwürfe und Human Review bleibt verpflichtend.
 
 ## GitHub-Regel
 
-Sobald die GitHub Actions CI nach dem ersten Pull Request verfügbar ist, soll
-`main` zusätzlich in GitHub über Branch Protection oder ein Ruleset geschützt
-werden.
+GitHub Actions CI ist im Repository verfügbar und führt die lokalen
+Basis-Checks für Pull Requests sowie Pushes auf `main` aus. `main` soll
+zusätzlich in GitHub über Branch Protection oder ein Ruleset geschützt werden.
 
 Empfohlene GitHub-Regel:
 
