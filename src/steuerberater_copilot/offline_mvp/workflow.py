@@ -169,10 +169,13 @@ def build_draft_package(
                     "nur Routing- und Review-Grundlage."
                 ),
             ),
-            question_drafts=(),
+            question_drafts=tuple(
+                f"Bitte im Human Review intern klaeren: {item}."
+                for item in case.missing_items
+            ),
             handoff_notes=(
-                "Keine automatische Rueckfragenliste oder fachliche Inhaltsausgabe "
-                "vor Human Review.",
+                "Keine automatische Rueckfragenkommunikation oder fachliche "
+                "Inhaltsausgabe vor Human Review.",
                 "keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
             ),
         )

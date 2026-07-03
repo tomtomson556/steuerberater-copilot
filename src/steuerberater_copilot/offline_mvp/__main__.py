@@ -52,7 +52,7 @@ def _workflow_to_json(output: WorkflowOutput) -> dict[str, Any]:
         and output.review_gate.allows_offline_mock_continuation
     )
     summary = list(output.draft_package.summary_points) if draft_available else []
-    questions = list(output.draft_package.question_drafts) if draft_available else []
+    questions = list(output.draft_package.question_drafts)
 
     return {
         "case_id": output.intake.case_id,
