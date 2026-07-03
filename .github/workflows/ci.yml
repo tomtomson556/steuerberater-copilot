@@ -1,14 +1,17 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  policy-and-tests:
-    name: Policy claim check and tests
+  checks:
+    name: Ruff, tests, and policy claim check
     runs-on: ubuntu-latest
 
     steps:
@@ -25,11 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run policy claim check
-        run: python tools/policy_claim_check.py
-
       - name: Run Ruff
         run: ruff check .
 
       - name: Run tests
         run: pytest -q
+
+      - name: Run policy claim check
+        run: python tools/policy_claim_check.py
