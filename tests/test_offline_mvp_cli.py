@@ -25,7 +25,7 @@ EXPECTED_DRAFT_KEYS = {
     "handoff_notes",
     "disclaimers",
 }
-EXPECTED_CASE_IDS = {"CASE_001", "CASE_002", "CASE_003", "CASE_004"}
+EXPECTED_CASE_IDS = {"CASE_001", "CASE_002", "CASE_003", "CASE_004", "CASE_005"}
 EXPECTED_CASE_SEMANTICS = {
     "CASE_001": {
         "gateway_decision": "escalate",
@@ -55,6 +55,13 @@ EXPECTED_CASE_SEMANTICS = {
         "review_status": "Escalated",
         "review_gate_status": "requires_human_review",
     },
+    "CASE_005": {
+        "gateway_decision": "block",
+        "risk_level": "D",
+        "draft_available": False,
+        "review_status": "Escalated",
+        "review_gate_status": "requires_human_review",
+    },
 }
 GATEWAY_DECISIONS = {"allow_draft", "block", "escalate"}
 RISK_LEVELS = {"A", "B", "C", "D"}
@@ -63,6 +70,12 @@ REVIEW_GATE_STATUSES = {
     "requires_human_review",
 }
 REVIEW_STATUSES = {"Draft", "In review", "Rejected", "Escalated"}
+AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS = {
+    "approved",
+    "final",
+    "freigegeben",
+    "rejected",
+}
 
 
 def test_cli_case_outputs_valid_json_object():
@@ -133,6 +146,26 @@ def test_cli_escalated_case_has_no_available_draft():
     )
 
 
+def test_cli_block_case_stays_review_bound_without_available_draft():
+    result = _run_cli("--case", "CASE_005")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_cli_json_contract(payload)
+    assert payload["case_id"] == "CASE_005"
+    assert payload["gateway"]["decision"] == "block"
+    assert payload["gateway"]["reasons"] == []
+    assert payload["gateway"]["block_reasons"] == ["forbidden_data_class:original_pii"]
+    assert payload["risk"]["level"] == "D"
+    assert payload["review_gate"]["status"] == "requires_human_review"
+    assert payload["review_gate"]["allows_offline_mock_continuation"] is False
+    assert payload["draft"]["available"] is False
+    assert payload["draft"]["summary"] == []
+    assert payload["draft"]["summary_points"] == []
+    assert payload["draft"]["questions"] == []
+
+
 def test_cli_fixture_cases_keep_expected_gateway_risk_and_draft_semantics():
     result = _run_cli("--all")
 
@@ -152,9 +185,9 @@ def test_cli_fixture_cases_keep_expected_gateway_risk_and_draft_semantics():
     assert by_case_id["CASE_001"]["review_gate"][
         "allows_offline_mock_continuation"
     ] is False
-    for case_id in ("CASE_003", "CASE_004"):
+    for case_id in ("CASE_003", "CASE_004", "CASE_005"):
         assert by_case_id[case_id]["draft"]["questions"] == []
-    for case_id in ("CASE_001", "CASE_003", "CASE_004"):
+    for case_id in ("CASE_001", "CASE_003", "CASE_004", "CASE_005"):
         assert by_case_id[case_id]["draft"]["available"] is False
         assert by_case_id[case_id]["draft"]["summary"] == []
         assert by_case_id[case_id]["draft"]["summary_points"] == []
@@ -184,7 +217,25 @@ def test_cli_list_cases_outputs_case_ids():
 
     assert result.returncode == 0
     assert result.stderr == ""
-    assert json.loads(result.stdout) == ["CASE_001", "CASE_002", "CASE_003", "CASE_004"]
+    assert json.loads(result.stdout) == [
+        "CASE_001",
+        "CASE_002",
+        "CASE_003",
+        "CASE_004",
+        "CASE_005",
+    ]
+
+
+def test_cli_workflow_does_not_auto_emit_final_or_human_review_decisions():
+    result = _run_cli("--all")
+
+    payload = json.loads(result.stdout)
+    for item in payload:
+        review_status = item["draft"]["review_status"].lower()
+        assert not any(
+            marker in review_status
+            for marker in AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS
+        )
 
 
 def test_cli_review_handoff_writes_markdown_without_changing_stdout_json(tmp_path):
