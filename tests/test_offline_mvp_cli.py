@@ -187,6 +187,36 @@ def test_cli_list_cases_outputs_case_ids():
     assert json.loads(result.stdout) == ["CASE_001", "CASE_002", "CASE_003", "CASE_004"]
 
 
+def test_cli_review_handoff_writes_markdown_without_changing_stdout_json(tmp_path):
+    handoff_path = tmp_path / "nested" / "review-handoff.md"
+
+    result_with_handoff = _run_cli(
+        "--case",
+        "CASE_001",
+        "--review-handoff",
+        str(handoff_path),
+    )
+    result_without_handoff = _run_cli("--case", "CASE_001")
+
+    assert result_with_handoff.returncode == 0
+    assert result_with_handoff.stderr == ""
+    assert json.loads(result_with_handoff.stdout) == json.loads(result_without_handoff.stdout)
+    _assert_cli_json_contract(json.loads(result_with_handoff.stdout))
+    assert handoff_path.exists()
+    handoff = handoff_path.read_text(encoding="utf-8")
+    assert handoff.startswith("# Review Handoff\n")
+    assert "- Case ID: `CASE_001`" in handoff
+    assert "Draft-/Review-Artefakt" in handoff
+
+
+def test_cli_list_cases_rejects_review_handoff_without_workflow_result(tmp_path):
+    result = _run_cli("--list-cases", "--review-handoff", str(tmp_path / "handoff.md"))
+
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert "--review-handoff requires --case or --all." in result.stderr
+
+
 def _assert_cli_json_contract(payload: dict[str, object]) -> None:
     assert set(payload) == EXPECTED_TOP_LEVEL_KEYS
     assert isinstance(payload["case_id"], str)

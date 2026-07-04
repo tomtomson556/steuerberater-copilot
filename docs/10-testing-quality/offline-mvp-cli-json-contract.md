@@ -28,6 +28,10 @@ python -m steuerberater_copilot.offline_mvp --list-cases
 synthetic fixture cases. `--list-cases` returns the available synthetic case
 IDs.
 
+The optional `--review-handoff path/to/review-handoff.md` argument may write a
+local Markdown review handoff in addition to stdout JSON for `--case` or
+`--all`. It does not add, remove, rename, or reinterpret any JSON fields.
+
 ## Top-Level Contract
 
 Each workflow JSON object contains these top-level fields:
