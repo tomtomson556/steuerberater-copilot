@@ -88,6 +88,8 @@ steuerberater-copilot-offline-mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
 python -m steuerberater_copilot.offline_mvp --review-worklist
+python -m steuerberater_copilot.offline_mvp --review-worklist --review-min-risk C --review-limit 2
+steuerberater-copilot-offline-mvp --review-worklist --review-open-questions-only
 python -m steuerberater_copilot.offline_mvp --review-summary
 ```
 
@@ -95,6 +97,8 @@ Der Console Script Entry Point `steuerberater-copilot-offline-mvp` ruft dieselbe
 Offline-MVP-CLI auf wie `python -m steuerberater_copilot.offline_mvp`.
 `steuerberater-copilot-offline-mvp --version` gibt eine kurze lokale
 CLI-Versionszeile aus und ist kein JSON-Contract.
+Optionale `--review-worklist`-Filter schneiden nur die lokale JSON-Ausgabe zu;
+sie aendern keine Workflow-, Gateway-, Risk-, Review-Gate- oder Draft-Logik.
 
 Der editable install kann Python-Paketmetadaten wie `*.egg-info/` erzeugen. Diese
 lokalen Artefakte werden durch `.gitignore` ignoriert.

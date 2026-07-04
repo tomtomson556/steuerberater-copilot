@@ -12,12 +12,13 @@ from typing import Any
 
 from .review_handoff import render_review_handoff
 from .review_summary import build_review_summary
-from .review_worklist import build_review_worklist
+from .review_worklist import build_review_worklist, filter_review_worklist
 from .serialization import workflow_to_json
 from .workflow import build_mock_workflow, load_fixture_cases
 
 CLI_NAME = "steuerberater-copilot-offline-mvp"
 PACKAGE_NAME = "steuerberater-copilot"
+REVIEW_FILTER_ERROR = "review worklist filters require --review-worklist."
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -52,7 +53,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
         help="Write an optional local Markdown review handoff to this path.",
     )
+    parser.add_argument(
+        "--review-limit",
+        type=_positive_int,
+        help="Limit local review worklist output to the first N entries.",
+    )
+    parser.add_argument(
+        "--review-min-risk",
+        choices=("A", "B", "C", "D"),
+        help="Filter local review worklist output by minimum RiskLevel.",
+    )
+    parser.add_argument(
+        "--review-gateway",
+        choices=("allow_draft", "escalate", "block"),
+        help="Filter local review worklist output by gateway decision.",
+    )
+    parser.add_argument(
+        "--review-open-questions-only",
+        action="store_true",
+        help="Filter local review worklist output to cases with open questions.",
+    )
     args = parser.parse_args(argv)
+
+    if _has_review_worklist_filters(args) and not args.review_worklist:
+        print(REVIEW_FILTER_ERROR, file=sys.stderr)
+        return 2
 
     if args.version:
         if args.review_handoff is not None:
@@ -76,7 +101,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("--review-handoff requires --case or --all.", file=sys.stderr)
             return 2
         outputs = [build_mock_workflow(case) for case in cases]
-        _write_json(build_review_worklist(outputs))
+        worklist = build_review_worklist(outputs)
+        _write_json(
+            filter_review_worklist(
+                worklist,
+                limit=args.review_limit,
+                min_risk=args.review_min_risk,
+                gateway_decision=args.review_gateway,
+                open_questions_only=args.review_open_questions_only,
+            )
+        )
         return 0
 
     if args.review_summary:
@@ -110,6 +144,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _write_json(payload: Any) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def _has_review_worklist_filters(args: argparse.Namespace) -> bool:
+    return (
+        args.review_limit is not None
+        or args.review_min_risk is not None
+        or args.review_gateway is not None
+        or args.review_open_questions_only
+    )
 
 
 def _package_version() -> str:

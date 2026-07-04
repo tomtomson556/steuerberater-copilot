@@ -40,6 +40,13 @@ IDs.
 It aggregates existing workflow results from all synthetic fixture cases and
 does not change the `--case` or `--all` workflow object contract.
 
+The unfiltered `--review-worklist` output remains the stable worklist contract.
+Optional worklist filters such as `--review-limit`, `--review-min-risk`,
+`--review-gateway`, and `--review-open-questions-only` only change the subset of
+entries emitted to stdout. Each emitted item keeps the same structure; no JSON
+fields are added, removed, renamed, or reinterpreted, and no priority logic is
+changed.
+
 `--review-summary` returns a compact JSON object for local review preparation.
 It aggregates existing workflow and review worklist results from all synthetic
 fixture cases. It does not change the workflow object contract or the review

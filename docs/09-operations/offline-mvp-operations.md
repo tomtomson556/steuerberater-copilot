@@ -87,6 +87,19 @@ including the gateway decision, RiskLevel, Review Gate status, draft
 availability, and open review-bound questions. It does not create a workspace,
 persist a queue, write files, or make a human review decision.
 
+Optional local presentation filters can limit the emitted worklist entries:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --review-worklist --review-limit 3
+python -m steuerberater_copilot.offline_mvp --review-worklist --review-min-risk C
+python -m steuerberater_copilot.offline_mvp --review-worklist --review-gateway block
+python -m steuerberater_copilot.offline_mvp --review-worklist --review-open-questions-only
+```
+
+These filters only select a subset of the already built local worklist. They do
+not add a fachliche decision, change review priority, weaken Human Review,
+persist data, create a dashboard, create a reporting system, or add storage.
+
 `--review-summary` emits a local stdout-only JSON summary for all synthetic
 fixture cases. It aggregates existing workflow and review worklist results into
 counts and the highest-priority review cases. It does not create a workspace,

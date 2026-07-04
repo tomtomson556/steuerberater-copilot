@@ -305,6 +305,88 @@ def test_cli_review_worklist_outputs_valid_json_list():
         _assert_review_worklist_contract(item)
 
 
+def test_cli_review_worklist_limit_outputs_existing_first_entries():
+    result = _run_cli("--review-worklist", "--review-limit", "3")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_worklist_min_risk_outputs_existing_matching_entries():
+    result = _run_cli("--review-worklist", "--review-min-risk", "D")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == ["CASE_005", "CASE_004"]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_worklist_gateway_outputs_existing_matching_entries():
+    result = _run_cli("--review-worklist", "--review-gateway", "block")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == ["CASE_005"]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_worklist_open_questions_only_outputs_existing_matching_entries():
+    result = _run_cli("--review-worklist", "--review-open-questions-only")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == ["CASE_001"]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_worklist_combines_filters_in_existing_order():
+    result = _run_cli("--review-worklist", "--review-min-risk", "C", "--review-limit", "2")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == ["CASE_005", "CASE_004"]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_limit_zero_is_rejected():
+    result = _run_cli("--review-worklist", "--review-limit", "0")
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+
+
+def test_cli_review_filters_require_review_worklist():
+    invalid_commands = [
+        ("--review-summary", "--review-limit", "3"),
+        ("--all", "--review-min-risk", "C"),
+        ("--case", "CASE_001", "--review-gateway", "block"),
+        ("--list-cases", "--review-open-questions-only"),
+    ]
+
+    for args in invalid_commands:
+        result = _run_cli(*args)
+
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert "review worklist filters require --review-worklist." in result.stderr
+
+
 def test_cli_review_worklist_keeps_block_case_first_and_review_bound():
     result = _run_cli("--review-worklist")
 
