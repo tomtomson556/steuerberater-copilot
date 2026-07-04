@@ -43,8 +43,12 @@ The automated tests currently cover:
 
 - loading synthetic offline fixtures
 - deterministic `RiskLevel` A, B, C, and D behavior
+- the synthetic `CASE_005` `gateway=block`/RiskLevel-D path end to end through
+  fixture loading, workflow, CLI, and JSON output
 - `review_required` behavior for internal risk classifications
 - Human Review Gate stop behavior for B, C, and D
+- regression boundaries that prevent the deterministic workflow from
+  automatically emitting final or human review decision statuses
 - draft-only workflow output boundaries
 - review-bound question drafts in CLI JSON output, including visibility when
   `draft.available` is `false`

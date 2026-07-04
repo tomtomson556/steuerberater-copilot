@@ -93,5 +93,26 @@
     "mock_risk_signals": [
       "synthetic_stop_review_marker"
     ]
+  },
+  {
+    "case_id": "CASE_005",
+    "client_ref": "CLIENT_005",
+    "scenario": "synthetischer Privacy-Gateway-Block fuer interne Contract-Tests",
+    "period": "2026-Q4",
+    "documents": [
+      {
+        "document_id": "DOCUMENT_006",
+        "label": "synthetischer Block-Marker",
+        "period": "2026-Q4",
+        "source_note": "Abstraktes Fixture fuer Gateway-Block ohne echte Daten oder Originalinhalte"
+      }
+    ],
+    "notes": [
+      "Block-Marker bleibt kuenstliche Teststeuerung fuer den Offline-MVP."
+    ],
+    "missing_items": [],
+    "mock_risk_signals": [
+      "forbidden_original_pii"
+    ]
   }
 ]

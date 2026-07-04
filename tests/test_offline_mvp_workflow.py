@@ -18,16 +18,24 @@ from steuerberater_copilot.offline_mvp.workflow import (
 )
 
 FIXTURE_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "offline_mvp" / "cases.json"
+AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS = {
+    "approved",
+    "final",
+    "freigegeben",
+    "rejected",
+}
 
 
 def test_fixture_cases_load_as_synthetic_intake_models():
     cases = load_fixture_cases(FIXTURE_PATH)
 
-    assert len(cases) == 4
+    assert len(cases) == 5
     assert cases[0].case_id == "CASE_001"
     assert cases[0].client_ref == "CLIENT_001"
     assert cases[0].documents[0].document_id == "DOCUMENT_001"
     assert cases[0].mock_risk_signals == ("document_preparation", "high_uncertainty")
+    assert cases[-1].case_id == "CASE_005"
+    assert cases[-1].mock_risk_signals == ("forbidden_original_pii",)
 
 
 def test_risk_classification_model_uses_internal_policy_classes():
@@ -109,6 +117,8 @@ def test_deterministic_risk_classification_covers_fixture_levels():
     assert classifications["CASE_001"].review_required is True
     assert classifications["CASE_004"].risk_level == RiskLevel.CLASS_D
     assert classifications["CASE_004"].review_required is True
+    assert classifications["CASE_005"].risk_level == RiskLevel.CLASS_D
+    assert classifications["CASE_005"].review_required is True
 
 
 def test_human_review_gate_covers_risk_levels_a_to_d():
@@ -202,6 +212,36 @@ def test_stop_marker_keeps_human_review_visible_without_productive_action():
     assert output.draft_package.review_required is True
     assert "keine Agenda-, DATEV- oder ELSTER-Uebertragung" in combined_text
     assert "Human Review" in combined_text
+
+
+def test_fixture_block_case_runs_end_to_end_without_available_draft():
+    cases = {case.case_id: case for case in load_fixture_cases(FIXTURE_PATH)}
+
+    output = build_mock_workflow(cases["CASE_005"])
+
+    assert output.gateway.decision == GatewayDecision.BLOCK
+    assert output.gateway.block_reasons == ("forbidden_data_class:original_pii",)
+    assert output.risk_classification.risk_level == RiskLevel.CLASS_D
+    assert output.risk_classification.review_required is True
+    assert output.review_gate.status == ReviewGateStatus.REQUIRES_HUMAN_REVIEW
+    assert output.review_gate.allows_offline_mock_continuation is False
+    assert output.draft_package.review_required is True
+    assert output.draft_package.review_status == ReviewStatus.ESCALATED
+    assert output.draft_package.question_drafts == ()
+    assert all("Szenario:" not in point for point in output.draft_package.summary_points)
+    assert any("gestoppt" in point for point in output.draft_package.summary_points)
+
+
+def test_workflow_never_auto_emits_final_or_human_review_decisions():
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases(FIXTURE_PATH)]
+
+    for output in outputs:
+        review_status = output.draft_package.review_status
+        assert review_status is not ReviewStatus.REJECTED
+        assert not any(
+            marker in review_status.value.lower()
+            for marker in AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS
+        )
 
 
 def test_gateway_escalates_non_synthetic_references():

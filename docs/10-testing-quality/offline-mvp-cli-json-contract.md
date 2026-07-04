@@ -20,11 +20,12 @@ python -m steuerberater_copilot.offline_mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --case CASE_002
 python -m steuerberater_copilot.offline_mvp --case CASE_003
 python -m steuerberater_copilot.offline_mvp --case CASE_004
+python -m steuerberater_copilot.offline_mvp --case CASE_005
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
 ```
 
-`--case` returns one JSON object. `--all` returns a JSON array with all four
+`--case` returns one JSON object. `--all` returns a JSON array with all five
 synthetic fixture cases. `--list-cases` returns the available synthetic case
 IDs.
 
@@ -186,12 +187,17 @@ The current fixture semantics are:
 | `CASE_002` | `allow_draft` | `A` | `true` | `[]` |
 | `CASE_003` | `allow_draft` | `B` | `false` | `[]` |
 | `CASE_004` | `allow_draft` | `D` | `false` | `[]` |
+| `CASE_005` | `block` | `D` | `false` | `[]` |
 
 `CASE_002` is the only positive draft case.
 
 `CASE_001` is explicitly not a positive draft case. Its visible questions are
 only internal, review-bound preparation from synthetic missing items and do not
 change the Review Gate result.
+
+`CASE_005` is a synthetic Privacy Gateway block case. It exists only to secure
+the end-to-end `block`/RiskLevel-D path through fixture loading, workflow,
+CLI, and JSON output.
 
 ## Non-Goals
 
