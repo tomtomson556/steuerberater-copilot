@@ -17,6 +17,7 @@ The supported local CLI entry points are:
 
 ```bash
 python -m steuerberater_copilot.offline_mvp --case CASE_001
+steuerberater-copilot-offline-mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --case CASE_002
 python -m steuerberater_copilot.offline_mvp --case CASE_003
 python -m steuerberater_copilot.offline_mvp --case CASE_004
@@ -26,6 +27,10 @@ python -m steuerberater_copilot.offline_mvp --list-cases
 python -m steuerberater_copilot.offline_mvp --review-worklist
 python -m steuerberater_copilot.offline_mvp --review-summary
 ```
+
+The console script `steuerberater-copilot-offline-mvp` uses the same JSON
+contracts as `python -m steuerberater_copilot.offline_mvp` for JSON-emitting
+modes. This PR adds no JSON fields.
 
 `--case` returns one JSON object. `--all` returns a JSON array with all five
 synthetic fixture cases. `--list-cases` returns the available synthetic case
@@ -43,6 +48,9 @@ worklist contract.
 The optional `--review-handoff path/to/review-handoff.md` argument may write a
 local Markdown review handoff in addition to stdout JSON for `--case` or
 `--all`. It does not add, remove, rename, or reinterpret any JSON fields.
+
+`--version` is a local CLI information mode. It prints a short text line and is
+not a JSON contract.
 
 ## Top-Level Contract
 

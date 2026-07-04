@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,6 +104,38 @@ AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS = {
     "freigegeben",
     "rejected",
 }
+
+
+def test_pyproject_declares_offline_mvp_console_script():
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["scripts"]["steuerberater-copilot-offline-mvp"] == (
+        "steuerberater_copilot.offline_mvp.__main__:main"
+    )
+
+
+def test_cli_version_outputs_text_without_loading_workflow_json():
+    result = _run_cli("--version")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.startswith("steuerberater-copilot-offline-mvp ")
+    assert result.stdout.endswith("\n")
+    assert not result.stdout.lstrip().startswith(("{", "["))
+    assert "CASE_001" not in result.stdout
+    assert "gateway" not in result.stdout
+    assert "review_gate" not in result.stdout
+
+
+def test_cli_version_rejects_review_handoff_without_writing_file(tmp_path):
+    handoff_path = tmp_path / "version.md"
+
+    result = _run_cli("--version", "--review-handoff", str(handoff_path))
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "--review-handoff requires --case or --all." in result.stderr
+    assert not handoff_path.exists()
 
 
 def test_cli_case_outputs_valid_json_object():
