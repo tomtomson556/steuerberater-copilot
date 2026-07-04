@@ -69,6 +69,18 @@ The CLI is local-only and reads only the repository's synthetic fixture cases.
 The stabilized CLI JSON output contract is documented in
 [offline-mvp-cli-json-contract.md](../10-testing-quality/offline-mvp-cli-json-contract.md).
 
+An optional local Markdown review handoff can be written in addition to the
+unchanged stdout JSON output:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --case CASE_001 --review-handoff .tmp/review-handoff.md
+```
+
+The review handoff is a local Draft-/Review artifact for human inspection. It
+is not a final document, retained record, productive storage artifact, or
+productive export package. The option does not change the CLI JSON contract and
+does not create a default workspace.
+
 ### Draft and question semantics
 
 The CLI JSON object includes a `draft` section. Operators and developers should
