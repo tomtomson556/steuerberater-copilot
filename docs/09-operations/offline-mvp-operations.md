@@ -62,12 +62,19 @@ for synthetic fixtures:
 python -m steuerberater_copilot.offline_mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
+python -m steuerberater_copilot.offline_mvp --review-worklist
 ```
 
 The CLI is local-only and reads only the repository's synthetic fixture cases.
 
 The stabilized CLI JSON output contract is documented in
 [offline-mvp-cli-json-contract.md](../10-testing-quality/offline-mvp-cli-json-contract.md).
+
+`--review-worklist` emits a local JSON review worklist for all synthetic fixture
+cases. It summarizes existing workflow results by review relevance and risk,
+including the gateway decision, RiskLevel, Review Gate status, draft
+availability, and open review-bound questions. It does not create a workspace,
+persist a queue, write files, or make a human review decision.
 
 An optional local Markdown review handoff can be written in addition to the
 unchanged stdout JSON output:
