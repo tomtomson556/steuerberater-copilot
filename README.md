@@ -62,6 +62,7 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [Offline MVP Operations Guide](docs/09-operations/offline-mvp-operations.md)
 - [Offline MVP CLI JSON Contract](docs/10-testing-quality/offline-mvp-cli-json-contract.md)
 - [GoBD-Oriented Storage Baseline](docs/08-gobd-storage/gobd-storage-baseline.md)
+- [Review-to-Final Artifact Boundary](docs/08-gobd-storage/review-to-final-artifact-boundary.md)
 
 ## Lokale Entwickler-Validierung
 

@@ -34,6 +34,9 @@ validation of deterministic workflow behavior and the CLI contract. They are
 not a productive record archive and are not designed as retained business
 records.
 
+The current review-to-final artifact boundary is described in
+[review-to-final-artifact-boundary.md](review-to-final-artifact-boundary.md).
+
 ## Target Principles
 
 Future productive storage design should be evaluated against these principles:
