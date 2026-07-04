@@ -63,6 +63,7 @@ python -m steuerberater_copilot.offline_mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
 python -m steuerberater_copilot.offline_mvp --review-worklist
+python -m steuerberater_copilot.offline_mvp --review-summary
 ```
 
 The CLI is local-only and reads only the repository's synthetic fixture cases.
@@ -75,6 +76,12 @@ cases. It summarizes existing workflow results by review relevance and risk,
 including the gateway decision, RiskLevel, Review Gate status, draft
 availability, and open review-bound questions. It does not create a workspace,
 persist a queue, write files, or make a human review decision.
+
+`--review-summary` emits a local stdout-only JSON summary for all synthetic
+fixture cases. It aggregates existing workflow and review worklist results into
+counts and the highest-priority review cases. It does not create a workspace,
+dashboard, reporting system, persisted file, productive storage artifact, or
+human review decision.
 
 An optional local Markdown review handoff can be written in addition to the
 unchanged stdout JSON output:

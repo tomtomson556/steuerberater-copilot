@@ -24,6 +24,7 @@ python -m steuerberater_copilot.offline_mvp --case CASE_005
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
 python -m steuerberater_copilot.offline_mvp --review-worklist
+python -m steuerberater_copilot.offline_mvp --review-summary
 ```
 
 `--case` returns one JSON object. `--all` returns a JSON array with all five
@@ -33,6 +34,11 @@ IDs.
 `--review-worklist` returns a compact JSON array for local review preparation.
 It aggregates existing workflow results from all synthetic fixture cases and
 does not change the `--case` or `--all` workflow object contract.
+
+`--review-summary` returns a compact JSON object for local review preparation.
+It aggregates existing workflow and review worklist results from all synthetic
+fixture cases. It does not change the workflow object contract or the review
+worklist contract.
 
 The optional `--review-handoff path/to/review-handoff.md` argument may write a
 local Markdown review handoff in addition to stdout JSON for `--case` or
@@ -236,6 +242,67 @@ Priority is calculated as follows:
   and `A` receives `20`
 - cases with `risk.review_required == true` receive a `5` point bonus
 - items are sorted by descending `priority`, then ascending `case_id`
+
+## Review Summary Contract
+
+`--review-summary` returns a JSON object. It is a local stdout-only aggregation
+for synthetic fixture results. It is not productive reporting, not a dashboard,
+not persistent storage, and not a fachliche or human review decision.
+
+The top-level fields are:
+
+- `total_cases`
+- `gateway`
+- `risk`
+- `review_gate`
+- `draft_availability`
+- `open_questions`
+- `highest_priority_cases`
+
+`gateway` always contains the current gateway decision keys:
+
+- `allow_draft`
+- `escalate`
+- `block`
+
+These values must not be normalized to new names such as `allow`.
+
+`risk` always contains:
+
+- `A`
+- `B`
+- `C`
+- `D`
+
+`review_gate` always contains:
+
+- `allowed_offline_mock_continuation`
+- `requires_human_review`
+
+`draft_availability` always contains:
+
+- `available`
+- `unavailable`
+
+`open_questions` contains:
+
+- `total`
+- `cases_with_open_questions`
+
+`highest_priority_cases` contains the first three cases from the existing
+review worklist priority order, using only these compact fields:
+
+- `case_id`
+- `priority`
+- `gateway_decision`
+- `risk_level`
+- `review_gate_status`
+- `draft_available`
+- `open_questions_count`
+
+The summary uses existing workflow and review worklist markers only. It does
+not reclassify cases, decide review outcomes, change draft availability, or
+weaken Human Review.
 
 ## Current Case Semantics
 

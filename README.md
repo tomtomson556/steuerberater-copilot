@@ -80,6 +80,16 @@ pytest -q
 python tools/policy_claim_check.py
 ```
 
+Lokale Offline-MVP-JSON-Ausgaben fuer synthetische Fixtures:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --case CASE_001
+python -m steuerberater_copilot.offline_mvp --all
+python -m steuerberater_copilot.offline_mvp --list-cases
+python -m steuerberater_copilot.offline_mvp --review-worklist
+python -m steuerberater_copilot.offline_mvp --review-summary
+```
+
 Der editable install kann Python-Paketmetadaten wie `*.egg-info/` erzeugen. Diese
 lokalen Artefakte werden durch `.gitignore` ignoriert.
 
