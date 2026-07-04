@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,9 @@ from .review_summary import build_review_summary
 from .review_worklist import build_review_worklist
 from .serialization import workflow_to_json
 from .workflow import build_mock_workflow, load_fixture_cases
+
+CLI_NAME = "steuerberater-copilot-offline-mvp"
+PACKAGE_NAME = "steuerberater-copilot"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -38,12 +42,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Emit a local JSON review summary for all synthetic fixture cases.",
     )
+    selection.add_argument(
+        "--version",
+        action="store_true",
+        help="Print the local CLI version and exit.",
+    )
     parser.add_argument(
         "--review-handoff",
         type=Path,
         help="Write an optional local Markdown review handoff to this path.",
     )
     args = parser.parse_args(argv)
+
+    if args.version:
+        if args.review_handoff is not None:
+            print("--review-handoff requires --case or --all.", file=sys.stderr)
+            return 2
+        print(f"{CLI_NAME} {_package_version()}")
+        return 0
 
     cases = load_fixture_cases()
     cases_by_id = {case.case_id: case for case in cases}
@@ -94,6 +110,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _write_json(payload: Any) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def _package_version() -> str:
+    try:
+        return version(PACKAGE_NAME)
+    except PackageNotFoundError:
+        return "unknown"
+    except Exception:
+        return "unknown"
 
 
 def _write_review_handoff(path: Path, content: str) -> None:

@@ -60,13 +60,23 @@ for synthetic fixtures:
 
 ```bash
 python -m steuerberater_copilot.offline_mvp --case CASE_001
+steuerberater-copilot-offline-mvp --case CASE_001
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
 python -m steuerberater_copilot.offline_mvp --review-worklist
 python -m steuerberater_copilot.offline_mvp --review-summary
 ```
 
+The console script `steuerberater-copilot-offline-mvp` invokes the same
+offline MVP CLI core as `python -m steuerberater_copilot.offline_mvp`. JSON modes
+keep the same stdout JSON contracts through both entry points.
+
 The CLI is local-only and reads only the repository's synthetic fixture cases.
+It is no service, API, UI, persistence layer, or storage component.
+
+`steuerberater-copilot-offline-mvp --version` emits only a short local CLI
+version line. It is not part of the JSON output contracts and does not run the
+workflow, read fixtures, or write files.
 
 The stabilized CLI JSON output contract is documented in
 [offline-mvp-cli-json-contract.md](../10-testing-quality/offline-mvp-cli-json-contract.md).
