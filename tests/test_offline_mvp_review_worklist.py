@@ -1,6 +1,9 @@
+from copy import deepcopy
+
 from steuerberater_copilot.offline_mvp.models import ReviewStatus
 from steuerberater_copilot.offline_mvp.review_worklist import (
     build_review_worklist,
+    filter_review_worklist,
     review_priority,
 )
 from steuerberater_copilot.offline_mvp.workflow import build_mock_workflow, load_fixture_cases
@@ -84,6 +87,83 @@ def test_review_worklist_uses_compact_stable_contract() -> None:
         assert set(item["review_gate"]) == EXPECTED_REVIEW_GATE_KEYS
         assert set(item["draft"]) == EXPECTED_DRAFT_KEYS
         assert item["open_questions_count"] == len(item["open_questions"])
+
+
+def test_filter_review_worklist_keeps_input_unchanged() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+    original = deepcopy(worklist)
+
+    filter_review_worklist(
+        worklist,
+        limit=2,
+        min_risk="C",
+        gateway_decision="allow_draft",
+        open_questions_only=True,
+    )
+
+    assert worklist == original
+
+
+def test_filter_review_worklist_limit_keeps_first_existing_entries() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    filtered = filter_review_worklist(worklist, limit=3)
+
+    assert [item["case_id"] for item in filtered] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+
+
+def test_filter_review_worklist_by_min_risk() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    risk_d = filter_review_worklist(worklist, min_risk="D")
+    risk_c = filter_review_worklist(worklist, min_risk="C")
+
+    assert [item["case_id"] for item in risk_d] == ["CASE_005", "CASE_004"]
+    assert [item["case_id"] for item in risk_c] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+
+
+def test_filter_review_worklist_by_gateway_decision() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    block = filter_review_worklist(worklist, gateway_decision="block")
+    allow_draft = filter_review_worklist(worklist, gateway_decision="allow_draft")
+
+    assert [item["case_id"] for item in block] == ["CASE_005"]
+    assert [item["case_id"] for item in allow_draft] == [
+        "CASE_004",
+        "CASE_003",
+        "CASE_002",
+    ]
+
+
+def test_filter_review_worklist_by_open_questions() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    filtered = filter_review_worklist(worklist, open_questions_only=True)
+
+    assert [item["case_id"] for item in filtered] == ["CASE_001"]
+
+
+def test_filter_review_worklist_combines_filters_in_existing_order() -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    filtered = filter_review_worklist(worklist, min_risk="C", limit=2)
+
+    assert [item["case_id"] for item in filtered] == ["CASE_005", "CASE_004"]
 
 
 def test_review_priority_is_deterministic_from_existing_workflow_markers() -> None:
