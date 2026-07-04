@@ -25,6 +25,24 @@ EXPECTED_DRAFT_KEYS = {
     "handoff_notes",
     "disclaimers",
 }
+EXPECTED_WORKLIST_KEYS = {
+    "case_id",
+    "priority",
+    "gateway",
+    "risk",
+    "review_gate",
+    "draft",
+    "open_questions_count",
+    "open_questions",
+}
+EXPECTED_WORKLIST_GATEWAY_KEYS = {"decision", "reasons", "block_reasons"}
+EXPECTED_WORKLIST_RISK_KEYS = {"level", "review_required", "basis"}
+EXPECTED_WORKLIST_REVIEW_GATE_KEYS = {
+    "status",
+    "allows_offline_mock_continuation",
+    "reason",
+}
+EXPECTED_WORKLIST_DRAFT_KEYS = {"available", "review_status"}
 EXPECTED_CASE_IDS = {"CASE_001", "CASE_002", "CASE_003", "CASE_004", "CASE_005"}
 EXPECTED_CASE_SEMANTICS = {
     "CASE_001": {
@@ -226,6 +244,56 @@ def test_cli_list_cases_outputs_case_ids():
     ]
 
 
+def test_cli_review_worklist_outputs_valid_json_list():
+    result = _run_cli("--review-worklist")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert isinstance(payload, list)
+    assert {item["case_id"] for item in payload} == EXPECTED_CASE_IDS
+    assert [item["case_id"] for item in payload] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+        "CASE_003",
+        "CASE_002",
+    ]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
+def test_cli_review_worklist_keeps_block_case_first_and_review_bound():
+    result = _run_cli("--review-worklist")
+
+    payload = json.loads(result.stdout)
+    block_item = payload[0]
+    assert block_item["case_id"] == "CASE_005"
+    assert block_item["priority"] == 100
+    assert block_item["gateway"]["decision"] == "block"
+    assert block_item["gateway"]["block_reasons"] == [
+        "forbidden_data_class:original_pii"
+    ]
+    assert block_item["risk"]["level"] == "D"
+    assert block_item["draft"]["available"] is False
+    assert block_item["review_gate"]["status"] == "requires_human_review"
+    assert block_item["review_gate"]["allows_offline_mock_continuation"] is False
+    assert block_item["open_questions_count"] == 0
+    assert block_item["open_questions"] == []
+
+
+def test_cli_review_worklist_rejects_review_handoff_without_workflow_result(tmp_path):
+    result = _run_cli(
+        "--review-worklist",
+        "--review-handoff",
+        str(tmp_path / "handoff.md"),
+    )
+
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert "--review-handoff requires --case or --all." in result.stderr
+
+
 def test_cli_workflow_does_not_auto_emit_final_or_human_review_decisions():
     result = _run_cli("--all")
 
@@ -266,6 +334,16 @@ def test_cli_list_cases_rejects_review_handoff_without_workflow_result(tmp_path)
     assert result.returncode != 0
     assert result.stdout == ""
     assert "--review-handoff requires --case or --all." in result.stderr
+
+
+def test_cli_review_worklist_stdout_contains_no_markdown() -> None:
+    result = _run_cli("--review-worklist")
+
+    assert result.returncode == 0
+    assert result.stdout.lstrip().startswith("[")
+    assert "# Review Handoff" not in result.stdout
+    assert "```" not in result.stdout
+    json.loads(result.stdout)
 
 
 def _assert_cli_json_contract(payload: dict[str, object]) -> None:
@@ -317,6 +395,47 @@ def _assert_cli_json_contract(payload: dict[str, object]) -> None:
 def _assert_string_list(value: object) -> None:
     assert isinstance(value, list)
     assert all(isinstance(item, str) for item in value)
+
+
+def _assert_review_worklist_contract(payload: dict[str, object]) -> None:
+    assert set(payload) == EXPECTED_WORKLIST_KEYS
+    assert isinstance(payload["case_id"], str)
+    assert isinstance(payload["priority"], int)
+
+    gateway = payload["gateway"]
+    assert isinstance(gateway, dict)
+    assert set(gateway) == EXPECTED_WORKLIST_GATEWAY_KEYS
+    assert isinstance(gateway["decision"], str)
+    assert gateway["decision"] in GATEWAY_DECISIONS
+    _assert_string_list(gateway["reasons"])
+    _assert_string_list(gateway["block_reasons"])
+
+    risk = payload["risk"]
+    assert isinstance(risk, dict)
+    assert set(risk) == EXPECTED_WORKLIST_RISK_KEYS
+    assert isinstance(risk["level"], str)
+    assert risk["level"] in RISK_LEVELS
+    assert isinstance(risk["review_required"], bool)
+    _assert_string_list(risk["basis"])
+
+    review_gate = payload["review_gate"]
+    assert isinstance(review_gate, dict)
+    assert set(review_gate) == EXPECTED_WORKLIST_REVIEW_GATE_KEYS
+    assert isinstance(review_gate["status"], str)
+    assert review_gate["status"] in REVIEW_GATE_STATUSES
+    assert isinstance(review_gate["allows_offline_mock_continuation"], bool)
+    assert isinstance(review_gate["reason"], str)
+
+    draft = payload["draft"]
+    assert isinstance(draft, dict)
+    assert set(draft) == EXPECTED_WORKLIST_DRAFT_KEYS
+    assert isinstance(draft["available"], bool)
+    assert isinstance(draft["review_status"], str)
+    assert draft["review_status"] in REVIEW_STATUSES
+
+    assert isinstance(payload["open_questions_count"], int)
+    _assert_string_list(payload["open_questions"])
+    assert payload["open_questions_count"] == len(payload["open_questions"])
 
 
 def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:

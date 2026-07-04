@@ -23,11 +23,16 @@ python -m steuerberater_copilot.offline_mvp --case CASE_004
 python -m steuerberater_copilot.offline_mvp --case CASE_005
 python -m steuerberater_copilot.offline_mvp --all
 python -m steuerberater_copilot.offline_mvp --list-cases
+python -m steuerberater_copilot.offline_mvp --review-worklist
 ```
 
 `--case` returns one JSON object. `--all` returns a JSON array with all five
 synthetic fixture cases. `--list-cases` returns the available synthetic case
 IDs.
+
+`--review-worklist` returns a compact JSON array for local review preparation.
+It aggregates existing workflow results from all synthetic fixture cases and
+does not change the `--case` or `--all` workflow object contract.
 
 The optional `--review-handoff path/to/review-handoff.md` argument may write a
 local Markdown review handoff in addition to stdout JSON for `--case` or
@@ -176,6 +181,61 @@ Review Gate requires it.
 
 An available draft remains preparation and review material only. The Kanzlei
 reviews, and the Steuerberater decides.
+
+## Review Worklist Contract
+
+`--review-worklist` returns a JSON array. Each item contains these top-level
+fields:
+
+- `case_id`
+- `priority`
+- `gateway`
+- `risk`
+- `review_gate`
+- `draft`
+- `open_questions_count`
+- `open_questions`
+
+The worklist is local, deterministic, synthetic, and review-oriented. It is not
+a workspace, not a persistent queue, and not a human review decision.
+
+`gateway` contains:
+
+- `decision`
+- `reasons`
+- `block_reasons`
+
+`risk` contains:
+
+- `level`
+- `review_required`
+- `basis`
+
+`review_gate` contains:
+
+- `status`
+- `allows_offline_mock_continuation`
+- `reason`
+
+`draft` contains:
+
+- `available`
+- `review_status`
+
+`open_questions_count` is the number of entries in `open_questions`.
+
+### Review Worklist Priority
+
+The worklist uses existing workflow markers only. It does not reclassify cases
+or decide review outcomes.
+
+Priority is calculated as follows:
+
+- `gateway.decision == "block"` receives priority `100`
+- otherwise RiskLevel `D` receives `80`, `C` receives `60`, `B` receives `40`,
+  and `A` receives `20`
+- cases with `risk.review_required == true` receive a `5` point bonus
+- items are sorted by descending `priority`, then ascending `case_id`
 
 ## Current Case Semantics
 
