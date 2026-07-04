@@ -43,6 +43,15 @@ EXPECTED_WORKLIST_REVIEW_GATE_KEYS = {
     "reason",
 }
 EXPECTED_WORKLIST_DRAFT_KEYS = {"available", "review_status"}
+EXPECTED_SUMMARY_KEYS = {
+    "total_cases",
+    "gateway",
+    "risk",
+    "review_gate",
+    "draft_availability",
+    "open_questions",
+    "highest_priority_cases",
+}
 EXPECTED_CASE_IDS = {"CASE_001", "CASE_002", "CASE_003", "CASE_004", "CASE_005"}
 EXPECTED_CASE_SEMANTICS = {
     "CASE_001": {
@@ -344,6 +353,83 @@ def test_cli_review_worklist_stdout_contains_no_markdown() -> None:
     assert "# Review Handoff" not in result.stdout
     assert "```" not in result.stdout
     json.loads(result.stdout)
+
+
+def test_cli_review_summary_outputs_valid_json_object() -> None:
+    result = _run_cli("--review-summary")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.lstrip().startswith("{")
+    payload = json.loads(result.stdout)
+    assert set(payload) == EXPECTED_SUMMARY_KEYS
+    assert payload["total_cases"] == 5
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+
+
+def test_cli_review_summary_counts_current_fixture_distribution() -> None:
+    result = _run_cli("--review-summary")
+
+    payload = json.loads(result.stdout)
+    assert payload["gateway"] == {
+        "allow_draft": 3,
+        "escalate": 1,
+        "block": 1,
+    }
+    assert payload["risk"] == {"A": 1, "B": 1, "C": 1, "D": 2}
+    assert payload["review_gate"] == {
+        "allowed_offline_mock_continuation": 1,
+        "requires_human_review": 4,
+    }
+    assert payload["draft_availability"] == {
+        "available": 1,
+        "unavailable": 4,
+    }
+    assert payload["open_questions"] == {
+        "total": 2,
+        "cases_with_open_questions": ["CASE_001"],
+    }
+
+
+def test_cli_review_summary_rejects_review_handoff_without_workflow_result(tmp_path):
+    result = _run_cli(
+        "--review-summary",
+        "--review-handoff",
+        str(tmp_path / "handoff.md"),
+    )
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "--review-handoff requires --case or --all." in result.stderr
+
+
+def test_cli_review_summary_stdout_contains_no_markdown() -> None:
+    result = _run_cli("--review-summary")
+
+    assert result.returncode == 0
+    assert "# Review Handoff" not in result.stdout
+    assert "```" not in result.stdout
+    json.loads(result.stdout)
+
+
+def test_cli_review_handoff_writes_markdown_for_all_without_changing_stdout_json(
+    tmp_path,
+):
+    handoff_path = tmp_path / "nested" / "all-review-handoff.md"
+
+    result_with_handoff = _run_cli("--all", "--review-handoff", str(handoff_path))
+    result_without_handoff = _run_cli("--all")
+
+    assert result_with_handoff.returncode == 0
+    assert result_with_handoff.stderr == ""
+    assert json.loads(result_with_handoff.stdout) == json.loads(result_without_handoff.stdout)
+    assert handoff_path.exists()
+    handoff = handoff_path.read_text(encoding="utf-8")
+    assert handoff.count("# Review Handoff") == len(EXPECTED_CASE_IDS)
 
 
 def _assert_cli_json_contract(payload: dict[str, object]) -> None:

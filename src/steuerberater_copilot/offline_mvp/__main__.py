@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .review_handoff import render_review_handoff
+from .review_summary import build_review_summary
 from .review_worklist import build_review_worklist
 from .serialization import workflow_to_json
 from .workflow import build_mock_workflow, load_fixture_cases
@@ -31,6 +32,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--review-worklist",
         action="store_true",
         help="Emit a local JSON review worklist for all synthetic fixture cases.",
+    )
+    selection.add_argument(
+        "--review-summary",
+        action="store_true",
+        help="Emit a local JSON review summary for all synthetic fixture cases.",
     )
     parser.add_argument(
         "--review-handoff",
@@ -55,6 +61,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         outputs = [build_mock_workflow(case) for case in cases]
         _write_json(build_review_worklist(outputs))
+        return 0
+
+    if args.review_summary:
+        if args.review_handoff is not None:
+            print("--review-handoff requires --case or --all.", file=sys.stderr)
+            return 2
+        outputs = [build_mock_workflow(case) for case in cases]
+        _write_json(build_review_summary(outputs))
         return 0
 
     if args.case_id:
