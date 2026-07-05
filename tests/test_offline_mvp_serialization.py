@@ -4,6 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from steuerberater_copilot.offline_mvp.review_handoff import render_review_handoff
 from steuerberater_copilot.offline_mvp.serialization import workflow_to_json
 from steuerberater_copilot.offline_mvp.workflow import (
     build_mock_workflow,
@@ -95,6 +96,16 @@ def test_workflow_to_json_keeps_case_002_as_available_draft_case() -> None:
     assert payload["draft"]["summary"]
     assert payload["draft"]["summary"] == payload["draft"]["summary_points"]
     assert payload["draft"]["draft_only"] is True
+
+
+def test_json_and_review_handoff_use_shared_draft_availability_rule() -> None:
+    for case in load_fixture_cases():
+        output = build_mock_workflow(case)
+        payload = workflow_to_json(output)
+        handoff = render_review_handoff(output)
+
+        assert payload["draft"]["available"] is output.draft_available
+        assert f"Draft available: `{output.draft_available}`" in handoff
 
 
 def test_cli_case_output_matches_serializer_payload_for_all_cases() -> None:

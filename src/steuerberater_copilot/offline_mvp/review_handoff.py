@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from .models import GatewayDecision, RiskLevel, WorkflowOutput
+from .models import WorkflowOutput
 
 
 def render_review_handoff(output: WorkflowOutput) -> str:
     """Render a local Markdown review handoff from an existing workflow result."""
 
-    draft_available = _draft_available(output)
+    draft_available = output.draft_available
     lines: list[str] = [
         "# Review Handoff",
         "",
@@ -60,14 +60,6 @@ def render_review_handoff(output: WorkflowOutput) -> str:
         ]
     )
     return "\n".join(lines) + "\n"
-
-
-def _draft_available(output: WorkflowOutput) -> bool:
-    return (
-        output.gateway.decision is GatewayDecision.ALLOW_DRAFT
-        and output.risk_classification.risk_level is RiskLevel.CLASS_A
-        and output.review_gate.allows_offline_mock_continuation
-    )
 
 
 def _summary_points(output: WorkflowOutput, draft_available: bool) -> tuple[str, ...]:
