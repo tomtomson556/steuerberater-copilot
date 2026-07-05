@@ -556,7 +556,15 @@ def test_cli_review_summary_gateway_filter_counts_filtered_cases() -> None:
     assert payload["total_cases"] == 1
     assert payload["gateway"] == {"allow_draft": 0, "escalate": 0, "block": 1}
     assert payload["risk"] == {"A": 0, "B": 0, "C": 0, "D": 1}
+    assert payload["review_gate"] == {
+        "allowed_offline_mock_continuation": 0,
+        "requires_human_review": 1,
+    }
     assert payload["draft_availability"] == {"available": 0, "unavailable": 1}
+    assert payload["open_questions"] == {
+        "total": 0,
+        "cases_with_open_questions": [],
+    }
     assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
         "CASE_005"
     ]
@@ -595,6 +603,44 @@ def test_cli_review_summary_limit_filter_counts_existing_first_entries() -> None
         "CASE_004",
         "CASE_001",
     ]
+
+
+def test_cli_review_summary_filtered_scope_matches_review_worklist_scope() -> None:
+    scenarios = [
+        (("--review-min-risk", "C"), {"review_min_risk": "C"}),
+        (("--review-gateway", "block"), {"review_gateway": "block"}),
+        (("--review-open-questions-only",), {"review_open_questions_only": True}),
+    ]
+
+    for args, applied_filters in scenarios:
+        summary_result = _run_cli("--review-summary", *args)
+        worklist_result = _run_cli("--review-worklist", *args)
+
+        assert summary_result.returncode == 0
+        assert summary_result.stderr == ""
+        assert worklist_result.returncode == 0
+        assert worklist_result.stderr == ""
+
+        summary_payload = json.loads(summary_result.stdout)
+        worklist_payload = json.loads(worklist_result.stdout)
+        worklist_case_ids = [item["case_id"] for item in worklist_payload]
+        worklist_open_question_case_ids = [
+            item["case_id"]
+            for item in worklist_payload
+            if item["open_questions_count"] > 0
+        ]
+
+        _assert_filtered_summary_contract(summary_payload, applied_filters)
+        assert summary_payload["total_cases"] == len(worklist_payload)
+        assert [item["case_id"] for item in summary_payload["highest_priority_cases"]] == (
+            worklist_case_ids[:3]
+        )
+        assert summary_payload["open_questions"]["total"] == sum(
+            item["open_questions_count"] for item in worklist_payload
+        )
+        assert summary_payload["open_questions"]["cases_with_open_questions"] == (
+            worklist_open_question_case_ids
+        )
 
 
 def test_cli_review_summary_combined_filters_count_filtered_cases() -> None:
