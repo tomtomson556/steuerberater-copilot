@@ -80,6 +80,7 @@ The current synthetic case semantics are:
 | `CASE_002` | The only positive draft case; `draft.available=true`. |
 | `CASE_003` | Restrictive case; no available draft. |
 | `CASE_004` | Restrictive case; no available draft. |
+| `CASE_005` | Privacy Gateway block case; `gateway=block`, `RiskLevel D`, no available draft, and Human Review remains required. |
 
 Visible `draft.questions` while `draft.available=false` do not create a
 productive draft, do not allow offline mock continuation, and do not permit
