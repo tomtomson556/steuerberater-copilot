@@ -368,11 +368,57 @@ def test_cli_review_worklist_combines_filters_in_existing_order():
         _assert_review_worklist_contract(item)
 
 
+def test_cli_review_worklist_combined_filters_can_return_empty_json_list():
+    result = _run_cli(
+        "--review-worklist",
+        "--review-gateway",
+        "block",
+        "--review-open-questions-only",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.lstrip().startswith("[")
+    assert "# Review Handoff" not in result.stdout
+    assert "```" not in result.stdout
+    assert json.loads(result.stdout) == []
+
+
+def test_cli_review_worklist_limit_applies_after_gateway_filter():
+    result = _run_cli(
+        "--review-worklist",
+        "--review-gateway",
+        "allow_draft",
+        "--review-limit",
+        "2",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert [item["case_id"] for item in payload] == ["CASE_004", "CASE_003"]
+    for item in payload:
+        _assert_review_worklist_contract(item)
+
+
 def test_cli_review_limit_zero_is_rejected():
     result = _run_cli("--review-worklist", "--review-limit", "0")
 
     assert result.returncode == 2
     assert result.stdout == ""
+
+
+def test_cli_review_worklist_rejects_invalid_filter_values():
+    invalid_commands = [
+        ("--review-worklist", "--review-min-risk", "E"),
+        ("--review-worklist", "--review-gateway", "unknown"),
+    ]
+
+    for args in invalid_commands:
+        result = _run_cli(*args)
+
+        assert result.returncode == 2
+        assert result.stdout == ""
 
 
 def test_cli_review_filters_require_review_worklist_or_review_summary():
