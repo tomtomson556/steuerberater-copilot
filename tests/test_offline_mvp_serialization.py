@@ -99,13 +99,18 @@ def test_workflow_to_json_keeps_case_002_as_available_draft_case() -> None:
 
 
 def test_json_and_review_handoff_use_shared_draft_availability_rule() -> None:
+    seen_draft_availability = set()
+
     for case in load_fixture_cases():
         output = build_mock_workflow(case)
         payload = workflow_to_json(output)
         handoff = render_review_handoff(output)
 
+        seen_draft_availability.add(output.draft_available)
         assert payload["draft"]["available"] is output.draft_available
         assert f"Draft available: `{output.draft_available}`" in handoff
+
+    assert seen_draft_availability == {False, True}
 
 
 def test_cli_case_output_matches_serializer_payload_for_all_cases() -> None:
