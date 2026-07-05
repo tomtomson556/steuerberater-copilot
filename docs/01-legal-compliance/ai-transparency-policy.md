@@ -32,7 +32,7 @@ Nicht zulässig ist die Darstellung als final geprüft, fachlich freigegeben, f�
 
 ## Transparenz gegenüber Kanzlei-Nutzern
 
-Kanzlei-Nutzerinnen und -Nutzer sollen — soweit technisch und organisatorisch umsetzbar — erkennen können:
+Kanzlei-Nutzerinnen und -Nutzer sollen - soweit technisch und organisatorisch umsetzbar - erkennen können:
 
 - welche Eingaben für eine Ausgabe verwendet wurden
 - welche Quellen oder Policies herangezogen wurden, soweit verfügbar

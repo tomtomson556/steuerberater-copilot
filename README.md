@@ -17,7 +17,7 @@ Der Steuerberater entscheidet.
 Dieses Projekt ist ausdrücklich **kein**:
 
 - autonomer Steuerberater
-- „KI-Steuerberater“
+- "KI-Steuerberater"
 - System für individuelle Steuerberatung durch das Modell
 - Werkzeug für steuerlich wirksame Handlungen ohne Kanzlei-Freigabe
 

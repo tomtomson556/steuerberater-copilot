@@ -4,7 +4,7 @@ Kurze, projektinterne Begriffsdefinitionen. Keine Rechtsauslegung.
 
 | Begriff | Definition |
 | --- | --- |
-| **Agenda-Handoff** | Übergabe vorbereiteter Daten an die Kanzleisoftware Agenda über Export, Staging oder manuelle Übernahme — ohne direkte produktive Schreibintegration. |
+| **Agenda-Handoff** | Übergabe vorbereiteter Daten an die Kanzleisoftware Agenda über Export, Staging oder manuelle Übernahme - ohne direkte produktive Schreibintegration. |
 | **Audit-Log** | Manipulationssichere oder revisionssichere Protokollierung von relevanten Systemereignissen zur Nachvollziehbarkeit; kein direkter Modellzugriff. |
 | **Detokenisierung** | Rückführung pseudonymisierter Platzhalter in lesbare Werte außerhalb des Modellkontexts, typischerweise im Policy- und Privacy-Gateway oder im Kanzlei-Workspace. |
 | **Entwurf** | Vom System erzeugtes Vorbereitungsmaterial ohne steuerliche Wirksamkeit; erfordert Human Review vor fachlicher Verwendung. |
@@ -18,8 +18,8 @@ Kurze, projektinterne Begriffsdefinitionen. Keine Rechtsauslegung.
 | **Quelle** | Referenzierbare fachliche Grundlage (Norm, Verwaltungsanweisung, Kommentar o. Ä.) mit Rechtsstand und Zeitraum. |
 | **Roter Fall** | Vorgang oder Inhalt mit erhöhtem Risiko, der zusätzliche Prüfung, Eskalation oder Freigabe erfordert; kein automatischer Durchlauf. |
 | **Steuer-Vorbereitungsassistent** | Alternative Bezeichnung für das Projekt; betont die Vorbereitungsfunktion ohne Entscheidungsautorität. |
-| **Steuerberater-Copilot** | Projektname; KI-gestütztes Vorbereitungssystem für deutsche Steuerkanzleien — kein autonomer Steuerberater. |
+| **Steuerberater-Copilot** | Projektname; KI-gestütztes Vorbereitungssystem für deutsche Steuerkanzleien - kein autonomer Steuerberater. |
 | **Temporal RAG** | Retrieval-Augmented Generation mit zeitlicher Einordnung von Quellen und Rechtsständen. |
 | **Token-Map** | Zuordnungstabelle zwischen Pseudonymen (Token) und Originalwerten; liegt außerhalb des Modellkontexts und ist nicht für das LLM zugänglich. |
 | **Unsicherheitsmodus** | Betriebszustand, in dem das System bei unzureichender Evidenz oder unklarer Einordnung keine inhaltliche Ausgabe erzwingt, sondern Rückfragen oder Eskalation auslöst. |
-| **WORM** | Write Once, Read Many — Speicherprinzip zur unveränderlichen Ablage; relevant für revisionssichere Archivierung. |
+| **WORM** | Write Once, Read Many - Speicherprinzip zur unveränderlichen Ablage; relevant für revisionssichere Archivierung. |

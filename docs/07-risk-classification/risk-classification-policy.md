@@ -140,9 +140,9 @@ Rollen koennen organisatorisch zusammenfallen, soweit Kanzlei-Regeln, fachliche 
 
 Die Klassifikation verknuepft sich mit bestehenden Kontrollschichten, ersetzt sie aber nicht:
 
-- **Policy- und Privacy-Gateway** — blockiert oder filtert unzulaessige Kontexte und Outputs unabhaengig von einer spaeteren Klassifikation
-- **Human Review** — verpflichtende Pruefung vor fachlicher Nutzung, Mandantenkommunikation und produktiver Uebergabe
-- **Kanzlei-Freigabe** — fachliche Entscheidung und Verantwortung durch den Steuerberater beziehungsweise berechtigte Kanzlei-Rollen
+- **Policy- und Privacy-Gateway** - blockiert oder filtert unzulaessige Kontexte und Outputs unabhaengig von einer spaeteren Klassifikation
+- **Human Review** - verpflichtende Pruefung vor fachlicher Nutzung, Mandantenkommunikation und produktiver Uebergabe
+- **Kanzlei-Freigabe** - fachliche Entscheidung und Verantwortung durch den Steuerberater beziehungsweise berechtigte Kanzlei-Rollen
 
 Eine niedrigere Handlungsklasse hebt keine Gateway-, Review- oder Freigabepflicht auf, wenn eine andere Policy oder ein anderer Kontrollpunkt eine hoehere Pflicht ausloest.
 

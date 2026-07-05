@@ -31,6 +31,9 @@ python tools/policy_claim_check.py
 
 - Ruff checks static linting rules configured in `pyproject.toml`.
 - pytest runs the automated test suite for the offline MVP and tooling.
+- pytest also checks repository text files for problematic invisible or
+  typographic characters while allowing normal UTF-8 text such as German
+  umlauts.
 - The policy claim check scans Markdown files for risky policy-boundary claims
   without a clear negative context.
 - GitHub Actions CI is the required automated verification gate for pull
@@ -55,6 +58,8 @@ The automated tests currently cover:
 - `CASE_001` securing visible review-bound `draft.questions` while the Review
   Gate and `draft.available` remain restrictive
 - offline MVP CLI JSON contract boundaries
+- repository text character hygiene for common invisible or typographic
+  characters
 - policy claim checker behavior for allowed and blocked Markdown wording
 
 The current CLI JSON contract is documented in
