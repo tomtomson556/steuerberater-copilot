@@ -4,15 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from .models import GatewayDecision, RiskLevel, WorkflowOutput
+from .models import WorkflowOutput
 
 
 def workflow_to_json(output: WorkflowOutput) -> dict[str, Any]:
-    draft_available = (
-        output.gateway.decision is GatewayDecision.ALLOW_DRAFT
-        and output.risk_classification.risk_level is RiskLevel.CLASS_A
-        and output.review_gate.allows_offline_mock_continuation
-    )
+    draft_available = output.draft_available
     summary = list(output.draft_package.summary_points) if draft_available else []
     questions = list(output.draft_package.question_drafts)
 

@@ -128,3 +128,11 @@ class WorkflowOutput:
     risk_classification: RiskClassification
     review_gate: ReviewGateDecision
     draft_package: DraftPackage
+
+    @property
+    def draft_available(self) -> bool:
+        return (
+            self.gateway.decision is GatewayDecision.ALLOW_DRAFT
+            and self.risk_classification.risk_level is RiskLevel.CLASS_A
+            and self.review_gate.allows_offline_mock_continuation
+        )
