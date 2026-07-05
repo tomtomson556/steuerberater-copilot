@@ -52,6 +52,13 @@ It aggregates existing workflow and review worklist results from all synthetic
 fixture cases. It does not change the workflow object contract or the review
 worklist contract.
 
+The unfiltered `--review-summary` output remains the stable summary contract.
+The same optional review filters supported by `--review-worklist` may be used
+with `--review-summary`. In filtered summary mode, the counts and
+`highest_priority_cases` are computed only from the cases that remain after
+applying the filters, and the output adds `summary_scope` and
+`applied_filters`.
+
 The optional `--review-handoff path/to/review-handoff.md` argument may write a
 local Markdown review handoff in addition to stdout JSON for `--case` or
 `--all`. It does not add, remove, rename, or reinterpret any JSON fields.
@@ -318,6 +325,40 @@ review worklist priority order, using only these compact fields:
 The summary uses existing workflow and review worklist markers only. It does
 not reclassify cases, decide review outcomes, change draft availability, or
 weaken Human Review.
+
+Optional review filters may be used with `--review-summary`:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --review-summary --review-limit 3
+python -m steuerberater_copilot.offline_mvp --review-summary --review-min-risk C
+python -m steuerberater_copilot.offline_mvp --review-summary --review-gateway block
+python -m steuerberater_copilot.offline_mvp --review-summary --review-open-questions-only
+```
+
+In filtered mode, all aggregation fields refer only to the filtered case set:
+
+- `total_cases`
+- `gateway`
+- `risk`
+- `review_gate`
+- `draft_availability`
+- `open_questions`
+- `highest_priority_cases`
+
+Filtered summaries add these top-level fields:
+
+- `summary_scope`
+- `applied_filters`
+
+`summary_scope` is `filtered`. `applied_filters` contains only filters that
+were actually set, using these canonical keys and value types:
+
+- `review_limit`: number
+- `review_min_risk`: string such as `C`
+- `review_gateway`: string such as `block`
+- `review_open_questions_only`: boolean `true`
+
+These two fields are not present in unfiltered `--review-summary` output.
 
 ## Current Case Semantics
 
