@@ -1,6 +1,10 @@
+import json
 from pathlib import Path
 
+import pytest
+
 from steuerberater_copilot.offline_mvp.models import (
+    KNOWN_MOCK_RISK_SIGNALS,
     GatewayDecision,
     IntakeCase,
     ReviewGateStatus,
@@ -36,6 +40,28 @@ def test_fixture_cases_load_as_synthetic_intake_models():
     assert cases[0].mock_risk_signals == ("document_preparation", "high_uncertainty")
     assert cases[-1].case_id == "CASE_005"
     assert cases[-1].mock_risk_signals == ("forbidden_original_pii",)
+
+
+def test_fixture_mock_risk_signals_are_known():
+    cases = load_fixture_cases(FIXTURE_PATH)
+    fixture_signals = {
+        signal for case in cases for signal in case.mock_risk_signals
+    }
+
+    assert fixture_signals <= KNOWN_MOCK_RISK_SIGNALS
+
+
+def test_fixture_loader_rejects_unknown_mock_risk_signal(tmp_path):
+    raw_cases = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+    raw_cases[0]["mock_risk_signals"].append("typo_unknown_signal")
+    fixture_path = tmp_path / "cases.json"
+    fixture_path.write_text(json.dumps(raw_cases), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="Unknown mock_risk_signals for CASE_001: typo_unknown_signal",
+    ):
+        load_fixture_cases(fixture_path)
 
 
 def test_risk_classification_model_uses_internal_policy_classes():
