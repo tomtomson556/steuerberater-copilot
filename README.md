@@ -64,6 +64,12 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [GoBD-Oriented Storage Baseline](docs/08-gobd-storage/gobd-storage-baseline.md)
 - [Review-to-Final Artifact Boundary](docs/08-gobd-storage/review-to-final-artifact-boundary.md)
 
+## License
+
+This project is licensed under the PolyForm Noncommercial License 1.0.0.
+Commercial use is not granted under this license. For commercial licensing,
+contact the project owner.
+
 ## Lokale Entwickler-Validierung
 
 Installiere das Projekt lokal mit den Entwicklungswerkzeugen:
