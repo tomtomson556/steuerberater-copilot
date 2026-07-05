@@ -36,6 +36,34 @@ class RiskLevel(StrEnum):
     CLASS_D = "D"
 
 
+class MockRiskSignal(StrEnum):
+    """Known synthetic fixture signals for deterministic offline MVP routing."""
+
+    CLIENT_COMMUNICATION_DRAFT = "client_communication_draft"
+    DOCUMENT_PREPARATION = "document_preparation"
+    FORBIDDEN_CONFIDENTIAL_ORIGINAL_CONTENT = (
+        "forbidden_confidential_original_content"
+    )
+    FORBIDDEN_ORIGINAL_PII = "forbidden_original_pii"
+    FORBIDDEN_PRODUCTIVE_SYSTEM_CONFIGURATION = (
+        "forbidden_productive_system_configuration"
+    )
+    FORBIDDEN_REAL_CLIENT_DATA = "forbidden_real_client_data"
+    FORBIDDEN_SECRET = "forbidden_secret"
+    FORBIDDEN_TOKEN_MAP = "forbidden_token_map"
+    HANDOFF_PREPARATION = "handoff_preparation"
+    HIGH_UNCERTAINTY = "high_uncertainty"
+    INTERNAL_ADMIN_NOTE = "internal_admin_note"
+    MISSING_REVIEW_PATH = "missing_review_path"
+    QUESTION_LIST_PREPARATION = "question_list_preparation"
+    REIDENTIFICATION_RISK = "reidentification_risk"
+    SYNTHETIC_STOP_REVIEW_MARKER = "synthetic_stop_review_marker"
+    UNCLEAR_PURPOSE = "unclear_purpose"
+
+
+KNOWN_MOCK_RISK_SIGNALS = frozenset(signal.value for signal in MockRiskSignal)
+
+
 class ReviewGateStatus(StrEnum):
     """Deterministic offline gate status after internal risk classification."""
 

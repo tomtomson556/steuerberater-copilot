@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .models import DraftPackage, GatewayDecision, GatewayResult, IntakeCase
+from .models import DraftPackage, GatewayDecision, GatewayResult, IntakeCase, MockRiskSignal
 
 PSEUDONYM_RE = re.compile(r"^(CLIENT|CASE|DOCUMENT)_[0-9]{3}$")
 
@@ -62,14 +62,14 @@ ALLOWED_PURPOSES = frozenset(
 )
 
 SIGNAL_DATA_CLASSES = {
-    "forbidden_original_pii": PrivacyDataClass.ORIGINAL_PII,
-    "forbidden_real_client_data": PrivacyDataClass.REAL_CLIENT_DATA,
-    "forbidden_confidential_original_content": (
+    MockRiskSignal.FORBIDDEN_ORIGINAL_PII.value: PrivacyDataClass.ORIGINAL_PII,
+    MockRiskSignal.FORBIDDEN_REAL_CLIENT_DATA.value: PrivacyDataClass.REAL_CLIENT_DATA,
+    MockRiskSignal.FORBIDDEN_CONFIDENTIAL_ORIGINAL_CONTENT.value: (
         PrivacyDataClass.CONFIDENTIAL_ORIGINAL_CONTENT
     ),
-    "forbidden_secret": PrivacyDataClass.SECRET,
-    "forbidden_token_map": PrivacyDataClass.TOKEN_MAP,
-    "forbidden_productive_system_configuration": (
+    MockRiskSignal.FORBIDDEN_SECRET.value: PrivacyDataClass.SECRET,
+    MockRiskSignal.FORBIDDEN_TOKEN_MAP.value: PrivacyDataClass.TOKEN_MAP,
+    MockRiskSignal.FORBIDDEN_PRODUCTIVE_SYSTEM_CONFIGURATION.value: (
         PrivacyDataClass.PRODUCTIVE_SYSTEM_CONFIGURATION
     ),
 }
@@ -102,14 +102,18 @@ def privacy_gateway_request_from_case(case: IntakeCase) -> PrivacyGatewayRequest
         if signal in signals
     )
 
-    purpose = "offline_validation" if "unclear_purpose" not in signals else "unclear"
+    purpose = (
+        "offline_validation"
+        if MockRiskSignal.UNCLEAR_PURPOSE.value not in signals
+        else "unclear"
+    )
     return PrivacyGatewayRequest(
         purpose=purpose,
         data_classes=tuple(data_classes),
         case_refs=(case.case_id, case.client_ref),
         document_refs=tuple(document.document_id for document in case.documents),
-        review_path_present="missing_review_path" not in signals,
-        reidentification_risk="reidentification_risk" in signals,
+        review_path_present=MockRiskSignal.MISSING_REVIEW_PATH.value not in signals,
+        reidentification_risk=MockRiskSignal.REIDENTIFICATION_RISK.value in signals,
     )
 
 

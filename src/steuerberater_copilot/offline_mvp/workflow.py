@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from .models import (
+    KNOWN_MOCK_RISK_SIGNALS,
     DraftPackage,
     GatewayDecision,
     GatewayResult,
     IntakeCase,
+    MockRiskSignal,
     ReviewGateDecision,
     ReviewGateStatus,
     ReviewStatus,
@@ -88,21 +90,29 @@ def classify_internal_risk(
         basis.append("missing_fixture_context")
     basis.extend(sorted(signals))
 
-    if gateway.decision is GatewayDecision.BLOCK or "synthetic_stop_review_marker" in signals:
+    if (
+        gateway.decision is GatewayDecision.BLOCK
+        or MockRiskSignal.SYNTHETIC_STOP_REVIEW_MARKER.value in signals
+    ):
         risk_level = RiskLevel.CLASS_D
     elif (
         gateway.decision is GatewayDecision.ESCALATE
         or case.missing_items
         or signals.intersection(
             {
-                "client_communication_draft",
-                "handoff_preparation",
-                "high_uncertainty",
+                MockRiskSignal.CLIENT_COMMUNICATION_DRAFT.value,
+                MockRiskSignal.HANDOFF_PREPARATION.value,
+                MockRiskSignal.HIGH_UNCERTAINTY.value,
             }
         )
     ):
         risk_level = RiskLevel.CLASS_C
-    elif signals.intersection({"document_preparation", "question_list_preparation"}):
+    elif signals.intersection(
+        {
+            MockRiskSignal.DOCUMENT_PREPARATION.value,
+            MockRiskSignal.QUESTION_LIST_PREPARATION.value,
+        }
+    ):
         risk_level = RiskLevel.CLASS_B
     else:
         risk_level = RiskLevel.CLASS_A
@@ -214,6 +224,15 @@ def build_draft_package(
 
 
 def _case_from_mapping(raw_case: dict[str, Any]) -> IntakeCase:
+    mock_risk_signals = tuple(raw_case.get("mock_risk_signals", ()))
+    unknown_signals = sorted(set(mock_risk_signals) - KNOWN_MOCK_RISK_SIGNALS)
+    if unknown_signals:
+        case_id = raw_case.get("case_id", "<unknown>")
+        unknown_signal_list = ", ".join(unknown_signals)
+        raise ValueError(
+            f"Unknown mock_risk_signals for {case_id}: {unknown_signal_list}"
+        )
+
     documents = tuple(
         SyntheticDocument(
             document_id=document["document_id"],
@@ -231,5 +250,5 @@ def _case_from_mapping(raw_case: dict[str, Any]) -> IntakeCase:
         documents=documents,
         notes=tuple(raw_case.get("notes", ())),
         missing_items=tuple(raw_case.get("missing_items", ())),
-        mock_risk_signals=tuple(raw_case.get("mock_risk_signals", ())),
+        mock_risk_signals=mock_risk_signals,
     )
