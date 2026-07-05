@@ -44,13 +44,13 @@ Kontrollpunkte liegen **nicht im Modell**, sondern **vor und neben dem Modell**.
 
 ## Kontrollschichten
 
-1. **Mandantenportal und Kanzlei-Workspace** — getrennte Arbeitsbereiche, rollenbasierte Sichtbarkeit
-2. **Policy- und Privacy-Gateway** — Filterung, Pseudonymisierung, Freigabe vor Modellaufruf
-3. **Orchestrierung** — Ablaufsteuerung, keine direkten Modell-Zugriffe auf produktive Systeme
-4. **Local- oder isolierte EU-/On-Prem-LLM-Runtime** — Modellausführung in kontrollierter Umgebung
-5. **MCP-Services** — strukturierte, begrenzte Werkzeugzugriffe statt offener Systemrechte
-6. **Human-Review-Layer** — Pflichtprüfung steuerlich relevanter Entwürfe vor Weiterverwendung
-7. **Audit-, Release- und Compliance-Governance** — Nachvollziehbarkeit, Freigaben, Betriebsgrenzen
+1. **Mandantenportal und Kanzlei-Workspace** - getrennte Arbeitsbereiche, rollenbasierte Sichtbarkeit
+2. **Policy- und Privacy-Gateway** - Filterung, Pseudonymisierung, Freigabe vor Modellaufruf
+3. **Orchestrierung** - Ablaufsteuerung, keine direkten Modell-Zugriffe auf produktive Systeme
+4. **Local- oder isolierte EU-/On-Prem-LLM-Runtime** - Modellausführung in kontrollierter Umgebung
+5. **MCP-Services** - strukturierte, begrenzte Werkzeugzugriffe statt offener Systemrechte
+6. **Human-Review-Layer** - Pflichtprüfung steuerlich relevanter Entwürfe vor Weiterverwendung
+7. **Audit-, Release- und Compliance-Governance** - Nachvollziehbarkeit, Freigaben, Betriebsgrenzen
 
 ## MVP-Leitplanken
 
