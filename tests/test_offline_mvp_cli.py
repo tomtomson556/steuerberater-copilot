@@ -53,6 +53,10 @@ EXPECTED_SUMMARY_KEYS = {
     "open_questions",
     "highest_priority_cases",
 }
+EXPECTED_FILTERED_SUMMARY_KEYS = EXPECTED_SUMMARY_KEYS | {
+    "summary_scope",
+    "applied_filters",
+}
 EXPECTED_CASE_IDS = {"CASE_001", "CASE_002", "CASE_003", "CASE_004", "CASE_005"}
 EXPECTED_CASE_SEMANTICS = {
     "CASE_001": {
@@ -371,9 +375,9 @@ def test_cli_review_limit_zero_is_rejected():
     assert result.stdout == ""
 
 
-def test_cli_review_filters_require_review_worklist():
+def test_cli_review_filters_require_review_worklist_or_review_summary():
     invalid_commands = [
-        ("--review-summary", "--review-limit", "3"),
+        ("--review-min-risk", "C"),
         ("--all", "--review-min-risk", "C"),
         ("--case", "CASE_001", "--review-gateway", "block"),
         ("--list-cases", "--review-open-questions-only"),
@@ -384,7 +388,11 @@ def test_cli_review_filters_require_review_worklist():
 
         assert result.returncode == 2
         assert result.stdout == ""
-        assert "review worklist filters require --review-worklist." in result.stderr
+        if "one of the arguments" not in result.stderr:
+            assert (
+                "review filters require --review-worklist or --review-summary."
+                in result.stderr
+            )
 
 
 def test_cli_review_worklist_keeps_block_case_first_and_review_bound():
@@ -484,6 +492,8 @@ def test_cli_review_summary_outputs_valid_json_object() -> None:
         "CASE_004",
         "CASE_001",
     ]
+    assert "summary_scope" not in payload
+    assert "applied_filters" not in payload
 
 
 def test_cli_review_summary_counts_current_fixture_distribution() -> None:
@@ -508,6 +518,124 @@ def test_cli_review_summary_counts_current_fixture_distribution() -> None:
         "total": 2,
         "cases_with_open_questions": ["CASE_001"],
     }
+
+
+def test_cli_review_summary_min_risk_filter_counts_filtered_cases() -> None:
+    result = _run_cli("--review-summary", "--review-min-risk", "C")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_filtered_summary_contract(payload, {"review_min_risk": "C"})
+    assert payload["total_cases"] == 3
+    assert payload["gateway"] == {"allow_draft": 1, "escalate": 1, "block": 1}
+    assert payload["risk"] == {"A": 0, "B": 0, "C": 1, "D": 2}
+    assert payload["review_gate"] == {
+        "allowed_offline_mock_continuation": 0,
+        "requires_human_review": 3,
+    }
+    assert payload["draft_availability"] == {"available": 0, "unavailable": 3}
+    assert payload["open_questions"] == {
+        "total": 2,
+        "cases_with_open_questions": ["CASE_001"],
+    }
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+
+
+def test_cli_review_summary_gateway_filter_counts_filtered_cases() -> None:
+    result = _run_cli("--review-summary", "--review-gateway", "block")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_filtered_summary_contract(payload, {"review_gateway": "block"})
+    assert payload["total_cases"] == 1
+    assert payload["gateway"] == {"allow_draft": 0, "escalate": 0, "block": 1}
+    assert payload["risk"] == {"A": 0, "B": 0, "C": 0, "D": 1}
+    assert payload["draft_availability"] == {"available": 0, "unavailable": 1}
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_005"
+    ]
+
+
+def test_cli_review_summary_open_questions_filter_counts_filtered_cases() -> None:
+    result = _run_cli("--review-summary", "--review-open-questions-only")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_filtered_summary_contract(payload, {"review_open_questions_only": True})
+    assert payload["total_cases"] == 1
+    assert payload["gateway"] == {"allow_draft": 0, "escalate": 1, "block": 0}
+    assert payload["risk"] == {"A": 0, "B": 0, "C": 1, "D": 0}
+    assert payload["open_questions"] == {
+        "total": 2,
+        "cases_with_open_questions": ["CASE_001"],
+    }
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_001"
+    ]
+
+
+def test_cli_review_summary_limit_filter_counts_existing_first_entries() -> None:
+    result = _run_cli("--review-summary", "--review-limit", "3")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_filtered_summary_contract(payload, {"review_limit": 3})
+    assert payload["total_cases"] == 3
+    assert payload["gateway"] == {"allow_draft": 1, "escalate": 1, "block": 1}
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_005",
+        "CASE_004",
+        "CASE_001",
+    ]
+
+
+def test_cli_review_summary_combined_filters_count_filtered_cases() -> None:
+    result = _run_cli(
+        "--review-summary",
+        "--review-min-risk",
+        "C",
+        "--review-gateway",
+        "block",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    _assert_filtered_summary_contract(
+        payload,
+        {
+            "review_min_risk": "C",
+            "review_gateway": "block",
+        },
+    )
+    assert payload["total_cases"] == 1
+    assert payload["gateway"] == {"allow_draft": 0, "escalate": 0, "block": 1}
+    assert payload["risk"] == {"A": 0, "B": 0, "C": 0, "D": 1}
+    assert [item["case_id"] for item in payload["highest_priority_cases"]] == [
+        "CASE_005"
+    ]
+
+
+def test_cli_review_summary_rejects_invalid_filter_values() -> None:
+    invalid_commands = [
+        ("--review-summary", "--review-limit", "0"),
+        ("--review-summary", "--review-min-risk", "E"),
+        ("--review-summary", "--review-gateway", "unknown"),
+    ]
+
+    for args in invalid_commands:
+        result = _run_cli(*args)
+
+        assert result.returncode == 2
+        assert result.stdout == ""
 
 
 def test_cli_review_summary_rejects_review_handoff_without_workflow_result(tmp_path):
@@ -545,6 +673,14 @@ def test_cli_review_handoff_writes_markdown_for_all_without_changing_stdout_json
     assert handoff_path.exists()
     handoff = handoff_path.read_text(encoding="utf-8")
     assert handoff.count("# Review Handoff") == len(EXPECTED_CASE_IDS)
+
+
+def _assert_filtered_summary_contract(
+    payload: dict[str, object], applied_filters: dict[str, object]
+) -> None:
+    assert set(payload) == EXPECTED_FILTERED_SUMMARY_KEYS
+    assert payload["summary_scope"] == "filtered"
+    assert payload["applied_filters"] == applied_filters
 
 
 def _assert_cli_json_contract(payload: dict[str, object]) -> None:

@@ -106,6 +106,23 @@ counts and the highest-priority review cases. It does not create a workspace,
 dashboard, reporting system, persisted file, productive storage artifact, or
 human review decision.
 
+`--review-summary` supports the same optional review filters as
+`--review-worklist`:
+
+```bash
+python -m steuerberater_copilot.offline_mvp --review-summary --review-limit 3
+python -m steuerberater_copilot.offline_mvp --review-summary --review-min-risk C
+python -m steuerberater_copilot.offline_mvp --review-summary --review-gateway block
+python -m steuerberater_copilot.offline_mvp --review-summary --review-open-questions-only
+```
+
+Without filters, the summary JSON contract remains unchanged. With filters,
+the summary is a filtered aggregation: `total_cases`, `gateway`, `risk`,
+`review_gate`, `draft_availability`, `open_questions`, and
+`highest_priority_cases` all refer only to cases that remain after applying the
+same filter semantics as the review worklist. Filtered summaries add
+`summary_scope` and `applied_filters` to make the narrowed scope explicit.
+
 An optional local Markdown review handoff can be written in addition to the
 unchanged stdout JSON output:
 

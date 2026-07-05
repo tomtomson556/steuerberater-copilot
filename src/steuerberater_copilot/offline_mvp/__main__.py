@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+from .models import WorkflowOutput
 from .review_handoff import render_review_handoff
 from .review_summary import build_review_summary
 from .review_worklist import build_review_worklist, filter_review_worklist
@@ -18,7 +19,7 @@ from .workflow import build_mock_workflow, load_fixture_cases
 
 CLI_NAME = "steuerberater-copilot-offline-mvp"
 PACKAGE_NAME = "steuerberater-copilot"
-REVIEW_FILTER_ERROR = "review worklist filters require --review-worklist."
+REVIEW_FILTER_ERROR = "review filters require --review-worklist or --review-summary."
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -56,26 +57,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--review-limit",
         type=_positive_int,
-        help="Limit local review worklist output to the first N entries.",
+        help="Limit local review worklist or review summary output to the first N entries.",
     )
     parser.add_argument(
         "--review-min-risk",
         choices=("A", "B", "C", "D"),
-        help="Filter local review worklist output by minimum RiskLevel.",
+        help="Filter local review worklist or review summary output by minimum RiskLevel.",
     )
     parser.add_argument(
         "--review-gateway",
         choices=("allow_draft", "escalate", "block"),
-        help="Filter local review worklist output by gateway decision.",
+        help="Filter local review worklist or review summary output by gateway decision.",
     )
     parser.add_argument(
         "--review-open-questions-only",
         action="store_true",
-        help="Filter local review worklist output to cases with open questions.",
+        help="Filter local review worklist or review summary output to cases with open questions.",
     )
     args = parser.parse_args(argv)
 
-    if _has_review_worklist_filters(args) and not args.review_worklist:
+    if _has_review_filters(args) and not (args.review_worklist or args.review_summary):
         print(REVIEW_FILTER_ERROR, file=sys.stderr)
         return 2
 
@@ -105,10 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         _write_json(
             filter_review_worklist(
                 worklist,
-                limit=args.review_limit,
-                min_risk=args.review_min_risk,
-                gateway_decision=args.review_gateway,
-                open_questions_only=args.review_open_questions_only,
+                **_review_filter_kwargs(args),
             )
         )
         return 0
@@ -118,7 +116,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("--review-handoff requires --case or --all.", file=sys.stderr)
             return 2
         outputs = [build_mock_workflow(case) for case in cases]
-        _write_json(build_review_summary(outputs))
+        summary = build_review_summary(_filter_outputs_for_summary(outputs, args))
+        if _has_review_filters(args):
+            summary["summary_scope"] = "filtered"
+            summary["applied_filters"] = _applied_review_filters(args)
+        _write_json(summary)
         return 0
 
     if args.case_id:
@@ -153,13 +155,49 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
-def _has_review_worklist_filters(args: argparse.Namespace) -> bool:
+def _has_review_filters(args: argparse.Namespace) -> bool:
     return (
         args.review_limit is not None
         or args.review_min_risk is not None
         or args.review_gateway is not None
         or args.review_open_questions_only
     )
+
+
+def _review_filter_kwargs(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "limit": args.review_limit,
+        "min_risk": args.review_min_risk,
+        "gateway_decision": args.review_gateway,
+        "open_questions_only": args.review_open_questions_only,
+    }
+
+
+def _applied_review_filters(args: argparse.Namespace) -> dict[str, Any]:
+    applied: dict[str, Any] = {}
+    if args.review_limit is not None:
+        applied["review_limit"] = args.review_limit
+    if args.review_min_risk is not None:
+        applied["review_min_risk"] = args.review_min_risk
+    if args.review_gateway is not None:
+        applied["review_gateway"] = args.review_gateway
+    if args.review_open_questions_only:
+        applied["review_open_questions_only"] = True
+    return applied
+
+
+def _filter_outputs_for_summary(
+    outputs: list[WorkflowOutput], args: argparse.Namespace
+) -> list[WorkflowOutput]:
+    if not _has_review_filters(args):
+        return outputs
+
+    outputs_by_case_id = {output.intake.case_id: output for output in outputs}
+    filtered_worklist = filter_review_worklist(
+        build_review_worklist(outputs),
+        **_review_filter_kwargs(args),
+    )
+    return [outputs_by_case_id[item["case_id"]] for item in filtered_worklist]
 
 
 def _package_version() -> str:
