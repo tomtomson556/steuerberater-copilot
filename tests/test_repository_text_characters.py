@@ -11,6 +11,8 @@ TEXT_SUFFIXES = {
     ".py",
     ".toml",
     ".txt",
+    ".yaml",
+    ".yml",
 }
 TEXT_FILENAMES = {
     "LICENSE",
@@ -67,6 +69,10 @@ def test_repository_text_files_do_not_contain_problematic_unicode_characters() -
     ]
 
     assert findings == [], "\n".join(format_finding(finding) for finding in findings)
+
+
+def test_repository_text_scan_includes_github_workflow_yaml() -> None:
+    assert ROOT / ".github" / "workflows" / "ci.yml" in repository_text_files()
 
 
 def repository_text_files() -> list[Path]:
