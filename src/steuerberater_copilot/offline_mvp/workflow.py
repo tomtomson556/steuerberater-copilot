@@ -6,6 +6,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ._response_markers import (
+    HUMAN_REVIEW_GATE_STOPPED_SUMMARY,
+    HUMAN_REVIEW_GATE_TITLE_PREFIX,
+    MANUAL_HANDOFF_DRAFT_NOTE,
+    NO_AUTOMATIC_COMMUNICATION_BEFORE_HUMAN_REVIEW_NOTE,
+    NO_DATEV_ELSTER_TRANSFER_NOTE,
+    OFFLINE_DRAFT_TITLE_PREFIX,
+    REVIEW_BEFORE_USE_NOTE,
+)
 from .models import (
     KNOWN_MOCK_RISK_SIGNALS,
     DraftPackage,
@@ -164,15 +173,12 @@ def build_draft_package(
             else ReviewStatus.IN_REVIEW
         )
         return DraftPackage(
-            title=f"Offline-MVP Human Review Gate fuer {case.case_id}",
+            title=f"{HUMAN_REVIEW_GATE_TITLE_PREFIX} {case.case_id}",
             review_status=review_status,
             risk_classification=risk_classification,
             review_required=True,
             summary_points=(
-                (
-                    "Human Review Gate: automatische Offline-Mock-Fortsetzung "
-                    "gestoppt."
-                ),
+                HUMAN_REVIEW_GATE_STOPPED_SUMMARY,
                 (
                     "Interne RiskLevel-Markierung: "
                     f"Klasse {risk_classification.risk_level.value}; "
@@ -184,9 +190,8 @@ def build_draft_package(
                 for item in case.missing_items
             ),
             handoff_notes=(
-                "Keine automatische Rueckfragenkommunikation oder fachliche "
-                "Inhaltsausgabe vor Human Review.",
-                "keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
+                NO_AUTOMATIC_COMMUNICATION_BEFORE_HUMAN_REVIEW_NOTE,
+                NO_DATEV_ELSTER_TRANSFER_NOTE,
             ),
         )
 
@@ -198,7 +203,7 @@ def build_draft_package(
     )
     document_labels = ", ".join(document.label for document in case.documents)
     return DraftPackage(
-        title=f"Offline-MVP Entwurf fuer {case.case_id}",
+        title=f"{OFFLINE_DRAFT_TITLE_PREFIX} {case.case_id}",
         review_status=review_status,
         risk_classification=risk_classification,
         review_required=risk_classification.review_required,
@@ -217,8 +222,8 @@ def build_draft_package(
             f"Bitte im Review klaeren: {item}." for item in case.missing_items
         ),
         handoff_notes=(
-            "Nur manueller Handoff-Entwurf; keine Agenda-, DATEV- oder ELSTER-Uebertragung.",
-            "Vor jeder fachlichen Nutzung sind Gateway- und Kanzlei-Review zu pruefen.",
+            MANUAL_HANDOFF_DRAFT_NOTE,
+            REVIEW_BEFORE_USE_NOTE,
         ),
     )
 
