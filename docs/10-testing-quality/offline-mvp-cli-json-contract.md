@@ -85,6 +85,22 @@ Each workflow JSON object currently contains exactly these nested objects and
 fields. Tests should treat the field names and value semantics as the contract,
 not the pretty-printing or object key order.
 
+### Compatibility Aliases
+
+The workflow object intentionally keeps these compatibility aliases:
+
+- `review_gate.decision` mirrors `review_gate.status`
+- `draft.summary` mirrors `draft.summary_points`
+
+These fields are legacy-stable contract fields. They are present in parallel to
+keep existing consumers and tests stable; they must not be removed, renamed, or
+reinterpreted as a cleanup-only change.
+
+Any later migration away from one of these aliases would need its own branch,
+an explicit migration plan, deliberate contract versioning, and updated tests.
+Until such a migration exists, both aliases remain part of the stable CLI JSON
+contract.
+
 ## Gateway Contract
 
 `gateway` contains:
@@ -161,6 +177,7 @@ The field types are:
 | `reason` | string | human-readable gate reason |
 
 `review_gate.decision` is currently an alias of `review_gate.status`.
+Both fields remain compatibility fields in the stable workflow object contract.
 
 If a separate Review Gate decision meaning is introduced later, the JSON
 contract and tests must be updated deliberately.
@@ -194,7 +211,8 @@ The field types are:
 | `disclaimers` | array of strings | draft-only and review boundary notices |
 
 `draft.summary` is currently an alias of `draft.summary_points`.
-`summary_points` remains available for backward compatibility.
+Both fields remain available for compatibility with the stable workflow object
+contract.
 
 `draft.available == false` means no complete, substantively usable draft is
 available. `draft.questions` may still contain internal, review-bound question
