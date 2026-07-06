@@ -7,6 +7,14 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 
+from ._response_markers import (
+    PRODUCTIVE_TRANSMISSION_MARKER,
+    PRODUCTIVE_TRANSMISSION_NEGATION_MARKER,
+    RESPONSE_DRAFT_VISIBILITY_MARKERS,
+    RESPONSE_HUMAN_REVIEW_VISIBILITY_MARKERS,
+    TAX_ADVICE_MARKER,
+    TAX_ADVICE_NEGATION_MARKER,
+)
 from .models import DraftPackage, GatewayDecision, GatewayResult, IntakeCase, MockRiskSignal
 
 PSEUDONYM_RE = re.compile(r"^(CLIENT|CASE|DOCUMENT)_[0-9]{3}$")
@@ -179,19 +187,19 @@ def run_response_gateway_check(draft_package: DraftPackage) -> GatewayResult:
         )
     ).lower()
 
-    if "entwurf" not in combined_text and "draft" not in combined_text:
+    if not _contains_any(combined_text, RESPONSE_DRAFT_VISIBILITY_MARKERS):
         escalation_reasons.append("draft_character_not_visible")
 
-    if "human review" not in combined_text and "pruefung" not in combined_text:
+    if not _contains_any(combined_text, RESPONSE_HUMAN_REVIEW_VISIBILITY_MARKERS):
         escalation_reasons.append("human_review_not_visible")
 
     if (
-        "produktive uebermittlung" in combined_text
-        and "keine produktive uebermittlung" not in combined_text
+        PRODUCTIVE_TRANSMISSION_MARKER in combined_text
+        and PRODUCTIVE_TRANSMISSION_NEGATION_MARKER not in combined_text
     ):
         block_reasons.append("productive_transmission_suggested")
 
-    if "steuerberatung" in combined_text and "keine steuerberatung" not in combined_text:
+    if TAX_ADVICE_MARKER in combined_text and TAX_ADVICE_NEGATION_MARKER not in combined_text:
         block_reasons.append("tax_advice_suggested")
 
     return _gateway_result(
@@ -243,3 +251,7 @@ def _gateway_result(
 
 def _all_pseudonyms_are_synthetic(references: Iterable[str]) -> bool:
     return all(PSEUDONYM_RE.fullmatch(reference) for reference in references)
+
+
+def _contains_any(text: str, markers: Iterable[str]) -> bool:
+    return any(marker in text for marker in markers)

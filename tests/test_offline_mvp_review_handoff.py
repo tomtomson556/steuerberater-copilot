@@ -1,3 +1,9 @@
+from steuerberater_copilot.offline_mvp._response_markers import (
+    DRAFT_REVIEW_DISCLAIMER,
+    NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
+    REVIEW_HANDOFF_ARTIFACT_NOTICE,
+    REVIEW_HANDOFF_CLOSING_NOTE,
+)
 from steuerberater_copilot.offline_mvp.review_handoff import render_review_handoff
 from steuerberater_copilot.offline_mvp.workflow import build_mock_workflow, load_fixture_cases
 
@@ -17,9 +23,18 @@ def test_review_handoff_marks_output_as_draft_review_artifact() -> None:
     handoff = _render_case("CASE_002")
 
     assert handoff.startswith("# Review Handoff\n")
-    assert "Draft-/Review-Artefakt fuer den Offline-MVP. Nicht final." in handoff
+    assert REVIEW_HANDOFF_ARTIFACT_NOTICE in handoff
     assert "## Closing Note" in handoff
     assert "menschliche Pruefung und Freigabe" in handoff
+
+
+def test_review_handoff_keeps_shared_compliance_markers_visible() -> None:
+    handoff = _render_case("CASE_002")
+
+    assert REVIEW_HANDOFF_ARTIFACT_NOTICE in handoff
+    assert REVIEW_HANDOFF_CLOSING_NOTE in handoff
+    assert DRAFT_REVIEW_DISCLAIMER in handoff
+    assert NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER in handoff
 
 
 def test_review_handoff_avoids_risky_claims() -> None:

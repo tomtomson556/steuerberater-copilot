@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from ._response_markers import (
+    REVIEW_HANDOFF_ARTIFACT_NOTICE,
+    REVIEW_HANDOFF_CLOSING_NOTE,
+    REVIEW_HANDOFF_NO_EXTERNAL_ACTION_NOTICE,
+)
 from .models import WorkflowOutput
 
 
@@ -14,10 +19,9 @@ def render_review_handoff(output: WorkflowOutput) -> str:
     lines: list[str] = [
         "# Review Handoff",
         "",
-        "Draft-/Review-Artefakt fuer den Offline-MVP. Nicht final.",
+        REVIEW_HANDOFF_ARTIFACT_NOTICE,
         "",
-        "Dieses Markdown nutzt nur vorhandene Offline-MVP-Workflowdaten. "
-        "Es erzeugt keine fachliche Freigabe und fuehrt keine externe Aktion aus.",
+        REVIEW_HANDOFF_NO_EXTERNAL_ACTION_NOTICE,
         "",
         "## Case",
         "",
@@ -53,10 +57,7 @@ def render_review_handoff(output: WorkflowOutput) -> str:
             "",
             "## Closing Note",
             "",
-            (
-                "Fachliche Nutzung, Weitergabe oder Uebernahme in nachgelagerte "
-                "Arbeitsprozesse erfordert menschliche Pruefung und Freigabe."
-            ),
+            REVIEW_HANDOFF_CLOSING_NOTE,
         ]
     )
     return "\n".join(lines) + "\n"

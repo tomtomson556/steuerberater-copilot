@@ -9,6 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from ._response_markers import (
+    DRAFT_REVIEW_DISCLAIMER,
+    NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
+)
+
 
 class ReviewStatus(StrEnum):
     """Human-review states visible in the offline MVP."""
@@ -141,8 +146,8 @@ class DraftPackage:
     handoff_notes: tuple[str, ...]
     disclaimers: tuple[str, ...] = field(
         default=(
-            "Entwurf: fachliche Pruefung durch die Kanzlei erforderlich.",
-            "Keine Steuerberatung, keine Berechnung und keine produktive Uebermittlung.",
+            DRAFT_REVIEW_DISCLAIMER,
+            NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
         )
     )
 
