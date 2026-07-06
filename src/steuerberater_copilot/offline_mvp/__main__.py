@@ -20,6 +20,7 @@ from .workflow import build_mock_workflow, load_fixture_cases
 CLI_NAME = "steuerberater-copilot-offline-mvp"
 PACKAGE_NAME = "steuerberater-copilot"
 REVIEW_FILTER_ERROR = "review filters require --review-worklist or --review-summary."
+REVIEW_HANDOFF_ERROR = "--review-handoff requires --case or --all."
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -80,10 +81,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(REVIEW_FILTER_ERROR, file=sys.stderr)
         return 2
 
+    if _review_handoff_without_workflow_result(args):
+        print(REVIEW_HANDOFF_ERROR, file=sys.stderr)
+        return 2
+
     if args.version:
-        if args.review_handoff is not None:
-            print("--review-handoff requires --case or --all.", file=sys.stderr)
-            return 2
         print(f"{CLI_NAME} {_package_version()}")
         return 0
 
@@ -91,16 +93,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     cases_by_id = {case.case_id: case for case in cases}
 
     if args.list_cases:
-        if args.review_handoff is not None:
-            print("--review-handoff requires --case or --all.", file=sys.stderr)
-            return 2
         _write_json(list(cases_by_id))
         return 0
 
     if args.review_worklist:
-        if args.review_handoff is not None:
-            print("--review-handoff requires --case or --all.", file=sys.stderr)
-            return 2
         outputs = [build_mock_workflow(case) for case in cases]
         worklist = build_review_worklist(outputs)
         _write_json(
@@ -112,9 +108,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.review_summary:
-        if args.review_handoff is not None:
-            print("--review-handoff requires --case or --all.", file=sys.stderr)
-            return 2
         outputs = [build_mock_workflow(case) for case in cases]
         summary = build_review_summary(_filter_outputs_for_summary(outputs, args))
         if _has_review_filters(args):
@@ -162,6 +155,10 @@ def _has_review_filters(args: argparse.Namespace) -> bool:
         or args.review_gateway is not None
         or args.review_open_questions_only
     )
+
+
+def _review_handoff_without_workflow_result(args: argparse.Namespace) -> bool:
+    return args.review_handoff is not None and not (args.case_id or args.all)
 
 
 def _review_filter_kwargs(args: argparse.Namespace) -> dict[str, Any]:

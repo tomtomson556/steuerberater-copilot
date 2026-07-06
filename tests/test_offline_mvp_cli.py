@@ -142,6 +142,25 @@ def test_cli_version_rejects_review_handoff_without_writing_file(tmp_path):
     assert not handoff_path.exists()
 
 
+def test_cli_review_handoff_rejects_non_workflow_modes_with_stable_error(tmp_path):
+    invalid_commands = (
+        ("--version",),
+        ("--list-cases",),
+        ("--review-worklist",),
+        ("--review-summary",),
+    )
+
+    for index, args in enumerate(invalid_commands):
+        handoff_path = tmp_path / f"handoff-{index}.md"
+
+        result = _run_cli(*args, "--review-handoff", str(handoff_path))
+
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert result.stderr == "--review-handoff requires --case or --all.\n"
+        assert not handoff_path.exists()
+
+
 def test_cli_case_outputs_valid_json_object():
     result = _run_cli("--case", "CASE_001")
 
