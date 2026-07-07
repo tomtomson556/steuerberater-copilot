@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 import steuerberater_copilot.ai as ai
-from steuerberater_copilot.ai import ModelProvider, ModelRequest, ModelResponse
+from steuerberater_copilot.ai import FakeModelProvider, ModelProvider, ModelRequest, ModelResponse
 
 
 def test_model_request_is_immutable_contract() -> None:
@@ -79,10 +79,12 @@ def test_object_without_generate_is_not_a_model_provider() -> None:
 
 
 def test_public_ai_package_exports_model_boundary() -> None:
+    assert ai.FakeModelProvider is FakeModelProvider
     assert ai.ModelProvider is ModelProvider
     assert ai.ModelRequest is ModelRequest
     assert ai.ModelResponse is ModelResponse
     assert ai.__all__ == [
+        "FakeModelProvider",
         "ModelProvider",
         "ModelRequest",
         "ModelResponse",
