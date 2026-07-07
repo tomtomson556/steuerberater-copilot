@@ -3,7 +3,12 @@ import os
 import subprocess
 import sys
 import tomllib
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
+
+import pytest
+
+from steuerberater_copilot.offline_mvp import __main__ as cli
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -129,6 +134,63 @@ def test_cli_version_outputs_text_without_loading_workflow_json():
     assert "CASE_001" not in result.stdout
     assert "gateway" not in result.stdout
     assert "review_gate" not in result.stdout
+
+
+def test_package_version_returns_metadata_version(monkeypatch: pytest.MonkeyPatch):
+    calls: list[str] = []
+
+    def fake_version(package_name: str) -> str:
+        calls.append(package_name)
+        return "9.8.7"
+
+    monkeypatch.setattr(cli, "version", fake_version)
+
+    assert cli._package_version() == "9.8.7"
+    assert calls == [cli.PACKAGE_NAME]
+
+
+def test_package_version_returns_unknown_when_metadata_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def missing_version(package_name: str) -> str:
+        raise PackageNotFoundError(package_name)
+
+    monkeypatch.setattr(cli, "version", missing_version)
+
+    assert cli._package_version() == "unknown"
+
+
+def test_package_version_propagates_unexpected_metadata_errors(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def broken_version(package_name: str) -> str:
+        raise RuntimeError("metadata backend failed")
+
+    monkeypatch.setattr(cli, "version", broken_version)
+
+    with pytest.raises(RuntimeError, match="metadata backend failed"):
+        cli._package_version()
+
+
+def test_cli_version_uses_unknown_fallback_without_loading_fixtures(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    def missing_version(package_name: str) -> str:
+        raise PackageNotFoundError(package_name)
+
+    def fail_if_called():
+        pytest.fail("version mode must not load fixture cases")
+
+    monkeypatch.setattr(cli, "version", missing_version)
+    monkeypatch.setattr(cli, "load_fixture_cases", fail_if_called)
+
+    exit_code = cli.main(["--version"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "steuerberater-copilot-offline-mvp unknown\n"
+    assert captured.err == ""
 
 
 def test_cli_version_rejects_review_handoff_without_writing_file(tmp_path):

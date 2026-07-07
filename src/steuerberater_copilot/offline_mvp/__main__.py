@@ -202,8 +202,6 @@ def _package_version() -> str:
         return version(PACKAGE_NAME)
     except PackageNotFoundError:
         return "unknown"
-    except Exception:
-        return "unknown"
 
 
 def _write_review_handoff(path: Path, content: str) -> None:
