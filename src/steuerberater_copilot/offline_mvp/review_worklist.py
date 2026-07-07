@@ -43,6 +43,11 @@ def filter_review_worklist(
     filtered = list(items)
 
     if min_risk is not None:
+        if min_risk not in RISK_FILTER_RANK:
+            expected = ", ".join(RISK_FILTER_RANK)
+            raise ValueError(
+                f"invalid min_risk {min_risk!r}; expected one of: {expected}"
+            )
         minimum_rank = RISK_FILTER_RANK[min_risk]
         filtered = [
             item

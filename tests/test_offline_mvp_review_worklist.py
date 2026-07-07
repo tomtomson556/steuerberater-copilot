@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import pytest
+
 from steuerberater_copilot.offline_mvp.models import ReviewStatus
 from steuerberater_copilot.offline_mvp.review_worklist import (
     build_review_worklist,
@@ -32,6 +34,7 @@ AUTOMATIC_FINAL_REVIEW_STATUS_MARKERS = {
     "freigegeben",
     "rejected",
 }
+EXPECTED_RISK_FILTER_VALUES = "A, B, C, D"
 
 
 def test_review_worklist_contains_all_fixture_cases_in_priority_order() -> None:
@@ -118,19 +121,48 @@ def test_filter_review_worklist_limit_keeps_first_existing_entries() -> None:
     ]
 
 
-def test_filter_review_worklist_by_min_risk() -> None:
+@pytest.mark.parametrize(
+    ("min_risk", "expected_case_ids"),
+    [
+        ("A", ["CASE_005", "CASE_004", "CASE_001", "CASE_003", "CASE_002"]),
+        ("B", ["CASE_005", "CASE_004", "CASE_001", "CASE_003"]),
+        ("C", ["CASE_005", "CASE_004", "CASE_001"]),
+        ("D", ["CASE_005", "CASE_004"]),
+    ],
+)
+def test_filter_review_worklist_by_min_risk(
+    min_risk: str, expected_case_ids: list[str]
+) -> None:
     outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
     worklist = build_review_worklist(outputs)
 
-    risk_d = filter_review_worklist(worklist, min_risk="D")
-    risk_c = filter_review_worklist(worklist, min_risk="C")
+    filtered = filter_review_worklist(worklist, min_risk=min_risk)
 
-    assert [item["case_id"] for item in risk_d] == ["CASE_005", "CASE_004"]
-    assert [item["case_id"] for item in risk_c] == [
-        "CASE_005",
-        "CASE_004",
-        "CASE_001",
-    ]
+    assert [item["case_id"] for item in filtered] == expected_case_ids
+
+
+@pytest.mark.parametrize("min_risk", ["E", "c", ""])
+def test_filter_review_worklist_rejects_invalid_min_risk(min_risk: str) -> None:
+    outputs = [build_mock_workflow(case) for case in load_fixture_cases()]
+    worklist = build_review_worklist(outputs)
+
+    with pytest.raises(ValueError) as exc_info:
+        filter_review_worklist(worklist, min_risk=min_risk)
+
+    assert str(exc_info.value) == (
+        f"invalid min_risk {min_risk!r}; expected one of: "
+        f"{EXPECTED_RISK_FILTER_VALUES}"
+    )
+
+
+def test_filter_review_worklist_rejects_invalid_min_risk_for_empty_worklist() -> None:
+    with pytest.raises(ValueError) as exc_info:
+        filter_review_worklist([], min_risk="E")
+
+    assert str(exc_info.value) == (
+        "invalid min_risk 'E'; expected one of: "
+        f"{EXPECTED_RISK_FILTER_VALUES}"
+    )
 
 
 def test_filter_review_worklist_by_gateway_decision() -> None:
