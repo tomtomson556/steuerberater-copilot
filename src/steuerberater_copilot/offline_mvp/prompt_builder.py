@@ -43,7 +43,7 @@ def build_synthetic_model_request(case: IntakeCase) -> ModelRequest:
     }
     case_data = json.dumps(
         payload,
-        ensure_ascii=True,
+        ensure_ascii=False,
         indent=2,
     )
     user_prompt = (

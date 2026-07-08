@@ -165,6 +165,30 @@ def test_synthetic_prompt_builder_uses_standard_json_escaping() -> None:
     assert 'newline\nmarker' not in result.user_prompt
 
 
+def test_synthetic_prompt_builder_preserves_unicode_while_escaping_json_controls() -> None:
+    result = build_synthetic_model_request(
+        IntakeCase(
+            case_id="CASE_104",
+            client_ref="CLIENT_104",
+            scenario=(
+                'synthetische Erklärung: ä ö ü ß € with "quote", '
+                "backslash \\ and newline\nmarker"
+            ),
+            period="2027-Q1",
+            documents=(),
+        )
+    )
+
+    assert "ä ö ü ß €" in result.user_prompt
+    for escaped_value in ("\\u00e4", "\\u00f6", "\\u00fc", "\\u00df", "\\u20ac"):
+        assert escaped_value not in result.user_prompt
+    assert (
+        '  "scenario": "synthetische Erklärung: ä ö ü ß € with \\"quote\\", '
+        'backslash \\\\ and newline\\nmarker",'
+    ) in result.user_prompt
+    assert 'newline\nmarker' not in result.user_prompt
+
+
 def test_synthetic_prompt_builder_is_deterministic_for_same_instance() -> None:
     case = _minimal_case()
 
