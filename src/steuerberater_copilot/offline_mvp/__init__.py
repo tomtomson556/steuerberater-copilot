@@ -14,6 +14,7 @@ from .models import (
     WorkflowOutput,
 )
 from .prompt_builder import build_synthetic_model_request
+from .structured_output import StructuredDraftOutput
 from .workflow import build_mock_workflow, classify_internal_risk, run_human_review_gate
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "ReviewGateDecision",
     "ReviewGateStatus",
     "ReviewStatus",
+    "StructuredDraftOutput",
     "SyntheticDocument",
     "WorkflowOutput",
     "build_synthetic_model_request",
