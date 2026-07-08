@@ -1,5 +1,6 @@
 """Offline MVP building blocks without productive integrations."""
 
+from .ai_workflow import SyntheticAIWorkflowOutput, build_synthetic_ai_workflow
 from .models import (
     DraftPackage,
     GatewayDecision,
@@ -33,8 +34,10 @@ __all__ = [
     "ReviewStatus",
     "StructuredDraftOutput",
     "StructuredDraftOutputParseError",
+    "SyntheticAIWorkflowOutput",
     "SyntheticDocument",
     "WorkflowOutput",
+    "build_synthetic_ai_workflow",
     "build_synthetic_model_request",
     "build_mock_workflow",
     "classify_internal_risk",
