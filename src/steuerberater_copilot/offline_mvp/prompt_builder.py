@@ -18,6 +18,8 @@ _SYNTHETIC_SYSTEM_PROMPT = (
     "Do not provide tax advice, professional approval, or instructions for productive "
     "transmission.\n"
     "Keep uncertainties and missing information explicit.\n"
+    "Return only one valid JSON object matching the required structured output contract.\n"
+    "Do not use Markdown code fences or add text outside the JSON object.\n"
     "The result remains an internal draft and requires human review."
 )
 
@@ -50,13 +52,24 @@ def build_synthetic_model_request(case: IntakeCase) -> ModelRequest:
         "Synthetic case data:\n"
         f"{case_data}\n"
         "\n"
-        "Task:\n"
-        "Prepare a concise internal draft with:\n"
-        "- a summary of the supplied facts\n"
-        "- explicit uncertainties and missing information\n"
-        "- questions for human review\n"
+        "Output contract:\n"
+        "Return exactly one valid JSON object with these keys in this order:\n"
+        "{\n"
+        '  "summary_points": [],\n'
+        '  "uncertainties": [],\n'
+        '  "review_questions": []\n'
+        "}\n"
         "\n"
-        "Use only the supplied synthetic data. Do not infer or add missing facts."
+        "Requirements:\n"
+        "- Use exactly these three keys and no additional keys.\n"
+        "- Each value must be a JSON array containing only strings.\n"
+        "- Populate the arrays only with information supported by the supplied synthetic data.\n"
+        "- Use an empty array when the supplied data supports no entry for a field.\n"
+        "- summary_points must summarize only facts present in the supplied synthetic data.\n"
+        "- uncertainties must state missing, unclear, or unsupported information explicitly.\n"
+        "- review_questions must contain questions only for internal human review.\n"
+        "- Do not infer, invent, or add missing facts.\n"
+        "- Do not include Markdown code fences or any text outside the JSON object."
     )
 
     return ModelRequest(
