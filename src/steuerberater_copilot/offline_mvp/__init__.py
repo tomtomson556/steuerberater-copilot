@@ -15,6 +15,10 @@ from .models import (
 )
 from .prompt_builder import build_synthetic_model_request
 from .structured_output import StructuredDraftOutput
+from .structured_output_parser import (
+    StructuredDraftOutputParseError,
+    parse_structured_draft_output,
+)
 from .workflow import build_mock_workflow, classify_internal_risk, run_human_review_gate
 
 __all__ = [
@@ -28,10 +32,12 @@ __all__ = [
     "ReviewGateStatus",
     "ReviewStatus",
     "StructuredDraftOutput",
+    "StructuredDraftOutputParseError",
     "SyntheticDocument",
     "WorkflowOutput",
     "build_synthetic_model_request",
     "build_mock_workflow",
     "classify_internal_risk",
+    "parse_structured_draft_output",
     "run_human_review_gate",
 ]
