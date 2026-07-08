@@ -9,6 +9,8 @@ EXPECTED_SYSTEM_PROMPT = (
     "Do not provide tax advice, professional approval, or instructions for productive "
     "transmission.\n"
     "Keep uncertainties and missing information explicit.\n"
+    "Return only one valid JSON object matching the required structured output contract.\n"
+    "Do not use Markdown code fences or add text outside the JSON object.\n"
     "The result remains an internal draft and requires human review."
 )
 
@@ -89,16 +91,74 @@ def test_synthetic_prompt_builder_user_prompt_contract() -> None:
         "  ]\n"
         "}\n"
         "\n"
-        "Task:\n"
-        "Prepare a concise internal draft with:\n"
-        "- a summary of the supplied facts\n"
-        "- explicit uncertainties and missing information\n"
-        "- questions for human review\n"
+        "Output contract:\n"
+        "Return exactly one valid JSON object with these keys in this order:\n"
+        "{\n"
+        '  "summary_points": [],\n'
+        '  "uncertainties": [],\n'
+        '  "review_questions": []\n'
+        "}\n"
         "\n"
-        "Use only the supplied synthetic data. Do not infer or add missing facts."
+        "Requirements:\n"
+        "- Use exactly these three keys and no additional keys.\n"
+        "- Each value must be a JSON array containing only strings.\n"
+        "- Populate the arrays only with information supported by the supplied synthetic data.\n"
+        "- Use an empty array when the supplied data supports no entry for a field.\n"
+        "- summary_points must summarize only facts present in the supplied synthetic data.\n"
+        "- uncertainties must state missing, unclear, or unsupported information explicitly.\n"
+        "- review_questions must contain questions only for internal human review.\n"
+        "- Do not infer, invent, or add missing facts.\n"
+        "- Do not include Markdown code fences or any text outside the JSON object."
     )
     assert result.user_prompt == expected_user_prompt
     assert not result.user_prompt.endswith("\n")
+
+
+def test_synthetic_prompt_builder_output_contract_field_order() -> None:
+    result = build_synthetic_model_request(_minimal_case())
+
+    summary_index = result.user_prompt.index('"summary_points"')
+    uncertainties_index = result.user_prompt.index('"uncertainties"')
+    review_questions_index = result.user_prompt.index('"review_questions"')
+
+    assert summary_index < uncertainties_index < review_questions_index
+
+
+def test_synthetic_prompt_builder_forbids_surrounding_output_text() -> None:
+    result = build_synthetic_model_request(_minimal_case())
+
+    assert (
+        "Do not include Markdown code fences or any text outside the JSON object."
+        in result.user_prompt
+    )
+    assert "```" not in result.user_prompt
+    assert "```" not in result.system_prompt
+
+
+def test_synthetic_prompt_builder_requires_exact_structured_output_fields() -> None:
+    result = build_synthetic_model_request(_minimal_case())
+    output_contract = result.user_prompt.split("Output contract:\n", maxsplit=1)[1]
+
+    for field_name in ("summary_points", "uncertainties", "review_questions"):
+        assert f'"{field_name}"' in output_contract
+
+    for field_name in (
+        "confidence",
+        "approved",
+        "valid",
+        "provider_name",
+        "model_name",
+    ):
+        assert f'"{field_name}"' not in output_contract
+
+
+def test_synthetic_prompt_builder_instructs_empty_arrays_when_unsupported() -> None:
+    result = build_synthetic_model_request(_minimal_case())
+
+    assert (
+        "Use an empty array when the supplied data supports no entry for a field."
+        in result.user_prompt
+    )
 
 
 def test_synthetic_prompt_builder_keeps_empty_collections_as_json_arrays() -> None:
