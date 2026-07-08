@@ -13,6 +13,7 @@ from .models import (
     SyntheticDocument,
     WorkflowOutput,
 )
+from .prompt_builder import build_synthetic_model_request
 from .workflow import build_mock_workflow, classify_internal_risk, run_human_review_gate
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "ReviewStatus",
     "SyntheticDocument",
     "WorkflowOutput",
+    "build_synthetic_model_request",
     "build_mock_workflow",
     "classify_internal_risk",
     "run_human_review_gate",
