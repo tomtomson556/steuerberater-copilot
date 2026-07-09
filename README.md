@@ -59,10 +59,16 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [Glossar](docs/00-project/glossary.md)
 - [Security Baseline Policy](docs/02-security/security-baseline-policy.md)
 - [MVP Scope and Roadmap](docs/10-mvp-scope/mvp-scope-and-roadmap.md)
+- [AI-Engineering-Roadmap 2026](docs/10-mvp-scope/ai-engineering-roadmap-2026.md)
 - [Offline MVP Operations Guide](docs/09-operations/offline-mvp-operations.md)
 - [Offline MVP CLI JSON Contract](docs/10-testing-quality/offline-mvp-cli-json-contract.md)
 - [GoBD-Oriented Storage Baseline](docs/08-gobd-storage/gobd-storage-baseline.md)
 - [Review-to-Final Artifact Boundary](docs/08-gobd-storage/review-to-final-artifact-boundary.md)
+
+Die AI-Engineering-Roadmap 2026 dokumentiert das Portfolio-Ziel bis Ende 2026,
+die geplanten Phasen, den Pflichtumfang und bewusste Nicht-Ziele. Sie ist kein
+Versprechen produktiver Steuerberatung, produktiver Kanzleinutzung oder
+Compliance-Konformitaet.
 
 ## License
 

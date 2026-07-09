@@ -9,6 +9,11 @@ Der MVP fuehrt keine produktive Integration ein und trifft keine steuerlichen
 Entscheidungen. Er beschreibt Vorbereitung, Grenzen, Module und Reviewpflichten
 fuer einen spaeteren, kontrollierten Entwicklungsstand.
 
+Dieses Dokument bleibt verbindlich fuer den fachlichen MVP-Scope und die
+Sicherheitsgrenzen. Die zeitliche AI-Engineering- und Portfolio-Planung bis Ende
+2026 steht in
+[ai-engineering-roadmap-2026.md](ai-engineering-roadmap-2026.md).
+
 ## Leitprinzip
 
 ```text
