@@ -219,10 +219,15 @@ eingefuehrt.
 
 ### FakeModelProvider
 
-Der `FakeModelProvider` bleibt vorerst an seinem bestehenden Ort. Er wird nicht
-allein aus Gruenden architektonischer Reinheit verschoben. Eine spaetere
-Verschiebung ist nur zulaessig, wenn beim echten Provider eine klarere
-Adapterstruktur tatsaechlich benoetigt wird.
+Der `FakeModelProvider` bleibt vorerst an seinem bestehenden Ort.
+
+- Es gibt keinen eigenstaendigen Architekturhygiene-Branch nur zur
+  Verschiebung.
+- Die Paketposition wird beim ersten echten Provideradapter erneut geprueft.
+- Eine Verschiebung erfolgt nur, wenn sie dann eine tatsaechlich genutzte
+  Port-/Adapter-Grenze klarer macht.
+- Eine solche Verschiebung darf nicht mit fachfremden Aenderungen vermischt
+  werden.
 
 ## Betriebsstrategie
 
@@ -462,9 +467,8 @@ Minimaler Cloud-Scope:
 
 - ein Containerdienst
 - ein Secret Store
-- strukturierte Logs
 - Health Check
-- ein Modellprovider
+- strukturierte Logs
 - minimale Infrastructure as Code
 - Kosten- und Abschaltkontrolle
 
@@ -570,45 +574,84 @@ zulaessig.
 
 Bei Zeitdruck gilt diese Reihenfolge:
 
-1. Evaluation
-2. echter Provider
-3. semantische Validierung
-4. Prompt-Versionierung
-5. RAG mit Quellen
-6. FastAPI
-7. Docker
-8. Cloud-Deployment
-9. Monitoring
+1. semantische Validierung
+2. Prompt-Versionierung
+3. Offline-Evaluation und messbare Qualitaetsmetriken
+4. genau ein kontrollierter echter Modellprovider
+5. RAG mit Quellen und Retrieval-Evaluation
+6. FastAPI-Demo
+7. lokale Docker-Demo
+8. genau eine Referenz-Cloud
+9. grundlegende Laufzeitbeobachtung
 10. Stretch Goals
+
+Diese Reihenfolge bildet technische Abhaengigkeiten und die geplante
+Ausfuehrungsreihenfolge ab. Semantische Validierung und versionierte Prompts
+sind Voraussetzungen fuer reproduzierbare Evaluation. Die Evaluation muss
+vorhanden sein, bevor ein echter Provider als Portfolio-Nachweis bewertet wird.
+Unter Zeitdruck duerfen diese Voraussetzungen nicht uebersprungen werden.
+
+Ein echter Provider ohne semantische Validierung, Prompt-Versionierung und
+Evaluation gilt nicht als abgeschlossenes Portfolio-Ziel.
 
 Cloud-Infrastruktur darf niemals auf Kosten von funktionierender AI und
 Evaluation priorisiert werden.
 
+Die Referenz-Cloud ist kein Stretch Goal. Cloud-Funktionalitaet bleibt zeitlich
+nach AI-Qualitaet, Evaluation, RAG, API und Docker eingeordnet. Bei Zeitdruck
+wird zuerst der Cloud-Umfang reduziert, nicht die Referenz-Cloud vollstaendig
+gestrichen. Eine lokale Docker-Demo ersetzt die Referenz-Cloud nicht.
+
+Als minimaler reduzierter Cloud-Scope bleiben verbindlich:
+
+- ein Containerdienst
+- ein Secret Store
+- Health Check
+- strukturierte Logs
+- minimale Infrastructure as Code
+- Kosten- und Abschaltkontrolle
+
 Falls ein Meilenstein mehr als zwei Wochen hinter dem Plan liegt, werden zuerst
-gestrichen:
+gestrichen oder reduziert:
 
 - Managed PostgreSQL
 - Authentifizierung
 - persistentes Audit
+- private Netzwerkarchitektur
+- erweitertes Monitoring
+- zusaetzliche Cloud-Dienste
 - Tool Calling
 - zweites Projekt
-- erweiterte Cloud-Metriken
 
 Nicht gestrichen werden:
 
-- echter Provider
-- Evaluation
-- Prompt-Versionierung
 - semantische Validierung
-- RAG mit Quellen
+- Prompt-Versionierung
+- Offline-Evaluation
+- genau ein kontrollierter echter Modellprovider
+- RAG mit nachvollziehbaren Quellen
 - lokale Docker-Demo
-- mindestens eine reproduzierbare Deployment-Variante
-- Portfolio-Dokumentation
+- genau eine per Infrastructure as Code reproduzierbar bereitgestellte
+  Referenz-Cloud
+- Portfolio-Dokumentation und Demo-Nachweise
 
 ## Roadmap-Pflege
 
 Diese Roadmap ist die strategische Quelle der Wahrheit. Sie wird nicht nach
 jedem kleinen Pull Request geaendert.
+
+Am Ende jeder Phase wird aktiv geprueft:
+
+- Sind die Exit-Kriterien tatsaechlich erfuellt?
+- Ist die naechste Phase im verbleibenden Zeitraum realistisch?
+- Besteht ein Verzug von mehr als zwei Wochen?
+- Muessen optionale oder reduzierbare Ziele vor Beginn der naechsten Phase
+  gestrichen werden?
+
+Kuerzungsentscheidungen werden proaktiv an den Phasenuebergaengen getroffen und
+nicht erst dann, wenn der Gesamttermin bereits gefaehrdet ist. Die Roadmap ist
+ambitioniert, aber die geplanten Branches muessen nicht unabhaengig vom
+tatsaechlichen Fortschritt unveraendert abgearbeitet werden.
 
 Sie wird aktualisiert bei:
 
@@ -630,15 +673,8 @@ Der unmittelbar naechste Produktionsbranch ist:
 feat/add-structured-draft-semantic-validator
 ```
 
-Danach geplant:
-
-```text
-feat/integrate-semantic-validation-into-ai-workflow
-feat/add-versioned-prompt-definition
-feat/add-versioned-prompt-registry
-feat/add-evaluation-case-contract
-feat/add-offline-evaluation-runner
-```
+Die anschliessenden Arbeitspakete und ihre Reihenfolge ergeben sich aus der
+Phasenplanung dieser Roadmap.
 
 Im unmittelbar naechsten Produktionsbranch gibt es keine Cloud-, API-, Docker-,
 Datenbank- oder allgemeine Adapterstruktur.
