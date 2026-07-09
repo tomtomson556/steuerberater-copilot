@@ -15,6 +15,10 @@ from .models import (
     WorkflowOutput,
 )
 from .prompt_builder import build_synthetic_model_request
+from .prompt_definition import (
+    SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1,
+    VersionedPromptDefinition,
+)
 from .structured_output import StructuredDraftOutput
 from .structured_output_parser import (
     StructuredDraftOutputParseError,
@@ -36,11 +40,13 @@ __all__ = [
     "ReviewGateDecision",
     "ReviewGateStatus",
     "ReviewStatus",
+    "SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1",
     "StructuredDraftOutput",
     "StructuredDraftOutputParseError",
     "StructuredDraftOutputValidationError",
     "SyntheticAIWorkflowOutput",
     "SyntheticDocument",
+    "VersionedPromptDefinition",
     "WorkflowOutput",
     "build_synthetic_ai_workflow",
     "build_synthetic_model_request",
