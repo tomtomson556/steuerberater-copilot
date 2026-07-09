@@ -20,6 +20,10 @@ from .structured_output_parser import (
     StructuredDraftOutputParseError,
     parse_structured_draft_output,
 )
+from .structured_output_validator import (
+    StructuredDraftOutputValidationError,
+    validate_structured_draft_output,
+)
 from .workflow import build_mock_workflow, classify_internal_risk, run_human_review_gate
 
 __all__ = [
@@ -34,6 +38,7 @@ __all__ = [
     "ReviewStatus",
     "StructuredDraftOutput",
     "StructuredDraftOutputParseError",
+    "StructuredDraftOutputValidationError",
     "SyntheticAIWorkflowOutput",
     "SyntheticDocument",
     "WorkflowOutput",
@@ -43,4 +48,5 @@ __all__ = [
     "classify_internal_risk",
     "parse_structured_draft_output",
     "run_human_review_gate",
+    "validate_structured_draft_output",
 ]
