@@ -21,10 +21,21 @@ from steuerberater_copilot.offline_mvp.structured_output import StructuredDraftO
 from steuerberater_copilot.offline_mvp.structured_output_parser import (
     StructuredDraftOutputParseError,
 )
+from steuerberater_copilot.offline_mvp.structured_output_validator import (
+    StructuredDraftOutputValidationError,
+)
 
 VALID_STRUCTURED_CONTENT = (
     "{"
     '"summary_points":["Synthetic summary"],'
+    '"uncertainties":["Synthetic uncertainty"],'
+    '"review_questions":["Synthetic review question"]'
+    "}"
+)
+
+SEMANTICALLY_INVALID_STRUCTURED_CONTENT = (
+    "{"
+    '"summary_points":[""],'
     '"uncertainties":["Synthetic uncertainty"],'
     '"review_questions":["Synthetic review question"]'
     "}"
@@ -112,6 +123,20 @@ def test_synthetic_ai_workflow_propagates_parser_errors_unchanged() -> None:
         build_synthetic_ai_workflow(_allowed_class_a_case(), provider=provider)
 
     assert provider.requests == (build_synthetic_model_request(_allowed_class_a_case()),)
+
+
+def test_synthetic_ai_workflow_propagates_validation_errors_unchanged() -> None:
+    case = _allowed_class_a_case()
+    provider = FakeModelProvider(_model_response(SEMANTICALLY_INVALID_STRUCTURED_CONTENT))
+
+    with pytest.raises(StructuredDraftOutputValidationError) as exc_info:
+        build_synthetic_ai_workflow(case, provider=provider)
+
+    error = exc_info.value
+    assert error.rule == "blank_entry"
+    assert error.field_name == "summary_points"
+    assert error.item_index == 0
+    assert provider.requests == (build_synthetic_model_request(case),)
 
 
 def test_synthetic_ai_workflow_propagates_provider_errors_unchanged() -> None:

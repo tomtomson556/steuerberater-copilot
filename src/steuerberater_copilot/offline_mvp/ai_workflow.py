@@ -1,4 +1,4 @@
-"""Controlled synthetic AI workflow for offline MVP draft parsing."""
+"""Controlled synthetic AI workflow for offline MVP draft parsing and validation."""
 
 from __future__ import annotations
 
@@ -17,12 +17,13 @@ from .models import (
 from .prompt_builder import build_synthetic_model_request
 from .structured_output import StructuredDraftOutput
 from .structured_output_parser import parse_structured_draft_output
+from .structured_output_validator import validate_structured_draft_output
 from .workflow import classify_internal_risk, run_human_review_gate, run_mock_gateway
 
 
 @dataclass(frozen=True)
 class SyntheticAIWorkflowOutput:
-    """Synthetic controlled workflow state, not fachliche or semantic validation."""
+    """Synthetic workflow state after semantic validation, without fachliche validation."""
 
     intake: IntakeCase
     gateway: GatewayResult
@@ -64,6 +65,7 @@ def build_synthetic_ai_workflow(
         review_gate=review_gate,
     )
     structured_draft = parse_structured_draft_output(model_response.content)
+    validate_structured_draft_output(structured_draft)
 
     return SyntheticAIWorkflowOutput(
         intake=case,
