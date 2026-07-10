@@ -40,6 +40,39 @@ def test_invoke_model_if_allowed_calls_provider_after_positive_controls() -> Non
     assert result is response
     assert provider.requests == (request,)
     assert provider.requests[0] is request
+    assert provider.requests[0].prompt_id == "synthetic_invocation_prompt"
+    assert provider.requests[0].prompt_version == "1"
+
+
+@pytest.mark.parametrize(
+    ("prompt_id", "prompt_version"),
+    (
+        ("synthetic_invocation_prompt", "1"),
+        ("other_synthetic_invocation_prompt", "2"),
+    ),
+)
+def test_invoke_model_if_allowed_does_not_use_prompt_metadata_as_control_input(
+    prompt_id: str,
+    prompt_version: str,
+) -> None:
+    provider = FakeModelProvider(_model_response())
+    request = _model_request(
+        prompt_id=prompt_id,
+        prompt_version=prompt_version,
+    )
+
+    invoke_model_if_allowed(
+        provider=provider,
+        request=request,
+        gateway=_gateway(GatewayDecision.ALLOW_DRAFT),
+        review_gate=_review_gate(
+            status=ReviewGateStatus.ALLOWED_OFFLINE_MOCK_CONTINUATION,
+            allows_offline_mock_continuation=True,
+            risk_level=RiskLevel.CLASS_A,
+        ),
+    )
+
+    assert provider.requests == (request,)
 
 
 @pytest.mark.parametrize(
@@ -167,8 +200,14 @@ def _model_response() -> ModelResponse:
     )
 
 
-def _model_request() -> ModelRequest:
+def _model_request(
+    *,
+    prompt_id: str = "synthetic_invocation_prompt",
+    prompt_version: str = "1",
+) -> ModelRequest:
     return ModelRequest(
+        prompt_id=prompt_id,
+        prompt_version=prompt_version,
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare a deterministic response.",
     )

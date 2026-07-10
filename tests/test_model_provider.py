@@ -8,18 +8,58 @@ from steuerberater_copilot.ai import FakeModelProvider, ModelProvider, ModelRequ
 
 def test_model_request_is_immutable_contract() -> None:
     request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Prepare a synthetic draft.",
         user_prompt="Summarize the provided synthetic case.",
     )
 
+    assert request.prompt_id == "synthetic_test_prompt"
+    assert request.prompt_version == "1"
     assert request.system_prompt == "Prepare a synthetic draft."
     assert request.user_prompt == "Summarize the provided synthetic case."
     assert request == ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Prepare a synthetic draft.",
         user_prompt="Summarize the provided synthetic case.",
     )
     with pytest.raises(FrozenInstanceError):
         request.system_prompt = "Changed."
+
+
+def test_model_request_equality_includes_prompt_version() -> None:
+    first = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
+        system_prompt="Prepare a synthetic draft.",
+        user_prompt="Summarize the provided synthetic case.",
+    )
+    second = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="2",
+        system_prompt="Prepare a synthetic draft.",
+        user_prompt="Summarize the provided synthetic case.",
+    )
+
+    assert first != second
+
+
+def test_model_request_equality_includes_prompt_id() -> None:
+    first = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
+        system_prompt="Prepare a synthetic draft.",
+        user_prompt="Summarize the provided synthetic case.",
+    )
+    second = ModelRequest(
+        prompt_id="other_synthetic_test_prompt",
+        prompt_version="1",
+        system_prompt="Prepare a synthetic draft.",
+        user_prompt="Summarize the provided synthetic case.",
+    )
+
+    assert first != second
 
 
 def test_model_response_is_immutable_contract() -> None:
@@ -56,6 +96,8 @@ def test_conforming_provider_generates_expected_response() -> None:
 
     provider = StubProvider()
     request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Prepare a synthetic draft.",
         user_prompt="Summarize the provided synthetic case.",
     )

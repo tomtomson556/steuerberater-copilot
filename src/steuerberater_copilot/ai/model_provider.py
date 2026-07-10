@@ -12,8 +12,10 @@ from typing import Protocol, runtime_checkable
 
 @dataclass(frozen=True, slots=True)
 class ModelRequest:
-    """Text prompts prepared for a concrete provider implementation."""
+    """Versioned text prompts prepared for a concrete provider implementation."""
 
+    prompt_id: str
+    prompt_version: str
     system_prompt: str
     user_prompt: str
 
