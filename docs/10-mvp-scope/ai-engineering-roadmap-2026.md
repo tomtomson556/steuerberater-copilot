@@ -51,7 +51,9 @@ providerneutralen `ModelProvider`, einen deterministischen `FakeModelProvider`,
 synthetischen Prompt-Aufbau mit versionierter Promptdefinition sowie Prompt-ID
 und Prompt-Version im `ModelRequest`, `StructuredDraftOutput`, einen strengen
 strukturellen JSON-Parser und eine getrennte semantische Validierung. Die
-semantische Validierung ist in den kontrollierten AI-Workflow integriert.
+semantische Validierung ist in den kontrollierten AI-Workflow integriert. Ein
+`EvaluationCase`-Vertrag und ein deterministischer Einzel-Fall-Offline-
+Evaluation-Runner sind ebenfalls vorhanden.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -78,10 +80,11 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere echter Modellprovider, Evaluation, RAG,
-FastAPI, Docker, Persistenz, Authentifizierung, Cloud-Deployment,
-Infrastructure as Code und Monitoring. Eine Prompt Registry ist bewusst
-aufgeschoben und aktuell nicht benoetigt.
+Noch nicht vorhanden sind insbesondere Evaluationsfallbibliothek, messbare
+Evaluationsmetriken, Evaluationsreport, echter Modellprovider, RAG, FastAPI,
+Docker, Persistenz, Authentifizierung, Cloud-Deployment, Infrastructure as Code
+und Monitoring. Die Offline-Evaluation ist damit noch nicht abgeschlossen.
+Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht benoetigt.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -678,9 +681,9 @@ Architekturentscheidungen.
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-offline-evaluation-runner
+feat/add-evaluation-metrics-report
 ```
 
-Der Evaluation Runner wird erst nach Merge des Evaluation-Case-Vertrags
-begonnen. Im Runner-Branch gibt es noch keinen echten Provider und keine API-,
-Docker-, Cloud-, RAG- oder CLI-Arbeit.
+Der Metrik- und Report-Branch baut auf den beobachteten Einzel-Fall-Ergebnissen
+auf. In diesem Branch gibt es noch keinen echten Provider und keine API-, CLI-,
+Docker-, Cloud- oder RAG-Arbeit.
