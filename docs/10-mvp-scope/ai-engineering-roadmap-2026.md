@@ -7,7 +7,7 @@
 - Startdatum der Roadmap: 9. Juli 2026
 - Portfolio-Zieltermin: 31. Dezember 2026
 - Interner Release-Termin: spaetestens 20. Dezember 2026
-- Aktuelle Phase: AI Quality Foundation
+- Aktuelle Phase: Evaluation und echter Provider
 
 ## Zweck
 
@@ -48,8 +48,10 @@ Der aktuelle Stand ist ein lokaler Offline-MVP mit synthetischen Daten. Der
 Stand enthaelt eine CLI, deterministische Fixtures, Gateway-Logik,
 Risikoklassifikation, Human Review Gate, kontrollierte Model Invocation, einen
 providerneutralen `ModelProvider`, einen deterministischen `FakeModelProvider`,
-synthetischen Prompt-Aufbau, `StructuredDraftOutput` und einen strengen
-strukturellen JSON-Parser.
+synthetischen Prompt-Aufbau mit versionierter Promptdefinition sowie Prompt-ID
+und Prompt-Version im `ModelRequest`, `StructuredDraftOutput`, einen strengen
+strukturellen JSON-Parser und eine getrennte semantische Validierung. Die
+semantische Validierung ist in den kontrollierten AI-Workflow integriert.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -61,6 +63,7 @@ IntakeCase
 -> Prompt Builder
 -> Model Invocation Boundary
 -> Structured Output Parser
+-> Structured Draft Semantic Validator
 ```
 
 Die vorhandene Architekturgrenze bleibt:
@@ -75,10 +78,10 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere echter Modellprovider, semantische
-Response-Validierung, Prompt Registry, Evaluation, RAG, FastAPI, Docker,
-Persistenz, Authentifizierung, Cloud-Deployment, Infrastructure as Code und
-Monitoring.
+Noch nicht vorhanden sind insbesondere echter Modellprovider, Evaluation, RAG,
+FastAPI, Docker, Persistenz, Authentifizierung, Cloud-Deployment,
+Infrastructure as Code und Monitoring. Eine Prompt Registry ist bewusst
+aufgeschoben und aktuell nicht benoetigt.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -310,6 +313,8 @@ auffindbar.
 
 Zeitraum: 14. Juli bis 9. August 2026
 
+Status: Abgeschlossen am 10. Juli 2026.
+
 Geplante Branches:
 
 ```text
@@ -343,6 +348,8 @@ Es erfolgt keine steuerliche Richtigkeitspruefung.
 ### Phase 2 - Evaluation und echter Provider
 
 Zeitraum: 10. August bis 6. September 2026
+
+Status: In Arbeit seit 10. Juli 2026.
 
 Geplante Branches:
 
@@ -671,11 +678,9 @@ Architekturentscheidungen.
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-structured-draft-semantic-validator
+feat/add-offline-evaluation-runner
 ```
 
-Die anschliessenden Arbeitspakete und ihre Reihenfolge ergeben sich aus der
-Phasenplanung dieser Roadmap.
-
-Im unmittelbar naechsten Produktionsbranch gibt es keine Cloud-, API-, Docker-,
-Datenbank- oder allgemeine Adapterstruktur.
+Der Evaluation Runner wird erst nach Merge des Evaluation-Case-Vertrags
+begonnen. Im Runner-Branch gibt es noch keinen echten Provider und keine API-,
+Docker-, Cloud-, RAG- oder CLI-Arbeit.
