@@ -43,6 +43,8 @@ def build_synthetic_model_request(case: IntakeCase) -> ModelRequest:
     )
 
     return ModelRequest(
+        prompt_id=SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.prompt_id,
+        prompt_version=SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.version,
         system_prompt=SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.system_prompt,
         user_prompt=user_prompt,
     )

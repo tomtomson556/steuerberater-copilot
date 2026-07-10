@@ -21,6 +21,13 @@ def test_synthetic_prompt_builder_returns_model_request() -> None:
     assert isinstance(result, ModelRequest)
 
 
+def test_synthetic_prompt_builder_prompt_metadata_contract() -> None:
+    result = build_synthetic_model_request(_minimal_case())
+
+    assert result.prompt_id == "synthetic_structured_draft"
+    assert result.prompt_version == "1"
+
+
 def test_synthetic_prompt_builder_system_prompt_contract() -> None:
     result = build_synthetic_model_request(_minimal_case())
 

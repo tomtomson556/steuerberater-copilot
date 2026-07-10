@@ -27,6 +27,8 @@ def test_fake_model_provider_returns_configured_response_and_records_exact_reque
     )
     provider = FakeModelProvider(response)
     request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare a deterministic response.",
     )
@@ -36,6 +38,10 @@ def test_fake_model_provider_returns_configured_response_and_records_exact_reque
     assert result is response
     assert provider.requests == (request,)
     assert provider.requests[0] is request
+    assert provider.requests[0].prompt_id == "synthetic_test_prompt"
+    assert provider.requests[0].prompt_version == "1"
+    assert provider.requests[0].system_prompt == "Use only synthetic data."
+    assert provider.requests[0].user_prompt == "Prepare a deterministic response."
 
 
 def test_fake_model_provider_repeated_calls_remain_deterministic() -> None:
@@ -46,10 +52,14 @@ def test_fake_model_provider_repeated_calls_remain_deterministic() -> None:
     )
     provider = FakeModelProvider(response)
     first_request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare the first deterministic response.",
     )
     second_request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="2",
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare the second deterministic response.",
     )
@@ -70,10 +80,14 @@ def test_fake_model_provider_requests_property_returns_snapshot() -> None:
     )
     provider = FakeModelProvider(response)
     first_request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="1",
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare the first deterministic response.",
     )
     second_request = ModelRequest(
+        prompt_id="synthetic_test_prompt",
+        prompt_version="2",
         system_prompt="Use only synthetic data.",
         user_prompt="Prepare the second deterministic response.",
     )

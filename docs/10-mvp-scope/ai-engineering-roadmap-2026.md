@@ -316,7 +316,7 @@ Geplante Branches:
 feat/add-structured-draft-semantic-validator
 feat/integrate-semantic-validation-into-ai-workflow
 feat/add-versioned-prompt-definition
-feat/add-versioned-prompt-registry
+feat/add-prompt-metadata-to-model-request
 ```
 
 Verbindliche Entscheidungen:
@@ -324,8 +324,9 @@ Verbindliche Entscheidungen:
 - Der JSON-Parser bleibt fuer strukturelle Pruefung zustaendig.
 - Semantische Validierung erfolgt in einer getrennten Komponente.
 - Parser- und Validierungsfehler bleiben unterscheidbar.
-- Noch kein generisches `PromptStore`-Interface.
-- Zunaechst reicht eine kleine deterministische Registry.
+- `ModelRequest` traegt die verwendete Prompt-ID und Prompt-Version.
+- Eine Prompt Registry wird erst eingefuehrt, wenn mehrere Promptversionen
+  aufgeloest werden muessen oder ein realer Auswahl-Consumer existiert.
 
 Moegliche semantische Pruefungen:
 
