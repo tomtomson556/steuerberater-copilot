@@ -242,12 +242,14 @@ def test_evaluation_package_has_exact_public_exports() -> None:
     assert evaluation.__all__ == [
         "EvaluationCase",
         "EvaluationCaseAssessment",
+        "EvaluationMetricsReport",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
         "SyntheticEvaluationFixture",
         "assess_evaluation_run_result",
         "build_synthetic_evaluation_case_library",
         "run_offline_evaluation_case",
+        "run_offline_evaluation_suite",
     ]
 
 
