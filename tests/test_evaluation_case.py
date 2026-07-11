@@ -234,8 +234,10 @@ def test_evaluation_package_has_exact_public_exports() -> None:
     assert evaluation.ExpectedAIWorkflowOutcome is ExpectedAIWorkflowOutcome
     assert evaluation.__all__ == [
         "EvaluationCase",
+        "EvaluationCaseAssessment",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
+        "assess_evaluation_run_result",
         "run_offline_evaluation_case",
     ]
 

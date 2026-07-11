@@ -53,7 +53,8 @@ und Prompt-Version im `ModelRequest`, `StructuredDraftOutput`, einen strengen
 strukturellen JSON-Parser und eine getrennte semantische Validierung. Die
 semantische Validierung ist in den kontrollierten AI-Workflow integriert. Ein
 `EvaluationCase`-Vertrag und ein deterministischer Einzel-Fall-Offline-
-Evaluation-Runner sind ebenfalls vorhanden.
+Evaluation-Runner sowie ein getrennter deterministischer Einzel-Fall-
+Erwartungsvergleich sind ebenfalls vorhanden.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -359,6 +360,8 @@ Geplante Branches:
 ```text
 feat/add-evaluation-case-contract
 feat/add-offline-evaluation-runner
+feat/add-evaluation-case-assessment
+feat/add-synthetic-evaluation-case-library
 feat/add-evaluation-metrics-report
 feat/add-model-invocation-policy
 feat/add-real-model-provider
@@ -676,14 +679,28 @@ Auswirkung. GitHub Issues und Milestones verwalten konkrete Arbeitspakete,
 ersetzen aber nicht die Roadmap. ADRs dokumentieren schwer umkehrbare
 Architekturentscheidungen.
 
+### Aktualisierung vom 10. Juli 2026
+
+- Datum: 10. Juli 2026
+- Aenderung: Der bisher kombinierte Evaluationsmetrik- und Report-Branch wird in
+  `feat/add-evaluation-case-assessment`,
+  `feat/add-synthetic-evaluation-case-library` und
+  `feat/add-evaluation-metrics-report` aufgeteilt.
+- Begruendung: Der Einzel-Fall-Erwartungsvergleich ist eine eigenstaendige
+  Voraussetzung. Eine belastbare Aggregation benoetigt anschliessend eine echte
+  Fallbibliothek. Metriken und Report werden nicht auf Unit-Test-Hilfsfaellen
+  aufgebaut.
+- Auswirkung: keine Aenderung am Portfolio-Zieltermin.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-evaluation-metrics-report
+feat/add-synthetic-evaluation-case-library
 ```
 
-Der Metrik- und Report-Branch baut auf den beobachteten Einzel-Fall-Ergebnissen
-auf. In diesem Branch gibt es noch keinen echten Provider und keine API-, CLI-,
-Docker-, Cloud- oder RAG-Arbeit.
+Die synthetische Evaluationsfallbibliothek baut auf dem getrennten Einzel-Fall-
+Erwartungsvergleich auf und schafft die belastbare Eingabe fuer den spaeteren
+Metrik- und Report-Branch. In diesem Branch gibt es noch keinen echten Provider
+und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
