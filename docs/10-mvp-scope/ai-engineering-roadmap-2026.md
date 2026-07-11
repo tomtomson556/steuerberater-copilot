@@ -55,7 +55,11 @@ semantische Validierung ist in den kontrollierten AI-Workflow integriert. Ein
 `EvaluationCase`-Vertrag und ein deterministischer Einzel-Fall-Offline-
 Evaluation-Runner sowie ein getrennter deterministischer Einzel-Fall-
 Erwartungsvergleich und eine deterministische synthetische
-Evaluationsfallbibliothek sind ebenfalls vorhanden.
+Evaluationsfallbibliothek sind ebenfalls vorhanden. Die Fallbibliothek wird
+vollstaendig durch einen Suite Runner ausgefuehrt und in einem unveraenderlichen,
+strukturierten Evaluationsreport mit Pass Rate und belastbaren Match-Raten
+aggregiert. Die enthaltenen Einzel-Fall-Assessments erhalten die
+Nachvollziehbarkeit bis zum konkreten Evaluationsfall.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -82,11 +86,11 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere messbare Evaluationsmetriken,
-Evaluationsreport, echter Modellprovider, RAG, FastAPI, Docker, Persistenz,
-Authentifizierung, Cloud-Deployment, Infrastructure as Code und Monitoring. Die
-Offline-Evaluation ist damit noch nicht abgeschlossen. Eine Prompt Registry ist
-bewusst aufgeschoben und aktuell nicht benoetigt.
+Noch nicht vorhanden sind insbesondere Model Invocation Policy, echter
+Modellprovider, RAG, FastAPI, Docker, Persistenz, Authentifizierung,
+Cloud-Deployment, Infrastructure as Code und Monitoring. Phase 2 ist damit noch
+nicht abgeschlossen. Eine Prompt Registry ist bewusst aufgeschoben und aktuell
+nicht benoetigt.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -368,18 +372,19 @@ feat/add-model-invocation-policy
 feat/add-real-model-provider
 ```
 
-Erste Evaluationsmetriken:
+Im strukturierten Offline-Evaluationsreport vorhandene Metriken:
 
-- korrekte Gateway-Entscheidung
-- korrekte Review-Gate-Entscheidung
-- unerlaubte Provideraufrufe
-- Parse-Erfolg
-- semantische Validierung
-- Erhalt von Unsicherheiten
-- Erhalt notwendiger Review-Fragen
-- verbotene Finalitaetsclaims
-- Laufzeit
-- Fehlerklasse
+- Pass Rate ueber alle synthetischen Evaluationsfaelle
+- Match-Raten fuer beobachtete Gatewayentscheidung, Review-Gate-Status,
+  Outcome und Provideraufrufzahl
+- Structured-Draft-Match-Rate ausschliesslich ueber Faelle mit erwartetem
+  Structured-Draft-Outcome
+- Anzahl der Provideraufrufe oberhalb der pro Fall erwarteten Aufrufzahl
+
+Die Gateway-Match-Rate aggregiert ausschliesslich die derzeit im synthetischen
+Evaluationsvertrag beobachtete vorgelagerte Gatewayentscheidung. Sie ist keine
+End-to-End-Sicherheitsmetrik und bewertet keine Response-Gateway-
+Inhaltskontrollen.
 
 Anforderungen an den echten Provider:
 
@@ -704,15 +709,30 @@ Architekturentscheidungen.
   fuer die naechste Aggregations- und Metrikstufe.
 - Auswirkung: keine Aenderung am Portfolio-Zieltermin.
 
+### Aktualisierung vom 11. Juli 2026 (Evaluationsreport)
+
+- Datum: 11. Juli 2026
+- Aenderung: Suite-Aggregation, Pass Rate und ein unveraenderlicher,
+  strukturierter Evaluationsreport wurden ergaenzt.
+- Umfang: Match-Raten fuer die bestehenden Assessment-Signale, ein nur auf
+  erwartete Structured-Draft-Faelle bezogener Draft-Nenner, Erkennung
+  zusaetzlicher Provideraufrufe und enthaltene Einzel-Assessments zur
+  Nachvollziehbarkeit.
+- Begruendung: Die sieben synthetischen Baseline-Faelle koennen damit
+  vollstaendig und deterministisch als Suite ausgewertet werden.
+- Auswirkung: Phase 2 bleibt in Arbeit; Model Invocation Policy und echter
+  Provider fehlen weiterhin. Laufzeitmetriken und produktive Evaluation sind
+  nicht Bestandteil dieses Stands.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-evaluation-metrics-report
+feat/add-model-invocation-policy
 ```
 
-Der Metrik- und Report-Branch baut auf der synthetischen Fallbibliothek und dem
-getrennten Einzel-Fall-Erwartungsvergleich auf. Aggregation, Pass Rate, Metriken
-und Report sind noch nicht vorhanden. In diesem Branch gibt es noch keinen
-echten Provider und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
+Der Invocation-Policy-Branch baut auf der deterministischen Offline-Evaluation
+auf und fuehrt kontrollierte Aufrufgrenzen vor dem echten Provider ein. In
+diesem Branch gibt es noch keinen echten Provider und keine API-, CLI-, Docker-,
+Cloud- oder RAG-Arbeit.
