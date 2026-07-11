@@ -54,7 +54,8 @@ strukturellen JSON-Parser und eine getrennte semantische Validierung. Die
 semantische Validierung ist in den kontrollierten AI-Workflow integriert. Ein
 `EvaluationCase`-Vertrag und ein deterministischer Einzel-Fall-Offline-
 Evaluation-Runner sowie ein getrennter deterministischer Einzel-Fall-
-Erwartungsvergleich sind ebenfalls vorhanden.
+Erwartungsvergleich und eine deterministische synthetische
+Evaluationsfallbibliothek sind ebenfalls vorhanden.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -81,11 +82,11 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere Evaluationsfallbibliothek, messbare
-Evaluationsmetriken, Evaluationsreport, echter Modellprovider, RAG, FastAPI,
-Docker, Persistenz, Authentifizierung, Cloud-Deployment, Infrastructure as Code
-und Monitoring. Die Offline-Evaluation ist damit noch nicht abgeschlossen.
-Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht benoetigt.
+Noch nicht vorhanden sind insbesondere messbare Evaluationsmetriken,
+Evaluationsreport, echter Modellprovider, RAG, FastAPI, Docker, Persistenz,
+Authentifizierung, Cloud-Deployment, Infrastructure as Code und Monitoring. Die
+Offline-Evaluation ist damit noch nicht abgeschlossen. Eine Prompt Registry ist
+bewusst aufgeschoben und aktuell nicht benoetigt.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -692,15 +693,26 @@ Architekturentscheidungen.
   aufgebaut.
 - Auswirkung: keine Aenderung am Portfolio-Zieltermin.
 
+### Aktualisierung vom 11. Juli 2026
+
+- Datum: 11. Juli 2026
+- Aenderung: Eine deterministische synthetische Evaluationsfallbibliothek wurde
+  ergaenzt.
+- Umfang: Gateway Block, Gateway Escalation, Review-Gate-Stop, Structured Draft,
+  Provider Error, Parse Error und Validation Error.
+- Begruendung: Die Bibliothek schafft eine reale reproduzierbare Eingabebasis
+  fuer die naechste Aggregations- und Metrikstufe.
+- Auswirkung: keine Aenderung am Portfolio-Zieltermin.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-synthetic-evaluation-case-library
+feat/add-evaluation-metrics-report
 ```
 
-Die synthetische Evaluationsfallbibliothek baut auf dem getrennten Einzel-Fall-
-Erwartungsvergleich auf und schafft die belastbare Eingabe fuer den spaeteren
-Metrik- und Report-Branch. In diesem Branch gibt es noch keinen echten Provider
-und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
+Der Metrik- und Report-Branch baut auf der synthetischen Fallbibliothek und dem
+getrennten Einzel-Fall-Erwartungsvergleich auf. Aggregation, Pass Rate, Metriken
+und Report sind noch nicht vorhanden. In diesem Branch gibt es noch keinen
+echten Provider und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
