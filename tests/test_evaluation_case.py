@@ -6,6 +6,8 @@ import steuerberater_copilot.evaluation as evaluation
 from steuerberater_copilot.evaluation import (
     EvaluationCase,
     ExpectedAIWorkflowOutcome,
+    SyntheticEvaluationFixture,
+    build_synthetic_evaluation_case_library,
 )
 from steuerberater_copilot.offline_mvp import (
     GatewayDecision,
@@ -232,12 +234,19 @@ def test_evaluation_case_equality_includes_required_expectation_fields() -> None
 def test_evaluation_package_has_exact_public_exports() -> None:
     assert evaluation.EvaluationCase is EvaluationCase
     assert evaluation.ExpectedAIWorkflowOutcome is ExpectedAIWorkflowOutcome
+    assert evaluation.SyntheticEvaluationFixture is SyntheticEvaluationFixture
+    assert (
+        evaluation.build_synthetic_evaluation_case_library
+        is build_synthetic_evaluation_case_library
+    )
     assert evaluation.__all__ == [
         "EvaluationCase",
         "EvaluationCaseAssessment",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
+        "SyntheticEvaluationFixture",
         "assess_evaluation_run_result",
+        "build_synthetic_evaluation_case_library",
         "run_offline_evaluation_case",
     ]
 
