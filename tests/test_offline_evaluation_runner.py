@@ -403,8 +403,10 @@ def test_evaluation_package_exports_offline_runner_contract() -> None:
     assert evaluation.run_offline_evaluation_case is run_offline_evaluation_case
     assert evaluation.__all__ == [
         "EvaluationCase",
+        "EvaluationCaseAssessment",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
+        "assess_evaluation_run_result",
         "run_offline_evaluation_case",
     ]
 
