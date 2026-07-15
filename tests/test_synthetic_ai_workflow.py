@@ -2,10 +2,18 @@ import pytest
 
 import steuerberater_copilot.offline_mvp as offline_mvp
 import steuerberater_copilot.offline_mvp.ai_workflow as ai_workflow
-from steuerberater_copilot.ai import FakeModelProvider, ModelRequest, ModelResponse
+from steuerberater_copilot.ai import (
+    FakeModelProvider,
+    ModelInvocationPolicyViolationError,
+    ModelRequest,
+    ModelResponse,
+)
 from steuerberater_copilot.offline_mvp.ai_workflow import (
     SyntheticAIWorkflowOutput,
     build_synthetic_ai_workflow,
+)
+from steuerberater_copilot.offline_mvp.model_invocation import (
+    SYNTHETIC_MODEL_INVOCATION_POLICY,
 )
 from steuerberater_copilot.offline_mvp.models import (
     GatewayDecision,
@@ -66,17 +74,19 @@ def test_synthetic_ai_workflow_uses_invocation_boundary(monkeypatch) -> None:
     case = _allowed_class_a_case()
     response = _model_response(VALID_STRUCTURED_CONTENT)
     provider = FakeModelProvider(response)
-    calls: list[ModelRequest] = []
+    calls: list[tuple[ModelRequest, object]] = []
 
     def invoke_spy(**kwargs):
-        calls.append(kwargs["request"])
+        calls.append((kwargs["request"], kwargs["policy"]))
         return provider.generate(kwargs["request"])
 
     monkeypatch.setattr(ai_workflow, "invoke_model_if_allowed", invoke_spy)
 
     result = build_synthetic_ai_workflow(case, provider=provider)
 
-    assert calls == [build_synthetic_model_request(case)]
+    assert calls == [
+        (build_synthetic_model_request(case), SYNTHETIC_MODEL_INVOCATION_POLICY)
+    ]
     assert provider.requests == (build_synthetic_model_request(case),)
     assert result.model_response is response
 
@@ -102,9 +112,16 @@ def test_synthetic_ai_workflow_gateway_stop_skips_prompt_and_provider(
     assert result.structured_draft is None
 
 
-def test_synthetic_ai_workflow_review_gate_stop_after_gateway_allow() -> None:
+def test_synthetic_ai_workflow_review_gate_stop_after_gateway_allow(
+    monkeypatch,
+) -> None:
     case = _review_gate_stop_case()
     provider = FakeModelProvider(_model_response(VALID_STRUCTURED_CONTENT))
+
+    def fail_if_called(_case: IntakeCase) -> ModelRequest:
+        raise AssertionError("prompt builder must not run after review-gate stop")
+
+    monkeypatch.setattr(ai_workflow, "build_synthetic_model_request", fail_if_called)
 
     result = build_synthetic_ai_workflow(case, provider=provider)
 
@@ -114,6 +131,31 @@ def test_synthetic_ai_workflow_review_gate_stop_after_gateway_allow() -> None:
     assert provider.requests == ()
     assert result.model_response is None
     assert result.structured_draft is None
+
+
+def test_synthetic_ai_workflow_applies_response_policy_before_parser_and_validator(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    provider = FakeModelProvider(_model_response("X" * 16_001))
+    later_boundary_calls = []
+
+    def parse_spy(content: str):
+        later_boundary_calls.append(("parser", content))
+        raise AssertionError("parser must not receive a policy-rejected response")
+
+    def validate_spy(structured_draft):
+        later_boundary_calls.append(("validator", structured_draft))
+        raise AssertionError("validator must not receive a policy-rejected response")
+
+    monkeypatch.setattr(ai_workflow, "parse_structured_draft_output", parse_spy)
+    monkeypatch.setattr(ai_workflow, "validate_structured_draft_output", validate_spy)
+
+    with pytest.raises(ModelInvocationPolicyViolationError):
+        build_synthetic_ai_workflow(case, provider=provider)
+
+    assert provider.requests == (build_synthetic_model_request(case),)
+    assert later_boundary_calls == []
 
 
 def test_synthetic_ai_workflow_propagates_parser_errors_unchanged() -> None:

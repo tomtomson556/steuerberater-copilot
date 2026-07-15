@@ -2,9 +2,28 @@
 
 from __future__ import annotations
 
-from steuerberater_copilot.ai import ModelProvider, ModelRequest, ModelResponse
+from steuerberater_copilot.ai import (
+    ModelInvocationPolicy,
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
+)
 
 from .models import GatewayDecision, GatewayResult, ReviewGateDecision
+from .prompt_definition import SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1
+
+SYNTHETIC_MODEL_INVOCATION_POLICY = ModelInvocationPolicy(
+    allowed_prompt_versions=frozenset(
+        {
+            (
+                SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.prompt_id,
+                SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.version,
+            )
+        }
+    ),
+    max_request_chars=16_000,
+    max_response_chars=16_000,
+)
 
 
 class ModelInvocationDeniedError(RuntimeError):
@@ -17,8 +36,9 @@ def invoke_model_if_allowed(
     request: ModelRequest,
     gateway: GatewayResult,
     review_gate: ReviewGateDecision,
+    policy: ModelInvocationPolicy,
 ) -> ModelResponse:
-    """Invoke the provider only after gateway and review-gate approval."""
+    """Invoke the provider after controls and enforce request/response policy."""
     if gateway.decision is not GatewayDecision.ALLOW_DRAFT:
         raise ModelInvocationDeniedError(
             "model invocation denied: "
@@ -31,4 +51,7 @@ def invoke_model_if_allowed(
             f"review gate status is {review_gate.status.value}"
         )
 
-    return provider.generate(request)
+    policy.validate_request(request)
+    response = provider.generate(request)
+    policy.validate_response(response)
+    return response

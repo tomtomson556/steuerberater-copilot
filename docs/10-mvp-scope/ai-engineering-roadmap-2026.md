@@ -59,7 +59,14 @@ Evaluationsfallbibliothek sind ebenfalls vorhanden. Die Fallbibliothek wird
 vollstaendig durch einen Suite Runner ausgefuehrt und in einem unveraenderlichen,
 strukturierten Evaluationsreport mit Pass Rate und belastbaren Match-Raten
 aggregiert. Die enthaltenen Einzel-Fall-Assessments erhalten die
-Nachvollziehbarkeit bis zum konkreten Evaluationsfall.
+Nachvollziehbarkeit bis zum konkreten Evaluationsfall. Eine unveraenderliche,
+providerunabhaengige Model Invocation Policy erlaubt nur die exakte
+Prompt-ID-/Versionskombination der aktuellen synthetischen Promptdefinition,
+begrenzt die kombinierte Request- und die rohe Response-Zeichenzahl und wird in
+der bestehenden Invocation Boundary nach Gateway und Human Review Gate
+durchgesetzt. Policy-Verstoesse bleiben von Kontrollablehnungen und
+Providerfehlern unterscheidbar und geben keine Prompt- oder Response-Inhalte in
+Fehlermeldungen aus.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -86,11 +93,13 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere Model Invocation Policy, echter
-Modellprovider, RAG, FastAPI, Docker, Persistenz, Authentifizierung,
-Cloud-Deployment, Infrastructure as Code und Monitoring. Phase 2 ist damit noch
-nicht abgeschlossen. Eine Prompt Registry ist bewusst aufgeschoben und aktuell
-nicht benoetigt.
+Noch nicht vorhanden sind insbesondere echter Modellprovider, Timeout-
+Durchsetzung, Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenlimit oder
+Tokenizer, Provider- oder Modell-Allowlist, produktive Evaluation, RAG,
+FastAPI, Docker, Persistenz, Authentifizierung, Cloud-Deployment,
+Infrastructure as Code und Monitoring. Phase 2 ist damit noch nicht
+abgeschlossen. Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht
+benoetigt.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -369,6 +378,7 @@ feat/add-evaluation-case-assessment
 feat/add-synthetic-evaluation-case-library
 feat/add-evaluation-metrics-report
 feat/add-model-invocation-policy
+fix/harden-response-gateway-statement-detection
 feat/add-real-model-provider
 ```
 
@@ -380,6 +390,22 @@ Im strukturierten Offline-Evaluationsreport vorhandene Metriken:
 - Structured-Draft-Match-Rate ausschliesslich ueber Faelle mit erwartetem
   Structured-Draft-Outcome
 - Anzahl der Provideraufrufe oberhalb der pro Fall erwarteten Aufrufzahl
+
+Vor dem echten Provider vorhandene Model-Invocation-Grenzen:
+
+- unveraenderliche providerunabhaengige Invocation Policy
+- exakte Allowlist fuer Prompt-ID-/Versionspaare
+- kombinierte Request-Grenze von 16.000 Python-Zeichen
+- rohe Response-Grenze von 16.000 Python-Zeichen
+- Durchsetzung nach Gateway und Human Review Gate innerhalb der bestehenden
+  Invocation Boundary
+- getrennte Fehler fuer Gateway-/Review-Ablehnung, Policy-Verstoss und
+  Providerfehler ohne Prompt- oder Response-Inhalte in Policy-Fehlermeldungen
+
+Diese Grenzen sind keine Prompt Registry, keine Provider- oder Modell-Allowlist,
+keine Tokenzaehlung und keine End-to-End-Sicherheitsgarantie. Ein echter Timeout
+kann erst im spaeteren konkreten Provideradapter beziehungsweise dessen
+SDK-Aufruf durchgesetzt werden.
 
 Die Gateway-Match-Rate aggregiert ausschliesslich die derzeit im synthetischen
 Evaluationsvertrag beobachtete vorgelagerte Gatewayentscheidung. Sie ist keine
@@ -724,15 +750,43 @@ Architekturentscheidungen.
   Provider fehlen weiterhin. Laufzeitmetriken und produktive Evaluation sind
   nicht Bestandteil dieses Stands.
 
+### Aktualisierung vom 15. Juli 2026
+
+- Datum: 15. Juli 2026
+- Aenderung: Eine unveraenderliche, providerunabhaengige Model Invocation
+  Policy mit exakter Allowlist fuer Prompt-ID-/Versionspaare, kombinierter
+  Request-Zeichengrenze und roher Response-Zeichengrenze wurde innerhalb der
+  bestehenden Invocation Boundary eingefuehrt.
+- Umfang: Die synthetische Policy erlaubt ausschliesslich die Metadaten der
+  aktuellen versionierten Promptdefinition und begrenzt Request und Response
+  jeweils auf 16.000 Python-Zeichen. Gateway und Human Review Gate bleiben die
+  ersten Aufrufgrenzen. Policy-Verstoesse bleiben von Kontrollablehnungen und
+  Providerfehlern unterscheidbar und enthalten keine Prompt- oder
+  Response-Inhalte.
+- Begruendung: Vor Einfuehrung des ersten echten Providers werden unbekannte
+  Promptmetadaten und uebergrosse Request-/Response-Texte deterministisch
+  abgelehnt, ohne den providerneutralen `ModelProvider`-Vertrag zu erweitern.
+- Auswirkung: Phase 2 bleibt in Arbeit. Es gibt weiterhin keinen echten
+  Provider, keinen Netzwerkaufruf, keinen Timeout, Retry, Rate Limit,
+  Kostenkontrolle, Tokenizer oder Tokenlimit und keine produktive Evaluation.
+  Der bestaetigte Altbefund zu globaler Negationslogik und fehlender
+  Textnormalisierung im Response Gateway wird in diesem Branch nicht behoben.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-model-invocation-policy
+fix/harden-response-gateway-statement-detection
 ```
 
-Der Invocation-Policy-Branch baut auf der deterministischen Offline-Evaluation
-auf und fuehrt kontrollierte Aufrufgrenzen vor dem echten Provider ein. In
-diesem Branch gibt es noch keinen echten Provider und keine API-, CLI-, Docker-,
-Cloud- oder RAG-Arbeit.
+Der kleine Hardening-Branch behebt den bestaetigten Altbefund im bestehenden
+Response Gateway, ohne die Invocation Policy zu erweitern. Danach folgt:
+
+```text
+feat/add-real-model-provider
+```
+
+Die Response-Gateway-Haertung ist in diesem Invocation-Policy-Stand noch nicht
+umgesetzt. Es gibt weiterhin keinen echten Provider und keine API-, CLI-,
+Docker-, Cloud- oder RAG-Arbeit.
