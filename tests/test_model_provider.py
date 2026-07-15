@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from dataclasses import FrozenInstanceError
 
 import pytest
@@ -10,6 +12,9 @@ from steuerberater_copilot.ai import (
     ModelProvider,
     ModelRequest,
     ModelResponse,
+    OpenAIProviderError,
+    OpenAIProviderTimeoutError,
+    OpenAIResponsesProvider,
 )
 
 
@@ -127,6 +132,34 @@ def test_object_without_generate_is_not_a_model_provider() -> None:
     assert not isinstance(ObjectWithoutGenerate(), ModelProvider)
 
 
+def test_openai_responses_provider_structurally_implements_model_provider() -> None:
+    provider = OpenAIResponsesProvider(
+        client=object(),
+        model="gpt-synthetic-test",
+        max_output_tokens=2_000,
+    )
+
+    assert isinstance(provider, ModelProvider)
+
+
+def test_default_ai_package_import_does_not_eagerly_load_openai_sdk() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import steuerberater_copilot.ai; "
+                "print('openai' in sys.modules)"
+            ),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "False"
+
+
 def test_public_ai_package_exports_model_boundary() -> None:
     assert ai.FakeModelProvider is FakeModelProvider
     assert ai.ModelInvocationPolicy is ModelInvocationPolicy
@@ -137,6 +170,9 @@ def test_public_ai_package_exports_model_boundary() -> None:
     assert ai.ModelProvider is ModelProvider
     assert ai.ModelRequest is ModelRequest
     assert ai.ModelResponse is ModelResponse
+    assert ai.OpenAIProviderError is OpenAIProviderError
+    assert ai.OpenAIProviderTimeoutError is OpenAIProviderTimeoutError
+    assert ai.OpenAIResponsesProvider is OpenAIResponsesProvider
     assert ai.__all__ == [
         "FakeModelProvider",
         "ModelInvocationPolicy",
@@ -144,4 +180,7 @@ def test_public_ai_package_exports_model_boundary() -> None:
         "ModelProvider",
         "ModelRequest",
         "ModelResponse",
+        "OpenAIProviderError",
+        "OpenAIProviderTimeoutError",
+        "OpenAIResponsesProvider",
     ]
