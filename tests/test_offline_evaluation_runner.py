@@ -1,6 +1,8 @@
 from dataclasses import FrozenInstanceError, replace
+from unittest.mock import Mock
 
 import pytest
+from openai import APIError
 
 import steuerberater_copilot.evaluation as evaluation
 import steuerberater_copilot.evaluation.runner as evaluation_runner
@@ -9,6 +11,7 @@ from steuerberater_copilot.ai import (
     ModelInvocationPolicyViolationError,
     ModelRequest,
     ModelResponse,
+    OpenAIResponsesProvider,
 )
 from steuerberater_copilot.evaluation import (
     EvaluationCase,
@@ -279,6 +282,27 @@ def test_offline_evaluation_runner_observes_provider_error() -> None:
     assert provider.requests == [
         build_synthetic_model_request(_synthetic_intake())
     ]
+
+
+def test_offline_evaluation_runner_observes_openai_error_as_provider_error() -> None:
+    client = Mock()
+    client.responses.create.side_effect = APIError(
+        "Synthetic OpenAI SDK failure.",
+        Mock(),
+        body=None,
+    )
+    provider = OpenAIResponsesProvider(
+        client=client,
+        model="gpt-synthetic-evaluation-test",
+        max_output_tokens=2_000,
+    )
+
+    result = run_offline_evaluation_case(_evaluation_case(), provider=provider)
+
+    assert result.observed_outcome is ExpectedAIWorkflowOutcome.PROVIDER_ERROR
+    assert result.observed_structured_draft is None
+    assert result.provider_call_count == 1
+    client.responses.create.assert_called_once()
 
 
 def test_provider_origin_takes_precedence_over_parse_error_type() -> None:

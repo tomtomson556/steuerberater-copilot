@@ -69,7 +69,12 @@ Providerfehlern unterscheidbar und geben keine Prompt- oder Response-Inhalte in
 Fehlermeldungen aus. Die deterministische Response-Gateway-Markerpruefung
 bewertet die einzelnen Entwurfsfragmente getrennt. Exakte Negationen wirken nur
 im jeweiligen Fragment; Unicode-Komposition, Gross-/Kleinschreibung, deutsche
-Umlautschreibweisen und zusammenhaengender Leerraum werden normalisiert.
+Umlautschreibweisen und zusammenhaengender Leerraum werden normalisiert. Genau
+ein konkreter Adapter fuer die OpenAI Responses API implementiert den bestehenden
+`ModelProvider`-Vertrag mit expliziter Modellkonfiguration, Request-Timeout,
+deaktivierten SDK-Retries, Output-Tokenlimit, `store=False` und JSON-Modus. Der
+`FakeModelProvider` bleibt der sichere Standard; der Live-Smoke ist ausschliesslich
+opt-in und operativ noch nicht verifiziert.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -96,12 +101,12 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere echter Modellprovider, Timeout-
-Durchsetzung, Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenlimit oder
-Tokenizer, Provider- oder Modell-Allowlist, produktive Evaluation, RAG,
-FastAPI, Docker, Persistenz, Authentifizierung, Cloud-Deployment,
-Infrastructure as Code und Monitoring. Phase 2 ist damit noch nicht
-abgeschlossen. Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht
+Noch nicht vorhanden sind insbesondere Retry-Policy, Rate Limiting,
+Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder Modell-Allowlist,
+produktive Evaluation, RAG, FastAPI, Docker, Persistenz, Authentifizierung,
+Cloud-Deployment, Infrastructure as Code und Monitoring. Eine erfolgreiche
+Live-Verbindung zum Provider ist ohne expliziten opt-in Smoke-Test nicht
+behauptet. Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht
 benoetigt.
 
 ## Pflichtumfang bis Ende 2026
@@ -370,7 +375,7 @@ Es erfolgt keine steuerliche Richtigkeitspruefung.
 
 Zeitraum: 10. August bis 6. September 2026
 
-Status: In Arbeit seit 10. Juli 2026.
+Status: Code-Scope abgeschlossen; opt-in Live-Smoke noch ausstehend.
 
 Geplante Branches:
 
@@ -432,16 +437,23 @@ Evaluationsvertrag beobachtete vorgelagerte Gatewayentscheidung. Sie ist keine
 End-to-End-Sicherheitsmetrik und bewertet keine Response-Gateway-
 Inhaltskontrollen.
 
-Anforderungen an den echten Provider:
+Vorhandener echter Provideradapter:
 
-- genau ein Provider
-- bestehenden `ModelProvider`-Vertrag implementieren
-- Provider-SDK nur im Adapter
-- Standardtests ohne Netzwerk
-- SDK in Tests mocken
-- Live-Smoke-Test nur opt-in
-- Secrets ausschliesslich ausserhalb des Repositorys
-- nur synthetische Daten
+- genau ein konkreter Adapter fuer die OpenAI Responses API
+- unveraenderte Implementierung des bestehenden `ModelProvider`-Vertrags
+- explizite Modellkonfiguration ohne verstecktes Defaultmodell
+- synchroner SDK-Client mit 60 Sekunden Factory-Defaulttimeout
+- deaktivierte automatische SDK-Retries mit `max_retries=0`
+- 2.000 `max_output_tokens` als Factory-Default, `store=False` und JSON-Modus
+- sichere getrennte Uebersetzung von Timeout- und anderen SDK-API-Fehlern
+- vollstaendig gemockte Standardtests ohne Netzwerk oder API-Key
+- `FakeModelProvider` bleibt der sichere Standard fuer CLI und Evaluation
+- Live-Smoke-Test nur nach explizitem Opt-in und nur mit synthetischen Daten
+
+Der Adapter ist keine Modell-Allowlist, Retrystrategie, Kostenkontrolle,
+Provider-Fallback- oder Multi-Provider-Loesung. Produktive Betriebsreife,
+Providerqualitaet und eine erfolgreiche Live-Verbindung sind damit nicht
+nachgewiesen.
 
 Die Cloudentscheidung erfolgt spaetestens am 31. August 2026.
 
@@ -812,14 +824,37 @@ Architekturentscheidungen.
   und keine produktive Freigabe. Invocation Policy, Request Gateway und
   Providervertrag bleiben unveraendert; ein echter Provider fehlt weiterhin.
 
+### Aktualisierung vom 15. Juli 2026 (OpenAI-Responses-Provider)
+
+- Datum: 15. Juli 2026
+- Aenderung: Genau ein synchroner Adapter fuer die OpenAI Responses API wurde
+  als Implementierung des unveraenderten `ModelProvider`-Vertrags ergaenzt.
+- Umfang: Der Adapter verwendet explizite Modellkonfiguration, einen
+  60-Sekunden-Factory-Defaulttimeout, deaktivierte SDK-Retries,
+  2.000 `max_output_tokens` als Factory-Default, `store=False` und JSON-Modus.
+  Timeout- und andere SDK-API-Fehler werden in sichere anwendungsnahe Fehler
+  uebersetzt. Standardtests injizieren gemockte Clients; `FakeModelProvider`
+  bleibt Standard fuer CLI und Evaluation. Ein getrennter Live-Smoke-Pfad ist
+  ausschliesslich opt-in.
+- Begruendung: Der bestehende providerneutrale Workflow kann damit genau einen
+  realen Provideradapter explizit injizieren, ohne Gatewayreihenfolge,
+  Invocation Policy, Parser, Validator oder stabile CLI-Vertraege zu aendern.
+- Auswirkung: Der Phase-2-Code-Scope ist abgeschlossen; der opt-in Live-Smoke
+  bleibt mangels expliziter Zugangskonfiguration operativ ausstehend. Es gibt
+  keine Aussage zu produktiver Betriebsreife, Modellqualitaet,
+  Kostenkontrolle, Rate Limiting, Retrystrategie, Cloudentscheidung oder
+  produktiver Evaluation.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-real-model-provider
+feat/add-source-document-contract
 ```
 
-Die Response-Gateway-Haertung ist umgesetzt, ohne die Invocation Policy, das
-Request Gateway oder den Providervertrag zu erweitern. Es gibt weiterhin keinen
-echten Provider und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
+Der OpenAI-Responses-Provideradapter ist implementiert, ohne den
+providerneutralen Vertrag oder die bestehende CLI zu erweitern. Der naechste
+Branch beginnt die lokale deterministische RAG-Baseline mit einem neutralen
+Quelldokumentvertrag. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
+und noch kein RAG.

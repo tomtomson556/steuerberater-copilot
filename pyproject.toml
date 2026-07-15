@@ -12,7 +12,9 @@ license = { file = "LICENSE" }
 authors = [
   { name = "Steuerberater-Copilot contributors" },
 ]
-dependencies = []
+dependencies = [
+  "openai>=2.45.0,<3",
+]
 
 [project.scripts]
 steuerberater-copilot-offline-mvp = "steuerberater_copilot.offline_mvp.__main__:main"

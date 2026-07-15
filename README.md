@@ -118,4 +118,27 @@ Gateway-, Risk-, Review-Gate- oder Draft-Logik. Ohne Filter bleibt der
 Der editable install kann Python-Paketmetadaten wie `*.egg-info/` erzeugen. Diese
 lokalen Artefakte werden durch `.gitignore` ignoriert.
 
+## Optionaler OpenAI-Live-Smoke-Test
+
+Der sichere Standardbetrieb bleibt vollstaendig offline und verwendet den
+`FakeModelProvider`. Ein echter OpenAI-Aufruf erfolgt niemals automatisch und
+wird weder durch `pytest` noch durch die bestehende CLI gestartet.
+
+Der getrennte Smoke-Test verwendet ausschliesslich ein vorhandenes synthetisches
+Fixture und erfordert die bewusste Opt-in-Konfiguration
+`RUN_OPENAI_LIVE_SMOKE=1`, `OPENAI_API_KEY` und `OPENAI_MODEL`. Optional koennen
+`OPENAI_TIMEOUT_SECONDS` und `OPENAI_MAX_OUTPUT_TOKENS` gesetzt werden; die
+Defaults sind 60 Sekunden und 2.000 Output-Tokens.
+
+```bash
+export OPENAI_API_KEY="..."
+export OPENAI_MODEL="..."
+RUN_OPENAI_LIVE_SMOKE=1 python tools/openai_provider_smoke_test.py
+```
+
+Der Live-Aufruf kann API-Kosten verursachen. Die Ausgabe enthaelt nur knappe
+Status- und Metadaten sowie Feldanzahlen, aber keine vollstaendigen Prompts,
+Modellantworten oder strukturierten Entwuerfe. Echte Mandanten-, Kanzlei- oder
+Steuerdaten sind fuer diesen Pfad nicht zulaessig.
+
 Weitere Richtlinien (Recht, Sicherheit, Architektur, Human Review) folgen in separaten Dokumenten und Pull Requests.

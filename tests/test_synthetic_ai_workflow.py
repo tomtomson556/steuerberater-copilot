@@ -1,4 +1,8 @@
+from types import SimpleNamespace
+from unittest.mock import Mock
+
 import pytest
+from openai import APIError
 
 import steuerberater_copilot.offline_mvp as offline_mvp
 import steuerberater_copilot.offline_mvp.ai_workflow as ai_workflow
@@ -7,6 +11,8 @@ from steuerberater_copilot.ai import (
     ModelInvocationPolicyViolationError,
     ModelRequest,
     ModelResponse,
+    OpenAIProviderError,
+    OpenAIResponsesProvider,
 )
 from steuerberater_copilot.offline_mvp.ai_workflow import (
     SyntheticAIWorkflowOutput,
@@ -199,6 +205,89 @@ def test_synthetic_ai_workflow_propagates_provider_errors_unchanged() -> None:
     assert provider.requests == [build_synthetic_model_request(case)]
 
 
+def test_synthetic_ai_workflow_runs_openai_provider_through_existing_boundaries(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    provider, client = _openai_provider()
+    original_validator = ai_workflow.validate_structured_draft_output
+    validated_outputs: list[StructuredDraftOutput] = []
+
+    def validate_spy(output: StructuredDraftOutput) -> None:
+        validated_outputs.append(output)
+        original_validator(output)
+
+    monkeypatch.setattr(
+        ai_workflow,
+        "validate_structured_draft_output",
+        validate_spy,
+    )
+
+    result = build_synthetic_ai_workflow(case, provider=provider)
+
+    assert result.structured_draft == StructuredDraftOutput(
+        summary_points=("Synthetic summary",),
+        uncertainties=("Synthetic uncertainty",),
+        review_questions=("Synthetic review question",),
+    )
+    assert validated_outputs == [result.structured_draft]
+    client.responses.create.assert_called_once()
+
+
+def test_synthetic_ai_workflow_gateway_stop_skips_openai_client() -> None:
+    provider, client = _openai_provider()
+
+    result = build_synthetic_ai_workflow(_missing_context_case(), provider=provider)
+
+    assert result.gateway.decision is GatewayDecision.ESCALATE
+    assert result.structured_draft is None
+    client.responses.create.assert_not_called()
+
+
+def test_synthetic_ai_workflow_review_gate_stop_skips_openai_client() -> None:
+    provider, client = _openai_provider()
+
+    result = build_synthetic_ai_workflow(_review_gate_stop_case(), provider=provider)
+
+    assert result.review_gate.allows_offline_mock_continuation is False
+    assert result.structured_draft is None
+    client.responses.create.assert_not_called()
+
+
+def test_synthetic_ai_workflow_policy_stop_skips_openai_client(monkeypatch) -> None:
+    provider, client = _openai_provider()
+    invalid_request = ModelRequest(
+        prompt_id="unknown_synthetic_prompt",
+        prompt_version="1",
+        system_prompt="Synthetic system prompt.",
+        user_prompt="Synthetic user prompt.",
+    )
+    monkeypatch.setattr(
+        ai_workflow,
+        "build_synthetic_model_request",
+        lambda _case: invalid_request,
+    )
+
+    with pytest.raises(ModelInvocationPolicyViolationError):
+        build_synthetic_ai_workflow(_allowed_class_a_case(), provider=provider)
+
+    client.responses.create.assert_not_called()
+
+
+def test_synthetic_ai_workflow_keeps_openai_provider_error_distinct() -> None:
+    provider, client = _openai_provider()
+    client.responses.create.side_effect = APIError(
+        "Synthetic SDK failure.",
+        Mock(),
+        body=None,
+    )
+
+    with pytest.raises(OpenAIProviderError, match=r"^OpenAI API request failed\.$"):
+        build_synthetic_ai_workflow(_allowed_class_a_case(), provider=provider)
+
+    client.responses.create.assert_called_once()
+
+
 def test_synthetic_ai_workflow_public_export() -> None:
     assert offline_mvp.SyntheticAIWorkflowOutput is SyntheticAIWorkflowOutput
     assert offline_mvp.build_synthetic_ai_workflow is build_synthetic_ai_workflow
@@ -266,3 +355,19 @@ def _model_response(content: str) -> ModelResponse:
         provider_name="fake",
         model_name="fake-model",
     )
+
+
+def _openai_provider() -> tuple[OpenAIResponsesProvider, Mock]:
+    client = Mock()
+    client.responses.create.return_value = SimpleNamespace(
+        status="completed",
+        output_text=VALID_STRUCTURED_CONTENT,
+        model="gpt-synthetic-workflow-test",
+        incomplete_details=None,
+    )
+    provider = OpenAIResponsesProvider(
+        client=client,
+        model="gpt-synthetic-workflow-test",
+        max_output_tokens=2_000,
+    )
+    return provider, client
