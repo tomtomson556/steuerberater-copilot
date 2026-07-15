@@ -72,9 +72,12 @@ im jeweiligen Fragment; Unicode-Komposition, Gross-/Kleinschreibung, deutsche
 Umlautschreibweisen und zusammenhaengender Leerraum werden normalisiert. Genau
 ein konkreter Adapter fuer die OpenAI Responses API implementiert den bestehenden
 `ModelProvider`-Vertrag mit expliziter Modellkonfiguration, Request-Timeout,
-deaktivierten SDK-Retries, Output-Tokenlimit, `store=False` und JSON-Modus. Der
-`FakeModelProvider` bleibt der sichere Standard; der Live-Smoke ist ausschliesslich
-opt-in und operativ noch nicht verifiziert.
+deaktivierten SDK-Retries, Output-Tokenlimit, `store=False` und dem aelteren
+JSON-Modus `text={"format": {"type": "json_object"}}`. Der Adapter ist gegen
+`openai==2.45.0` implementiert und getestet. Der bestehende Prompt fordert
+ausdruecklich genau ein gueltiges JSON-Objekt an; der JSON-Modus bietet keine
+Schema-Garantie. Der `FakeModelProvider` bleibt der sichere Standard; der
+Live-Smoke ist ausschliesslich opt-in und operativ noch nicht verifiziert.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -444,16 +447,28 @@ Vorhandener echter Provideradapter:
 - explizite Modellkonfiguration ohne verstecktes Defaultmodell
 - synchroner SDK-Client mit 60 Sekunden Factory-Defaulttimeout
 - deaktivierte automatische SDK-Retries mit `max_retries=0`
-- 2.000 `max_output_tokens` als Factory-Default, `store=False` und JSON-Modus
+- gegen die exakt gepinnte Laufzeitabhaengigkeit `openai==2.45.0` implementiert
+  und getestet
+- 2.000 `max_output_tokens` als kontrollierter Factory-Default und
+  `store=False`
+- aelterer JSON-Modus `text={"format": {"type": "json_object"}}` ohne
+  Schema-Garantie; der Prompt fordert ausdruecklich ein einzelnes gueltiges
+  JSON-Objekt an
 - sichere getrennte Uebersetzung von Timeout- und anderen SDK-API-Fehlern
-- vollstaendig gemockte Standardtests ohne Netzwerk oder API-Key
+- fokussierte Adaptertests sowie ein netzwerkfreier Contract-Test durch die
+  echte lokale SDK-`responses.create`-Implementierung
 - `FakeModelProvider` bleibt der sichere Standard fuer CLI und Evaluation
 - Live-Smoke-Test nur nach explizitem Opt-in und nur mit synthetischen Daten
 
 Der Adapter ist keine Modell-Allowlist, Retrystrategie, Kostenkontrolle,
 Provider-Fallback- oder Multi-Provider-Loesung. Produktive Betriebsreife,
 Providerqualitaet und eine erfolgreiche Live-Verbindung sind damit nicht
-nachgewiesen.
+nachgewiesen. Das ueber `OPENAI_MODEL` konfigurierte Zielmodell muss die
+Responses API und den verwendeten JSON-Modus unterstuetzen; eine Kompatibilitaet
+mit beliebigen OpenAI-Modellen ist nicht garantiert. Ebenso garantiert die
+kontrollierte Adaptergrenze von 2.000 Output-Tokens nicht, dass das Budget fuer
+jedes Modell ausreicht. Modellkompatibilitaet, reales Response-Verhalten und
+Outputbudget bleiben Gegenstand des noch ausstehenden opt-in Live-Smokes.
 
 Die Cloudentscheidung erfolgt spaetestens am 31. August 2026.
 
@@ -831,9 +846,14 @@ Architekturentscheidungen.
   als Implementierung des unveraenderten `ModelProvider`-Vertrags ergaenzt.
 - Umfang: Der Adapter verwendet explizite Modellkonfiguration, einen
   60-Sekunden-Factory-Defaulttimeout, deaktivierte SDK-Retries,
-  2.000 `max_output_tokens` als Factory-Default, `store=False` und JSON-Modus.
-  Timeout- und andere SDK-API-Fehler werden in sichere anwendungsnahe Fehler
-  uebersetzt. Standardtests injizieren gemockte Clients; `FakeModelProvider`
+  2.000 `max_output_tokens` als kontrollierten Factory-Default, `store=False`
+  und den aelteren JSON-Modus
+  `text={"format": {"type": "json_object"}}` ohne Schema-Garantie. Der Prompt
+  fordert ausdruecklich genau ein gueltiges JSON-Objekt an. Der Adapter ist
+  gegen `openai==2.45.0` implementiert und getestet. Timeout- und andere
+  SDK-API-Fehler werden in sichere anwendungsnahe Fehler uebersetzt. Neben den
+  fokussierten Adaptertests durchlaeuft ein netzwerkfreier Contract-Test die
+  echte lokale SDK-`responses.create`-Implementierung; `FakeModelProvider`
   bleibt Standard fuer CLI und Evaluation. Ein getrennter Live-Smoke-Pfad ist
   ausschliesslich opt-in.
 - Begruendung: Der bestehende providerneutrale Workflow kann damit genau einen
@@ -841,9 +861,14 @@ Architekturentscheidungen.
   Invocation Policy, Parser, Validator oder stabile CLI-Vertraege zu aendern.
 - Auswirkung: Der Phase-2-Code-Scope ist abgeschlossen; der opt-in Live-Smoke
   bleibt mangels expliziter Zugangskonfiguration operativ ausstehend. Es gibt
-  keine Aussage zu produktiver Betriebsreife, Modellqualitaet,
-  Kostenkontrolle, Rate Limiting, Retrystrategie, Cloudentscheidung oder
-  produktiver Evaluation.
+  keine garantierte Kompatibilitaet mit beliebigen OpenAI-Modellen und keine
+  Garantie, dass 2.000 Output-Tokens fuer jedes Modell ausreichen. Das ueber
+  `OPENAI_MODEL` konfigurierte Modell muss Responses API und den verwendeten
+  JSON-Modus unterstuetzen. Modellkompatibilitaet, reales Response-Verhalten
+  und Outputbudget muessen durch den spaeteren Live-Smoke bestaetigt werden.
+  Produktive Betriebsreife, Modellqualitaet, Kostenkontrolle, Rate Limiting,
+  Retrystrategie, Cloudentscheidung und produktive Evaluation sind nicht
+  nachgewiesen.
 
 ## Unmittelbar naechster Produktionsbranch
 

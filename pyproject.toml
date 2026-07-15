@@ -13,7 +13,7 @@ authors = [
   { name = "Steuerberater-Copilot contributors" },
 ]
 dependencies = [
-  "openai>=2.45.0,<3",
+  "openai==2.45.0",
 ]
 
 [project.scripts]

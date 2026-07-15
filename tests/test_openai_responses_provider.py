@@ -2,7 +2,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
-from openai import APIError, APITimeoutError
+from openai import APIError, APITimeoutError, OpenAI
+from openai import __version__ as openai_version
 
 from steuerberater_copilot.ai import (
     ModelRequest,
@@ -161,6 +162,40 @@ def test_generate_maps_exact_request_to_one_responses_api_call() -> None:
         store=False,
         text={"format": {"type": "json_object"}},
     )
+
+
+def test_openai_sdk_contract_builds_json_mode_request_without_network() -> None:
+    assert openai_version == "2.45.0"
+    client = OpenAI(api_key=API_KEY, max_retries=0)
+    response_marker = object()
+
+    with patch.object(
+        client,
+        "request",
+        return_value=response_marker,
+    ) as local_request_execution:
+        response = client.responses.create(
+            model="synthetic-test-model",
+            instructions="synthetic system prompt",
+            input="synthetic user prompt requesting JSON",
+            max_output_tokens=2_000,
+            store=False,
+            text={"format": {"type": "json_object"}},
+        )
+
+    local_request_execution.assert_called_once()
+    request_options = local_request_execution.call_args.args[1]
+    assert request_options.method == "post"
+    assert request_options.url == "/responses"
+    assert request_options.json_data == {
+        "model": "synthetic-test-model",
+        "instructions": "synthetic system prompt",
+        "input": "synthetic user prompt requesting JSON",
+        "max_output_tokens": 2_000,
+        "store": False,
+        "text": {"format": {"type": "json_object"}},
+    }
+    assert response is response_marker
 
 
 def test_generate_preserves_raw_output_text_and_sdk_model_name() -> None:
