@@ -6,7 +6,10 @@ from dataclasses import dataclass
 
 from steuerberater_copilot.ai import ModelProvider, ModelResponse
 
-from .model_invocation import invoke_model_if_allowed
+from .model_invocation import (
+    SYNTHETIC_MODEL_INVOCATION_POLICY,
+    invoke_model_if_allowed,
+)
 from .models import (
     GatewayDecision,
     GatewayResult,
@@ -63,6 +66,7 @@ def build_synthetic_ai_workflow(
         request=request,
         gateway=gateway,
         review_gate=review_gate,
+        policy=SYNTHETIC_MODEL_INVOCATION_POLICY,
     )
     structured_draft = parse_structured_draft_output(model_response.content)
     validate_structured_draft_output(structured_draft)

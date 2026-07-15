@@ -6,6 +6,7 @@ import steuerberater_copilot.evaluation as evaluation
 import steuerberater_copilot.evaluation.runner as evaluation_runner
 from steuerberater_copilot.ai import (
     FakeModelProvider,
+    ModelInvocationPolicyViolationError,
     ModelRequest,
     ModelResponse,
 )
@@ -311,6 +312,18 @@ def test_offline_evaluation_runner_observes_validation_error() -> None:
     assert result.observed_outcome is ExpectedAIWorkflowOutcome.VALIDATION_ERROR
     assert result.observed_structured_draft is None
     assert result.provider_call_count == 1
+
+
+def test_offline_evaluation_runner_propagates_response_policy_violation() -> None:
+    provider = FakeModelProvider(_model_response("X" * 16_001))
+
+    with pytest.raises(ModelInvocationPolicyViolationError) as exc_info:
+        run_offline_evaluation_case(_evaluation_case(), provider=provider)
+
+    assert "observed_chars=16001" in str(exc_info.value)
+    assert provider.requests == (
+        build_synthetic_model_request(_synthetic_intake()),
+    )
 
 
 def test_offline_evaluation_runner_propagates_unexpected_internal_error(
