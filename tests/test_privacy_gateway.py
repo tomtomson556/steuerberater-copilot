@@ -152,6 +152,176 @@ def test_response_gateway_blocks_tax_advice_suggestion():
     assert gateway.block_reasons == ("tax_advice_suggested",)
 
 
+def test_productive_transmission_is_not_masked_by_standard_disclaimer():
+    package = _response_draft_package(
+        handoff_notes=("Die produktive Übermittlung wurde vorbereitet.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_tax_advice_in_summary_is_not_masked_by_standard_disclaimer():
+    package = _response_draft_package(
+        summary_points=("Entwurf mit Human Review: Steuerberatung wurde vorbereitet.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("tax_advice_suggested",)
+
+
+def test_marker_in_title_is_not_masked_by_disclaimer_negation():
+    package = _response_draft_package(
+        title="Entwurf: Steuerberatung für den synthetischen Fall.",
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("tax_advice_suggested",)
+
+
+def test_marker_in_question_is_not_masked_by_negation_in_another_field():
+    package = _response_draft_package(
+        question_drafts=("Soll die produktive Übermittlung vorbereitet werden?",),
+        handoff_notes=("Keine produktive Übermittlung.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_exact_tax_advice_negation_in_fragment_remains_allowed():
+    package = _response_draft_package(disclaimers=("Keine Steuerberatung.",))
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.ALLOW_DRAFT
+    assert gateway.block_reasons == ()
+
+
+def test_exact_productive_transmission_negation_in_fragment_remains_allowed():
+    package = _response_draft_package(
+        disclaimers=("Keine produktive Übermittlung.",)
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.ALLOW_DRAFT
+    assert gateway.block_reasons == ()
+
+
+def test_second_tax_advice_occurrence_in_negated_fragment_is_blocked():
+    package = _response_draft_package(
+        handoff_notes=("Keine Steuerberatung. Wir leisten Steuerberatung.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("tax_advice_suggested",)
+
+
+def test_second_transmission_occurrence_in_negated_fragment_is_blocked():
+    package = _response_draft_package(
+        handoff_notes=(
+            "Keine produktive Übermittlung. Produktive Übermittlung vorbereitet.",
+        ),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_uppercase_productive_transmission_with_umlaut_is_blocked():
+    package = _response_draft_package(
+        handoff_notes=("PRODUKTIVE ÜBERMITTLUNG WURDE VORBEREITET.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_response_marker_with_mixed_unicode_whitespace_is_blocked():
+    package = _response_draft_package(
+        handoff_notes=("produktive\u00a0 \t\nÜbermittlung vorbereitet.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_response_marker_with_decomposed_unicode_umlaut_is_blocked():
+    package = _response_draft_package(
+        handoff_notes=("produktive U\u0308bermittlung vorbereitet.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("productive_transmission_suggested",)
+
+
+def test_human_review_visibility_accepts_uppercase_german_umlaut_spelling():
+    package = _response_draft_package(
+        summary_points=("FACHLICHE PRÜFUNG ERFORDERLICH.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.ALLOW_DRAFT
+    assert gateway.escalation_reasons == ()
+
+
+def test_response_gateway_keeps_missing_draft_character_escalation():
+    package = _response_draft_package(
+        title="Interne synthetische Notiz",
+        summary_points=("Human Review erforderlich.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.ESCALATE
+    assert gateway.escalation_reasons == ("draft_character_not_visible",)
+
+
+def test_response_gateway_keeps_missing_human_review_escalation():
+    package = _response_draft_package(
+        summary_points=("Interner synthetischer Entwurf.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.ESCALATE
+    assert gateway.escalation_reasons == ("human_review_not_visible",)
+
+
+def test_response_gateway_keeps_both_block_reasons_in_stable_order():
+    package = _response_draft_package(
+        handoff_notes=("Produktive Übermittlung und Steuerberatung vorbereitet.",),
+    )
+
+    gateway = run_response_gateway_check(package)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == (
+        "productive_transmission_suggested",
+        "tax_advice_suggested",
+    )
+
+
 def test_generated_draft_text_keeps_response_gateway_markers_visible():
     for case in load_fixture_cases():
         output = build_mock_workflow(case)
@@ -212,4 +382,30 @@ def _draft_package_text(package: DraftPackage) -> str:
             *package.handoff_notes,
             *package.disclaimers,
         )
+    )
+
+
+def _response_draft_package(
+    *,
+    title: str = "Offline-MVP Entwurf fuer CASE_109",
+    summary_points: tuple[str, ...] = ("Human Review erforderlich.",),
+    question_drafts: tuple[str, ...] = (),
+    handoff_notes: tuple[str, ...] = (),
+    disclaimers: tuple[str, ...] = (
+        NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
+    ),
+) -> DraftPackage:
+    return DraftPackage(
+        title=title,
+        review_status=ReviewStatus.DRAFT,
+        risk_classification=RiskClassification(
+            risk_level=RiskLevel.CLASS_A,
+            review_required=False,
+            basis=("synthetic_internal_admin_fixture",),
+        ),
+        review_required=False,
+        summary_points=summary_points,
+        question_drafts=question_drafts,
+        handoff_notes=handoff_notes,
+        disclaimers=disclaimers,
     )

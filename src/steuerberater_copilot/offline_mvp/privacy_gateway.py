@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -177,15 +178,11 @@ def run_response_gateway_check(draft_package: DraftPackage) -> GatewayResult:
     ]
     escalation_reasons: list[str] = []
     block_reasons: list[str] = []
-    combined_text = " ".join(
-        (
-            draft_package.title,
-            *draft_package.summary_points,
-            *draft_package.question_drafts,
-            *draft_package.handoff_notes,
-            *draft_package.disclaimers,
-        )
-    ).lower()
+    text_fragments = _response_text_fragments(draft_package)
+    normalized_fragments = tuple(
+        _normalize_response_text(fragment) for fragment in text_fragments
+    )
+    combined_text = " ".join(normalized_fragments)
 
     if not _contains_any(combined_text, RESPONSE_DRAFT_VISIBILITY_MARKERS):
         escalation_reasons.append("draft_character_not_visible")
@@ -193,13 +190,24 @@ def run_response_gateway_check(draft_package: DraftPackage) -> GatewayResult:
     if not _contains_any(combined_text, RESPONSE_HUMAN_REVIEW_VISIBILITY_MARKERS):
         escalation_reasons.append("human_review_not_visible")
 
-    if (
-        PRODUCTIVE_TRANSMISSION_MARKER in combined_text
-        and PRODUCTIVE_TRANSMISSION_NEGATION_MARKER not in combined_text
+    if any(
+        _contains_unnegated_marker(
+            fragment,
+            PRODUCTIVE_TRANSMISSION_MARKER,
+            PRODUCTIVE_TRANSMISSION_NEGATION_MARKER,
+        )
+        for fragment in normalized_fragments
     ):
         block_reasons.append("productive_transmission_suggested")
 
-    if TAX_ADVICE_MARKER in combined_text and TAX_ADVICE_NEGATION_MARKER not in combined_text:
+    if any(
+        _contains_unnegated_marker(
+            fragment,
+            TAX_ADVICE_MARKER,
+            TAX_ADVICE_NEGATION_MARKER,
+        )
+        for fragment in normalized_fragments
+    ):
         block_reasons.append("tax_advice_suggested")
 
     return _gateway_result(
@@ -253,5 +261,39 @@ def _all_pseudonyms_are_synthetic(references: Iterable[str]) -> bool:
     return all(PSEUDONYM_RE.fullmatch(reference) for reference in references)
 
 
+def _response_text_fragments(draft_package: DraftPackage) -> tuple[str, ...]:
+    return (
+        draft_package.title,
+        *draft_package.summary_points,
+        *draft_package.question_drafts,
+        *draft_package.handoff_notes,
+        *draft_package.disclaimers,
+    )
+
+
+def _normalize_response_text(text: str) -> str:
+    normalized_text = unicodedata.normalize("NFC", text).casefold()
+    normalized_text = normalized_text.translate(
+        str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"})
+    )
+    return " ".join(normalized_text.split())
+
+
+def _contains_unnegated_marker(
+    normalized_text: str,
+    marker: str,
+    negation_marker: str,
+) -> bool:
+    normalized_marker = _normalize_response_text(marker)
+    normalized_negation_marker = _normalize_response_text(negation_marker)
+    text_without_exact_negations = normalized_text.replace(
+        normalized_negation_marker, ""
+    )
+    return normalized_marker in text_without_exact_negations
+
+
 def _contains_any(text: str, markers: Iterable[str]) -> bool:
-    return any(marker in text for marker in markers)
+    normalized_text = _normalize_response_text(text)
+    return any(
+        _normalize_response_text(marker) in normalized_text for marker in markers
+    )
