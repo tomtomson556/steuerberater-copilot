@@ -66,7 +66,10 @@ begrenzt die kombinierte Request- und die rohe Response-Zeichenzahl und wird in
 der bestehenden Invocation Boundary nach Gateway und Human Review Gate
 durchgesetzt. Policy-Verstoesse bleiben von Kontrollablehnungen und
 Providerfehlern unterscheidbar und geben keine Prompt- oder Response-Inhalte in
-Fehlermeldungen aus.
+Fehlermeldungen aus. Die deterministische Response-Gateway-Markerpruefung
+bewertet die einzelnen Entwurfsfragmente getrennt. Exakte Negationen wirken nur
+im jeweiligen Fragment; Unicode-Komposition, Gross-/Kleinschreibung, deutsche
+Umlautschreibweisen und zusammenhaengender Leerraum werden normalisiert.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -406,6 +409,23 @@ Diese Grenzen sind keine Prompt Registry, keine Provider- oder Modell-Allowlist,
 keine Tokenzaehlung und keine End-to-End-Sicherheitsgarantie. Ein echter Timeout
 kann erst im spaeteren konkreten Provideradapter beziehungsweise dessen
 SDK-Aufruf durchgesetzt werden.
+
+Vor dem echten Provider vorhandene Response-Gateway-Haertung:
+
+- Titel und einzelne Summary-, Rueckfrage-, Handoff- und Disclaimer-Fragmente
+  werden getrennt auf unnegierte vorhandene Marker geprueft.
+- Eine exakte Negation neutralisiert nur das zugehoerige Vorkommen im selben
+  Fragment; weitere positive Vorkommen bleiben erkennbar.
+- Standard-Disclaimer neutralisieren keine problematischen Aussagen in anderen
+  Fragmenten.
+- Unicode-Komposition, Gross-/Kleinschreibung, deutsche Umlautschreibweisen und
+  zusammenhaengender Leerraum werden deterministisch normalisiert.
+- Die bestehenden Blockgruende `productive_transmission_suggested` und
+  `tax_advice_suggested` bleiben unveraendert.
+
+Diese Haertung bleibt eine begrenzte deterministische Substring-Pruefung der
+vorhandenen Marker. Sie ist keine allgemeine semantische Outputpruefung und
+keine End-to-End-Sicherheitsgarantie.
 
 Die Gateway-Match-Rate aggregiert ausschliesslich die derzeit im synthetischen
 Evaluationsvertrag beobachtete vorgelagerte Gatewayentscheidung. Sie ist keine
@@ -772,21 +792,34 @@ Architekturentscheidungen.
   Der bestaetigte Altbefund zu globaler Negationslogik und fehlender
   Textnormalisierung im Response Gateway wird in diesem Branch nicht behoben.
 
+### Aktualisierung vom 15. Juli 2026 (Response-Gateway-Haertung)
+
+- Datum: 15. Juli 2026
+- Aenderung: Die bestehende deterministische Response-Gateway-Markerpruefung
+  bewertet Response-Fragmente getrennt und normalisiert Unicode-Komposition,
+  Gross-/Kleinschreibung, deutsche Umlautschreibweisen und zusammenhaengenden
+  Leerraum.
+- Umfang: Exakte Negationsmarker neutralisieren nur das zugehoerige Vorkommen im
+  selben Fragment. Standard-Disclaimer koennen problematische Aussagen in
+  anderen Fragmenten nicht mehr neutralisieren. Die Blockgruende
+  `productive_transmission_suggested` und `tax_advice_suggested` bleiben
+  bestehen.
+- Begruendung: Die bisherige dokumentweite Negationspruefung konnte positive
+  Marker in einem Entwurfsfeld durch eine Negation in einem anderen Feld
+  maskieren und regulaere deutsche Umlautschreibweisen uebersehen.
+- Auswirkung: Phase 2 bleibt in Arbeit. Die Haertung ist keine allgemeine
+  semantische Outputpruefung, keine vollstaendige Response-Sicherheitskontrolle
+  und keine produktive Freigabe. Invocation Policy, Request Gateway und
+  Providervertrag bleiben unveraendert; ein echter Provider fehlt weiterhin.
+
 ## Unmittelbar naechster Produktionsbranch
 
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-fix/harden-response-gateway-statement-detection
-```
-
-Der kleine Hardening-Branch behebt den bestaetigten Altbefund im bestehenden
-Response Gateway, ohne die Invocation Policy zu erweitern. Danach folgt:
-
-```text
 feat/add-real-model-provider
 ```
 
-Die Response-Gateway-Haertung ist in diesem Invocation-Policy-Stand noch nicht
-umgesetzt. Es gibt weiterhin keinen echten Provider und keine API-, CLI-,
-Docker-, Cloud- oder RAG-Arbeit.
+Die Response-Gateway-Haertung ist umgesetzt, ohne die Invocation Policy, das
+Request Gateway oder den Providervertrag zu erweitern. Es gibt weiterhin keinen
+echten Provider und keine API-, CLI-, Docker-, Cloud- oder RAG-Arbeit.
