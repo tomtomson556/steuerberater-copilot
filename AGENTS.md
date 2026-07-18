@@ -13,8 +13,20 @@ where supported by the respective tool.
 
 ## Project Scope
 
-This project is compliance-first, offline-only, deterministic, and currently
-non-productive.
+This project is compliance-first, local-first, and currently non-productive.
+The safe default is local and offline: synthetic data, deterministic and
+network-free standard tests, the `FakeModelProvider`, and no secrets.
+
+External, provider, API, or cloud integrations are not generally permitted.
+They may be added or changed only when the current binding roadmap explicitly
+provides for them, applicable accepted ADRs are followed, and the current
+branch scope expressly authorizes the work. Such integrations must remain
+isolated at system boundaries.
+
+The binding strategic source is
+`docs/10-mvp-scope/ai-engineering-roadmap-2026.md`. The current architecture
+decision is
+`docs/15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md`.
 
 The binding project principle is:
 
@@ -75,26 +87,27 @@ duplicated.
 Agents must not introduce, generate, configure, use, or weaken any of the
 following:
 
-- productive integrations
-- real Mandanten-, Beleg-, Steuer-, Kanzlei-, or metadata
+- productive integrations or productive external services
+- real Mandanten-, Kanzlei-, Beleg-, Steuer-, or other confidential data or
+  metadata
 - derived confidential content in public LLMs
-- secrets, tokens, credentials, certificates, or private keys
-- tax advice
+- secrets, tokens, credentials, certificates, or private keys in repository
+  content, fixtures, logs, prompts, or model inputs
+- individual tax advice by a model or development agent
 - tax calculation logic
-- external services
-- automatic submission or transmission
-- Agenda integration
-- DATEV integration
-- ELSTER integration
-- banking integration
-- email integration
-- cloud integration
-- API integration
-- productive MCP servers or productive MCP configuration
+- productive tax actions
 - autonomous tax decisions
-- direct write access to Agenda, DATEV, ELSTER, banking, email, cloud, API, or
-  client systems
+- bypassing the Gateway, Model Invocation Policy, or Human Review
+- automatic tax submission or productive transmission
+- productive Agenda, DATEV, ELSTER, banking, or email integration
+- unplanned external, provider, API, or cloud integrations
+- Multi-Cloud support
+- network access in standard tests
+- productive MCP servers or productive MCP configuration
+- direct write access to productive or client systems, including Agenda,
+  DATEV, ELSTER, banking, email, cloud, or external APIs
 - productive data paths in development or test contexts
+- changes outside an explicitly authorized branch and roadmap scope
 - weakening of Compliance, Privacy, Security, AI Transparency, StBerG, Human
   Review, Risk Classification, Offline MVP Operations, Testing/Quality, or
   Release Governance policies
@@ -103,9 +116,35 @@ The LLM must not receive direct access to databases, file systems, object
 storage, Agenda, DATEV, ELSTER, banking systems, email systems, cloud systems,
 audit logs, token maps, or secrets.
 
+## Roadmap-Authorized System-Boundary Work
+
+The following capabilities are not blanket permissions. Agents may work on
+them only when the current binding roadmap explicitly provides for the
+capability, applicable accepted ADRs are followed, and the current branch scope
+expressly authorizes it:
+
+- exactly one controlled real `ModelProvider`, with its provider SDK isolated
+  at a clear system boundary
+- explicit opt-in live smoke tests using synthetic data only
+- the planned FastAPI interface and Docker runtime
+- HTTP transport at a system boundary
+- exactly one reference cloud
+- secret integration at a system boundary, without repository-stored secrets
+- Cloud Logging and Cloud Metrics at system boundaries
+- Infrastructure as Code only in the planned reference-cloud deployment scope
+
+All such work must preserve the safe offline default, synthetic-data-only
+operation, deterministic and network-free standard tests, Gateway and Human
+Review controls, the Model Invocation Policy, and a cloud-neutral application
+core. Provider and cloud SDKs must remain outside the application core. The
+work must not anticipate Multi-Cloud support or a general adapter architecture
+without a current need.
+
 ## Risk Behavior
 
-- `RiskLevel A` may continue only as offline mock behavior.
+- `RiskLevel A` may continue only through the controlled workflow. The safe
+  default remains the offline `FakeModelProvider`; any real-provider execution
+  must be explicitly authorized, opt-in, and synthetic-data-only.
 - `RiskLevel B`, `RiskLevel C`, and `RiskLevel D` must stop before automatic
   continuation and require Human Review.
 - Human Review must never be bypassed, removed, or weakened.
