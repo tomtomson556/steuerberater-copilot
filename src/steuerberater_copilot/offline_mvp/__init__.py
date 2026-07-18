@@ -1,6 +1,7 @@
 """Offline MVP building blocks without productive integrations."""
 
 from .ai_workflow import SyntheticAIWorkflowOutput, build_synthetic_ai_workflow
+from .grounded_draft import GroundedDraft, GroundedDraftCitation
 from .models import (
     DraftPackage,
     GatewayDecision,
@@ -34,6 +35,8 @@ __all__ = [
     "DraftPackage",
     "GatewayDecision",
     "GatewayResult",
+    "GroundedDraft",
+    "GroundedDraftCitation",
     "IntakeCase",
     "RiskClassification",
     "RiskLevel",
