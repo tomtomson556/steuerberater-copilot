@@ -16,8 +16,12 @@ from .models import (
     SyntheticDocument,
     WorkflowOutput,
 )
-from .prompt_builder import build_synthetic_model_request
+from .prompt_builder import (
+    build_synthetic_grounded_model_request,
+    build_synthetic_model_request,
+)
 from .prompt_definition import (
+    SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1,
     SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1,
     VersionedPromptDefinition,
 )
@@ -45,6 +49,7 @@ __all__ = [
     "ReviewGateDecision",
     "ReviewGateStatus",
     "ReviewStatus",
+    "SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1",
     "SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1",
     "StructuredDraftOutput",
     "StructuredDraftOutputParseError",
@@ -54,6 +59,7 @@ __all__ = [
     "VersionedPromptDefinition",
     "WorkflowOutput",
     "build_synthetic_ai_workflow",
+    "build_synthetic_grounded_model_request",
     "build_synthetic_model_request",
     "build_mock_workflow",
     "classify_internal_risk",
