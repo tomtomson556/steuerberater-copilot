@@ -63,11 +63,11 @@ EXPECTED_GROUNDED_USER_PROMPT_SUFFIX = (
     "of the retrieved document named by document_id.\n"
     "- Do not infer, invent, or fill gaps when evidence is missing or only partially "
     "supports a statement.\n"
-    "- When evidence is missing, keep summary_points and citations empty, state the "
-    "uncertainty in uncertainties, and add the necessary human clarification to "
-    "review_questions.\n"
-    "- Keep missing or partially supported evidence explicit in uncertainties and "
-    "review_questions.\n"
+    "- Only when no relevant evidence is available at all, keep summary_points and "
+    "citations completely empty and state the lack of evidence in uncertainties.\n"
+    "- When evidence is partial, include supported summary points with citations, state "
+    "unsupported parts in uncertainties, and add review_questions when human "
+    "clarification is needed.\n"
     "- The result remains an internal draft and requires human review.\n"
     "- Do not provide tax advice, professional approval, or productive transmission.\n"
     "- Do not include Markdown code fences or any text outside the JSON object."
@@ -331,7 +331,7 @@ def test_synthetic_grounded_builder_excludes_control_fields_and_extra_metadata()
     assert "RISK_SIGNAL_MUST_NOT_APPEAR" not in result.user_prompt
 
 
-def test_synthetic_grounded_prompt_requires_citations_and_abstention() -> None:
+def test_synthetic_grounded_prompt_requires_citations_and_scoped_abstention() -> None:
     result = build_synthetic_grounded_model_request(
         _minimal_case(),
         retrieved_documents=(),
@@ -345,13 +345,20 @@ def test_synthetic_grounded_prompt_requires_citations_and_abstention() -> None:
         "Every summary point must have at least one citation",
         "document_id must exactly match the document_id of one supplied retrieved document.",
         "supporting_text must be an exact, unchanged, contiguous passage",
-        "When evidence is missing, keep summary_points and citations empty",
+        "Only when no relevant evidence is available at all, keep summary_points and "
+        "citations completely empty",
+        "When evidence is partial, include supported summary points with citations",
+        "state unsupported parts in uncertainties, and add review_questions when "
+        "human clarification is needed.",
         "The result remains an internal draft and requires human review.",
         "Do not provide tax advice, professional approval, or productive transmission.",
         "Do not include Markdown code fences or any text outside the JSON object.",
     ):
         assert instruction in complete_prompt
 
+    assert "When evidence is missing, keep summary_points and citations empty" not in (
+        complete_prompt
+    )
     assert "```" not in complete_prompt
 
 
