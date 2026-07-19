@@ -1,4 +1,4 @@
-"""Controlled synthetic AI workflow for offline MVP draft parsing and validation."""
+"""Controlled synthetic AI workflow for offline MVP draft response checks."""
 
 from __future__ import annotations
 
@@ -6,17 +6,21 @@ from dataclasses import dataclass
 
 from steuerberater_copilot.ai import ModelProvider, ModelResponse
 
+from ._response_markers import OFFLINE_DRAFT_TITLE_PREFIX
 from .model_invocation import (
     SYNTHETIC_MODEL_INVOCATION_POLICY,
     invoke_model_if_allowed,
 )
 from .models import (
+    DraftPackage,
     GatewayDecision,
     GatewayResult,
     IntakeCase,
     ReviewGateDecision,
+    ReviewStatus,
     RiskClassification,
 )
+from .privacy_gateway import combine_gateway_results, run_response_gateway_check
 from .prompt_builder import build_synthetic_model_request
 from .structured_output import StructuredDraftOutput
 from .structured_output_parser import parse_structured_draft_output
@@ -26,7 +30,7 @@ from .workflow import classify_internal_risk, run_human_review_gate, run_mock_ga
 
 @dataclass(frozen=True)
 class SyntheticAIWorkflowOutput:
-    """Synthetic workflow state after semantic validation, without fachliche validation."""
+    """Synthetic workflow state after response controls, without fachliche validation."""
 
     intake: IntakeCase
     gateway: GatewayResult
@@ -70,6 +74,22 @@ def build_synthetic_ai_workflow(
     )
     structured_draft = parse_structured_draft_output(model_response.content)
     validate_structured_draft_output(structured_draft)
+    response_draft_package = DraftPackage(
+        title=f"{OFFLINE_DRAFT_TITLE_PREFIX} {case.case_id}",
+        review_status=ReviewStatus.DRAFT,
+        risk_classification=risk_classification,
+        review_required=risk_classification.review_required,
+        summary_points=structured_draft.summary_points,
+        question_drafts=structured_draft.review_questions,
+        handoff_notes=structured_draft.uncertainties,
+    )
+    gateway = combine_gateway_results(
+        gateway,
+        run_response_gateway_check(response_draft_package),
+    )
+
+    if gateway.decision is not GatewayDecision.ALLOW_DRAFT:
+        structured_draft = None
 
     return SyntheticAIWorkflowOutput(
         intake=case,

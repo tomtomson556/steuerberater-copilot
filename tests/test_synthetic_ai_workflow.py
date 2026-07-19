@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -14,6 +15,12 @@ from steuerberater_copilot.ai import (
     OpenAIProviderError,
     OpenAIResponsesProvider,
 )
+from steuerberater_copilot.offline_mvp._response_markers import (
+    DRAFT_REVIEW_DISCLAIMER,
+    NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
+    PRODUCTIVE_TRANSMISSION_MARKER,
+    TAX_ADVICE_MARKER,
+)
 from steuerberater_copilot.offline_mvp.ai_workflow import (
     SyntheticAIWorkflowOutput,
     build_synthetic_ai_workflow,
@@ -22,9 +29,12 @@ from steuerberater_copilot.offline_mvp.model_invocation import (
     SYNTHETIC_MODEL_INVOCATION_POLICY,
 )
 from steuerberater_copilot.offline_mvp.models import (
+    DraftPackage,
     GatewayDecision,
+    GatewayResult,
     IntakeCase,
     MockRiskSignal,
+    ReviewStatus,
     RiskLevel,
     SyntheticDocument,
 )
@@ -74,6 +84,155 @@ def test_synthetic_ai_workflow_runs_successful_controlled_path() -> None:
         uncertainties=("Synthetic uncertainty",),
         review_questions=("Synthetic review question",),
     )
+    assert result.gateway.checks[:5] == (
+        "request_purpose_documented",
+        "request_data_classes_allowed",
+        "request_pseudonyms_non_reidentifying",
+        "request_review_path_present",
+        "request_context_minimized",
+    )
+    assert result.gateway.checks[5:] == (
+        "response_keeps_draft_status",
+        "response_requires_human_review_when_needed",
+        "response_no_productive_transmission",
+        "response_no_tax_advice_or_calculation_claim",
+    )
+
+
+def test_synthetic_ai_workflow_checks_complete_model_fields_with_disclaimers(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    provider = FakeModelProvider(_model_response(VALID_STRUCTURED_CONTENT))
+    checked_packages: list[DraftPackage] = []
+    original_gateway_check = ai_workflow.run_response_gateway_check
+
+    def response_gateway_spy(draft_package: DraftPackage) -> GatewayResult:
+        checked_packages.append(draft_package)
+        return original_gateway_check(draft_package)
+
+    monkeypatch.setattr(
+        ai_workflow,
+        "run_response_gateway_check",
+        response_gateway_spy,
+    )
+
+    result = build_synthetic_ai_workflow(case, provider=provider)
+
+    assert len(checked_packages) == 1
+    checked_package = checked_packages[0]
+    assert checked_package.review_status is ReviewStatus.DRAFT
+    assert checked_package.risk_classification is result.risk_classification
+    assert checked_package.review_required is False
+    assert checked_package.summary_points == ("Synthetic summary",)
+    assert checked_package.handoff_notes == ("Synthetic uncertainty",)
+    assert checked_package.question_drafts == ("Synthetic review question",)
+    assert checked_package.disclaimers == (
+        DRAFT_REVIEW_DISCLAIMER,
+        NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
+    )
+
+
+@pytest.mark.parametrize(
+    ("claim", "expected_block_reason"),
+    (
+        (f"{TAX_ADVICE_MARKER} ist vorbereitet.", "tax_advice_suggested"),
+        (
+            f"{PRODUCTIVE_TRANSMISSION_MARKER} ist vorbereitet.",
+            "productive_transmission_suggested",
+        ),
+    ),
+)
+@pytest.mark.parametrize(
+    "field_name",
+    ("summary_points", "uncertainties", "review_questions"),
+)
+def test_synthetic_ai_workflow_blocks_response_claims_in_every_model_field(
+    field_name: str,
+    claim: str,
+    expected_block_reason: str,
+) -> None:
+    case = _allowed_class_a_case()
+    payload = {
+        "summary_points": ["Synthetic summary"],
+        "uncertainties": ["Synthetic uncertainty"],
+        "review_questions": ["Synthetic review question"],
+    }
+    payload[field_name].append(claim)
+    response = _model_response(json.dumps(payload))
+    provider = FakeModelProvider(response)
+
+    result = build_synthetic_ai_workflow(case, provider=provider)
+
+    assert result.gateway.decision is GatewayDecision.BLOCK
+    assert result.gateway.block_reasons == (expected_block_reason,)
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_A
+    assert result.review_gate.allows_offline_mock_continuation is True
+    assert result.model_response is response
+    assert result.structured_draft is None
+
+
+def test_synthetic_ai_workflow_response_gateway_escalation_withholds_draft(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    response = _model_response(VALID_STRUCTURED_CONTENT)
+    provider = FakeModelProvider(response)
+    response_gateway = GatewayResult(
+        decision=GatewayDecision.ESCALATE,
+        checks=("response_requires_human_review_when_needed",),
+        escalation_reasons=("synthetic_response_requires_review",),
+    )
+    monkeypatch.setattr(
+        ai_workflow,
+        "run_response_gateway_check",
+        lambda _draft_package: response_gateway,
+    )
+
+    result = build_synthetic_ai_workflow(case, provider=provider)
+
+    assert result.gateway.decision is GatewayDecision.ESCALATE
+    assert result.gateway.escalation_reasons == (
+        "synthetic_response_requires_review",
+    )
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_A
+    assert result.review_gate.allows_offline_mock_continuation is True
+    assert result.model_response is response
+    assert result.structured_draft is None
+
+
+def test_synthetic_ai_workflow_runs_response_gateway_after_parser_and_validator(
+    monkeypatch,
+) -> None:
+    provider = FakeModelProvider(_model_response(VALID_STRUCTURED_CONTENT))
+    calls: list[str] = []
+    original_parser = ai_workflow.parse_structured_draft_output
+    original_validator = ai_workflow.validate_structured_draft_output
+    original_gateway_check = ai_workflow.run_response_gateway_check
+
+    def parse_spy(content: str) -> StructuredDraftOutput:
+        calls.append("parser")
+        return original_parser(content)
+
+    def validate_spy(structured_draft: StructuredDraftOutput) -> None:
+        calls.append("validator")
+        original_validator(structured_draft)
+
+    def response_gateway_spy(draft_package: DraftPackage) -> GatewayResult:
+        calls.append("response_gateway")
+        return original_gateway_check(draft_package)
+
+    monkeypatch.setattr(ai_workflow, "parse_structured_draft_output", parse_spy)
+    monkeypatch.setattr(ai_workflow, "validate_structured_draft_output", validate_spy)
+    monkeypatch.setattr(
+        ai_workflow,
+        "run_response_gateway_check",
+        response_gateway_spy,
+    )
+
+    build_synthetic_ai_workflow(_allowed_class_a_case(), provider=provider)
+
+    assert calls == ["parser", "validator", "response_gateway"]
 
 
 def test_synthetic_ai_workflow_uses_invocation_boundary(monkeypatch) -> None:
@@ -164,18 +323,39 @@ def test_synthetic_ai_workflow_applies_response_policy_before_parser_and_validat
     assert later_boundary_calls == []
 
 
-def test_synthetic_ai_workflow_propagates_parser_errors_unchanged() -> None:
+def test_synthetic_ai_workflow_propagates_parser_errors_unchanged(monkeypatch) -> None:
     provider = FakeModelProvider(_model_response('{"summary_points": []}'))
+    response_gateway = Mock(
+        side_effect=AssertionError("response gateway must not run after parser failure")
+    )
+    monkeypatch.setattr(
+        ai_workflow,
+        "run_response_gateway_check",
+        response_gateway,
+    )
 
     with pytest.raises(StructuredDraftOutputParseError):
         build_synthetic_ai_workflow(_allowed_class_a_case(), provider=provider)
 
     assert provider.requests == (build_synthetic_model_request(_allowed_class_a_case()),)
+    response_gateway.assert_not_called()
 
 
-def test_synthetic_ai_workflow_propagates_validation_errors_unchanged() -> None:
+def test_synthetic_ai_workflow_propagates_validation_errors_unchanged(
+    monkeypatch,
+) -> None:
     case = _allowed_class_a_case()
     provider = FakeModelProvider(_model_response(SEMANTICALLY_INVALID_STRUCTURED_CONTENT))
+    response_gateway = Mock(
+        side_effect=AssertionError(
+            "response gateway must not run after semantic validation failure"
+        )
+    )
+    monkeypatch.setattr(
+        ai_workflow,
+        "run_response_gateway_check",
+        response_gateway,
+    )
 
     with pytest.raises(StructuredDraftOutputValidationError) as exc_info:
         build_synthetic_ai_workflow(case, provider=provider)
@@ -185,6 +365,7 @@ def test_synthetic_ai_workflow_propagates_validation_errors_unchanged() -> None:
     assert error.field_name == "summary_points"
     assert error.item_index == 0
     assert provider.requests == (build_synthetic_model_request(case),)
+    response_gateway.assert_not_called()
 
 
 def test_synthetic_ai_workflow_propagates_provider_errors_unchanged() -> None:
