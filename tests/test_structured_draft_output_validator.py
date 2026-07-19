@@ -122,10 +122,64 @@ def test_validate_structured_draft_output_rejects_professional_review_claims(
 @pytest.mark.parametrize(
     "entry",
     (
+        "Interner Hinweis: Der Entwurf ist fachlich gepr\u00fcft und bleibt ein Entwurf.",
+        "Das Ergebnis gilt als steuerlich gepr\u00fcft, ben\u00f6tigt aber Human Review.",
+        "Die fachliche Pr\u00fcfung ist abgeschlossen; Human Review bleibt erforderlich.",
+        "For internal use, the draft was professionally reviewed and documented.",
+        "The result has been fully tax reviewed, but remains a draft.",
+        "The professional review has been completed; human review still applies.",
+        (
+            "Der Entwurf ist nicht fachlich gepr\u00fcft; "
+            "dieser Entwurf wurde fachlich gepr\u00fcft."
+        ),
+        "Der Entwurf wurde erfolgreich fachlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung wurde erfolgreich abgeschlossen.",
+        "The draft was successfully professionally reviewed.",
+        "The professional review has been successfully completed.",
+        "Der Entwurf ist nicht final freigegeben, aber fachlich gepr\u00fcft.",
+        "The draft is not approved for filing, but professionally reviewed.",
+    ),
+)
+def test_validate_structured_draft_output_rejects_embedded_or_variant_professional_claims(
+    entry: str,
+) -> None:
+    output = _structured_output(review_questions=(entry,))
+
+    with pytest.raises(
+        StructuredDraftOutputValidationError,
+        match="professional_review_claim",
+    ) as exc_info:
+        validate_structured_draft_output(output)
+
+    error = exc_info.value
+    assert error.rule == "professional_review_claim"
+    assert error.field_name == "review_questions"
+    assert error.item_index == 0
+
+
+@pytest.mark.parametrize(
+    "entry",
+    (
         "Der Entwurf ist nicht fachlich gepr\u00fcft.",
         "Der Entwurf wurde nicht steuerlich gepr\u00fcft.",
         "The draft has not been professionally reviewed.",
         "The result is not tax reviewed.",
+        "Der Entwurf wurde nicht fachlich gepr\u00fcft und bleibt im Human Review.",
+        "Das Ergebnis gilt nicht als steuerlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung ist nicht abgeschlossen.",
+        "The draft was not professionally reviewed and remains a draft.",
+        "The result has not been tax reviewed.",
+        "The professional review has not been completed.",
+        "Der Entwurf wurde nicht erfolgreich fachlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung wurde nicht erfolgreich abgeschlossen.",
+        "The draft was not successfully professionally reviewed.",
+        "The professional review has not been successfully completed.",
+        "Der Entwurf ist nicht final freigegeben und nicht fachlich gepr\u00fcft.",
+        "Der Entwurf ist nicht final freigegeben, aber nicht fachlich gepr\u00fcft.",
+        "Der Entwurf wurde in keiner Weise fachlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung wurde keinesfalls abgeschlossen.",
+        "The draft was in no way professionally reviewed.",
+        "The draft is not approved for filing, but not professionally reviewed.",
     ),
 )
 def test_validate_structured_draft_output_allows_negative_professional_review_statements(
@@ -165,16 +219,79 @@ def test_validate_structured_draft_output_rejects_finality_or_release_claims(
 @pytest.mark.parametrize(
     "entry",
     (
+        "Interner Hinweis: Der Entwurf ist final freigegeben und bleibt dokumentiert.",
+        "Das Ergebnis wurde endg\u00fcltig genehmigt, obwohl Human Review n\u00f6tig ist.",
+        "Der Entwurf ist f\u00fcr die Einreichung freigegeben und kann \u00fcbernommen werden.",
+        "Dieser Entwurf hat die finale Freigabe erhalten, bleibt aber intern.",
+        "The draft has been finally approved and recorded.",
+        "The result is approved for submission, but still marked as a draft.",
+        "For the next step, this result was cleared for submission and recorded.",
+        "This draft has received final approval, but still requires review.",
+        (
+            "The draft is not approved for filing, but "
+            "the result is approved for submission."
+        ),
+        "Der Entwurf ist nicht fachlich gepr\u00fcft, aber final freigegeben.",
+        "The draft is not professionally reviewed, but finally approved.",
+        "The result is not tax reviewed, but approved for submission.",
+    ),
+)
+def test_validate_structured_draft_output_rejects_embedded_or_variant_release_claims(
+    entry: str,
+) -> None:
+    output = _structured_output(uncertainties=(entry,))
+
+    with pytest.raises(
+        StructuredDraftOutputValidationError,
+        match="finality_or_release_claim",
+    ) as exc_info:
+        validate_structured_draft_output(output)
+
+    error = exc_info.value
+    assert error.rule == "finality_or_release_claim"
+    assert error.field_name == "uncertainties"
+    assert error.item_index == 0
+
+
+@pytest.mark.parametrize(
+    "entry",
+    (
         "Der Entwurf ist nicht final freigegeben.",
         "Der Entwurf ist nicht zur Einreichung freigegeben.",
         "The draft is not approved for filing.",
         "The result is not cleared for submission.",
+        "Der Entwurf ist nicht freigegeben und bleibt im Human Review.",
+        "Das Ergebnis wurde noch nicht endg\u00fcltig genehmigt.",
+        "Der Entwurf ist nicht f\u00fcr die Einreichung freigegeben.",
+        "Dieser Entwurf hat keine finale Freigabe erhalten.",
+        "The draft has not been finally approved.",
+        "The result is not approved for submission.",
+        "This draft has not received final approval.",
+        "Der Entwurf ist nicht fachlich gepr\u00fcft und nicht final freigegeben.",
+        "Der Entwurf ist nicht fachlich gepr\u00fcft, aber nicht final freigegeben.",
+        "The draft is not professionally reviewed, but not finally approved.",
+        "The result is not tax reviewed, but not approved for submission.",
     ),
 )
 def test_validate_structured_draft_output_allows_negative_finality_or_release_statements(
     entry: str,
 ) -> None:
     validate_structured_draft_output(_structured_output(uncertainties=(entry,)))
+
+
+@pytest.mark.parametrize(
+    "entry",
+    (
+        "Die Zahlung wurde gepr\u00fcft und freigegeben.",
+        "Die Unterlage wurde erstellt und fachlich gepr\u00fcft.",
+        "The payment was checked and approved.",
+        "The document was prepared and professionally reviewed.",
+    ),
+)
+def test_validate_structured_draft_output_allows_non_draft_coordinated_statements(
+    entry: str,
+) -> None:
+    validate_structured_draft_output(_structured_output(summary_points=(entry,)))
 
 
 def test_validate_structured_draft_output_is_case_insensitive_for_claims() -> None:
@@ -185,6 +302,30 @@ def test_validate_structured_draft_output_is_case_insensitive_for_claims() -> No
         match="finality_or_release_claim",
     ):
         validate_structured_draft_output(output)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ("summary_points", "uncertainties", "review_questions"),
+)
+def test_validate_structured_draft_output_checks_hardened_claims_in_every_field(
+    field_name: str,
+) -> None:
+    output = _structured_output(
+        **{
+            field_name: (
+                "For internal use, the draft was professionally reviewed and recorded.",
+            )
+        }
+    )
+
+    with pytest.raises(StructuredDraftOutputValidationError) as exc_info:
+        validate_structured_draft_output(output)
+
+    error = exc_info.value
+    assert error.rule == "professional_review_claim"
+    assert error.field_name == field_name
+    assert error.item_index == 0
 
 
 def test_validate_structured_draft_output_stops_at_first_error_by_field_order() -> None:
