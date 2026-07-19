@@ -132,6 +132,11 @@ def test_validate_structured_draft_output_rejects_professional_review_claims(
             "Der Entwurf ist nicht fachlich gepr\u00fcft; "
             "dieser Entwurf wurde fachlich gepr\u00fcft."
         ),
+        "Der Entwurf wurde erfolgreich fachlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung wurde erfolgreich abgeschlossen.",
+        "The draft was successfully professionally reviewed.",
+        "The professional review has been successfully completed.",
+        "Der Entwurf ist nicht final freigegeben, aber fachlich gepr\u00fcft.",
     ),
 )
 def test_validate_structured_draft_output_rejects_embedded_or_variant_professional_claims(
@@ -164,6 +169,12 @@ def test_validate_structured_draft_output_rejects_embedded_or_variant_profession
         "The draft was not professionally reviewed and remains a draft.",
         "The result has not been tax reviewed.",
         "The professional review has not been completed.",
+        "Der Entwurf wurde nicht erfolgreich fachlich gepr\u00fcft.",
+        "Die fachliche Pr\u00fcfung wurde nicht erfolgreich abgeschlossen.",
+        "The draft was not successfully professionally reviewed.",
+        "The professional review has not been successfully completed.",
+        "Der Entwurf ist nicht final freigegeben und nicht fachlich gepr\u00fcft.",
+        "Der Entwurf ist nicht final freigegeben, aber nicht fachlich gepr\u00fcft.",
     ),
 )
 def test_validate_structured_draft_output_allows_negative_professional_review_statements(
@@ -215,6 +226,7 @@ def test_validate_structured_draft_output_rejects_finality_or_release_claims(
             "The draft is not approved for filing, but "
             "the result is approved for submission."
         ),
+        "Der Entwurf ist nicht fachlich gepr\u00fcft, aber final freigegeben.",
     ),
 )
 def test_validate_structured_draft_output_rejects_embedded_or_variant_release_claims(
@@ -248,6 +260,8 @@ def test_validate_structured_draft_output_rejects_embedded_or_variant_release_cl
         "The draft has not been finally approved.",
         "The result is not approved for submission.",
         "This draft has not received final approval.",
+        "Der Entwurf ist nicht fachlich gepr\u00fcft und nicht final freigegeben.",
+        "Der Entwurf ist nicht fachlich gepr\u00fcft, aber nicht final freigegeben.",
     ),
 )
 def test_validate_structured_draft_output_allows_negative_finality_or_release_statements(

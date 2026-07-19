@@ -19,37 +19,48 @@ _GERMAN_DRAFT_OR_RESULT = (
 _ENGLISH_DRAFT_OR_RESULT = r"(?:(?:the|this)\s+(?:draft|result))"
 _GERMAN_NEGATION = r"(?:nicht|keineswegs|niemals|noch\s+nicht)\b"
 _ENGLISH_NEGATION = r"(?:not|never)\b"
+# Bounded non-negated tokens between finite verb/copula and claim predicate.
+# Avoids maintaining an open-ended adverb allowlist while keeping matches local.
+_GERMAN_INTERVENING_TOKENS = (
+    rf"(?:(?!{_GERMAN_NEGATION})\w+(?:-\w+)*\s+){{0,3}}"
+)
+_ENGLISH_INTERVENING_TOKENS = (
+    rf"(?:(?!{_ENGLISH_NEGATION})\w+(?:-\w+)*\s+){{0,3}}"
+)
+_GERMAN_COORDINATION = r"(?:,\s*)?(?:aber|sondern|und)\s+"
 
 _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
     re.compile(
         rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+"
         r"(?:ist|wurde|gilt\s+als)\s+"
-        rf"(?!{_GERMAN_NEGATION})"
-        r"(?:(?:bereits|vollst\u00e4ndig|abschlie\u00dfend)\s+)*"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:fachlich|steuerlich)\s+gepr\u00fcft\b",
         re.IGNORECASE,
     ),
     re.compile(
         r"\b(?:die|diese)\s+(?:fachliche|steuerliche)\s+pr\u00fcfung\s+"
         r"(?:ist|wurde)\s+"
-        rf"(?!{_GERMAN_NEGATION})"
-        r"(?:(?:bereits|vollst\u00e4ndig|abschlie\u00dfend)\s+)*"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:abgeschlossen|durchgef\u00fchrt|best\u00e4tigt|erfolgt)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"{_GERMAN_COORDINATION}"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
+        r"(?:fachlich|steuerlich)\s+gepr\u00fcft\b",
         re.IGNORECASE,
     ),
     re.compile(
         rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+"
         r"(?:is|was|has\s+been)\s+"
-        rf"(?!{_ENGLISH_NEGATION})"
-        r"(?:(?:already|fully|finally)\s+)*"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:professionally|tax)\s+reviewed\b",
         re.IGNORECASE,
     ),
     re.compile(
         r"\b(?:the|this)\s+(?:professional|tax)\s+review\s+"
         r"(?:is|was|has\s+been)\s+"
-        rf"(?!{_ENGLISH_NEGATION})"
-        r"(?:(?:already|fully|finally)\s+)*"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:complete|completed|performed|confirmed)\b",
         re.IGNORECASE,
     ),
@@ -59,29 +70,34 @@ _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
     re.compile(
         rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+"
         r"(?:ist|wurde|gilt\s+als)\s+"
-        rf"(?!{_GERMAN_NEGATION})"
-        r"(?:(?:bereits|final|endg\u00fcltig)\s+)*"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:freigegeben|genehmigt)\b",
         re.IGNORECASE,
     ),
     re.compile(
         rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+(?:ist|wurde)\s+"
-        rf"(?!{_GERMAN_NEGATION})"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:zur|f\u00fcr\s+die)\s+einreichung\s+freigegeben\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"{_GERMAN_COORDINATION}"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
+        r"(?:freigegeben|genehmigt)\b",
         re.IGNORECASE,
     ),
     re.compile(
         rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+(?:hat|hatte)\s+"
         r"(?!nicht\b|keine\b|noch\s+keine\b)"
-        r"(?:bereits\s+)?(?:die\s+)?(?:finale|endg\u00fcltige)\s+"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
+        r"(?:die\s+)?(?:finale|endg\u00fcltige)\s+"
         r"freigabe\s+erhalten\b",
         re.IGNORECASE,
     ),
     re.compile(
         rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+"
         r"(?:is|was|has\s+been)\s+"
-        rf"(?!{_ENGLISH_NEGATION})"
-        r"(?:(?:already|finally|fully)\s+)*"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:approved(?:\s+for\s+(?:filing|submission))?"
         r"|cleared\s+for\s+submission)\b",
         re.IGNORECASE,
@@ -89,7 +105,8 @@ _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
     re.compile(
         rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+(?:has|had)\s+"
         rf"(?!{_ENGLISH_NEGATION})"
-        r"(?:already\s+)?received\s+final\s+approval\b",
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
+        r"received\s+final\s+approval\b",
         re.IGNORECASE,
     ),
 )
