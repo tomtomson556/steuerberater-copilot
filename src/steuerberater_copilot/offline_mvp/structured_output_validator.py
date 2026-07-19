@@ -34,6 +34,21 @@ _ENGLISH_INTERVENING_TOKENS = (
 )
 _GERMAN_COORDINATION = r"(?:,\s*)?(?:aber|sondern|und)\s+"
 _ENGLISH_COORDINATION = r"(?:,\s*)?(?:but|and)\s+"
+# First conjunct in a coordinated draft/result claim; reuse existing claim vocabulary only.
+_GERMAN_COORDINATED_PRIOR_CLAIM = (
+    r"(?:"
+    r"(?:fachlich|steuerlich)\s+gepr\u00fcft|"
+    r"(?:zur|f\u00fcr\s+die)\s+einreichung\s+freigegeben|"
+    r"(?:freigegeben|genehmigt)"
+    r")\b"
+)
+_ENGLISH_COORDINATED_PRIOR_CLAIM = (
+    r"(?:"
+    r"(?:professionally|tax)\s+reviewed|"
+    r"approved(?:\s+for\s+(?:filing|submission))?|"
+    r"cleared\s+for\s+submission"
+    r")\b"
+)
 
 _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
     re.compile(
@@ -51,6 +66,11 @@ _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
         re.IGNORECASE,
     ),
     re.compile(
+        rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+"
+        r"(?:ist|wurde|gilt\s+als)\s+"
+        rf"(?:{_GERMAN_NEGATION}\s+)?"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
+        rf"{_GERMAN_COORDINATED_PRIOR_CLAIM}"
         rf"{_GERMAN_COORDINATION}"
         rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:fachlich|steuerlich)\s+gepr\u00fcft\b",
@@ -71,6 +91,11 @@ _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
         re.IGNORECASE,
     ),
     re.compile(
+        rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+"
+        r"(?:is|was|has\s+been)\s+"
+        rf"(?:{_ENGLISH_NEGATION}\s+)?"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
+        rf"{_ENGLISH_COORDINATED_PRIOR_CLAIM}"
         rf"{_ENGLISH_COORDINATION}"
         rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:professionally|tax)\s+reviewed\b",
@@ -93,6 +118,11 @@ _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
         re.IGNORECASE,
     ),
     re.compile(
+        rf"\b{_GERMAN_DRAFT_OR_RESULT}\s+"
+        r"(?:ist|wurde|gilt\s+als)\s+"
+        rf"(?:{_GERMAN_NEGATION}\s+)?"
+        rf"{_GERMAN_INTERVENING_TOKENS}"
+        rf"{_GERMAN_COORDINATED_PRIOR_CLAIM}"
         rf"{_GERMAN_COORDINATION}"
         rf"{_GERMAN_INTERVENING_TOKENS}"
         r"(?:freigegeben|genehmigt)\b",
@@ -115,6 +145,11 @@ _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
         re.IGNORECASE,
     ),
     re.compile(
+        rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+"
+        r"(?:is|was|has\s+been)\s+"
+        rf"(?:{_ENGLISH_NEGATION}\s+)?"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
+        rf"{_ENGLISH_COORDINATED_PRIOR_CLAIM}"
         rf"{_ENGLISH_COORDINATION}"
         rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:approved(?:\s+for\s+(?:filing|submission))?"

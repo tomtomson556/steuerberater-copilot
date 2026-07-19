@@ -279,6 +279,21 @@ def test_validate_structured_draft_output_allows_negative_finality_or_release_st
     validate_structured_draft_output(_structured_output(uncertainties=(entry,)))
 
 
+@pytest.mark.parametrize(
+    "entry",
+    (
+        "Die Zahlung wurde gepr\u00fcft und freigegeben.",
+        "Die Unterlage wurde erstellt und fachlich gepr\u00fcft.",
+        "The payment was checked and approved.",
+        "The document was prepared and professionally reviewed.",
+    ),
+)
+def test_validate_structured_draft_output_allows_non_draft_coordinated_statements(
+    entry: str,
+) -> None:
+    validate_structured_draft_output(_structured_output(summary_points=(entry,)))
+
+
 def test_validate_structured_draft_output_is_case_insensitive_for_claims() -> None:
     output = _structured_output(summary_points=("THE DRAFT IS APPROVED FOR FILING.",))
 
