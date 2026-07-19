@@ -90,6 +90,7 @@ IntakeCase
 -> Model Invocation Boundary
 -> Structured Output Parser
 -> Structured Draft Semantic Validator
+-> Response Gateway
 ```
 
 Die vorhandene Architekturgrenze bleibt:
