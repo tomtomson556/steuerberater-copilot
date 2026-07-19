@@ -17,8 +17,13 @@ _GERMAN_DRAFT_OR_RESULT = (
     r"(?:(?:der|dieser)\s+entwurf|(?:das|dieses)\s+ergebnis)"
 )
 _ENGLISH_DRAFT_OR_RESULT = r"(?:(?:the|this)\s+(?:draft|result))"
-_GERMAN_NEGATION = r"(?:nicht|keineswegs|niemals|noch\s+nicht)\b"
-_ENGLISH_NEGATION = r"(?:not|never)\b"
+# Closed, claim-local negation markers. Multi-word forms must be listed as
+# whole phrases so intervening-token matching cannot skip past them.
+_GERMAN_NEGATION = (
+    r"(?:nicht|niemals|noch\s+nicht|keineswegs|keinesfalls|"
+    r"in\s+keiner\s+weise)\b"
+)
+_ENGLISH_NEGATION = r"(?:not|never|in\s+no\s+way)\b"
 # Bounded non-negated tokens between finite verb/copula and claim predicate.
 # Avoids maintaining an open-ended adverb allowlist while keeping matches local.
 _GERMAN_INTERVENING_TOKENS = (
@@ -28,6 +33,7 @@ _ENGLISH_INTERVENING_TOKENS = (
     rf"(?:(?!{_ENGLISH_NEGATION})\w+(?:-\w+)*\s+){{0,3}}"
 )
 _GERMAN_COORDINATION = r"(?:,\s*)?(?:aber|sondern|und)\s+"
+_ENGLISH_COORDINATION = r"(?:,\s*)?(?:but|and)\s+"
 
 _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
     re.compile(
@@ -64,6 +70,12 @@ _PROFESSIONAL_REVIEW_CLAIM_PATTERNS = (
         r"(?:complete|completed|performed|confirmed)\b",
         re.IGNORECASE,
     ),
+    re.compile(
+        rf"{_ENGLISH_COORDINATION}"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
+        r"(?:professionally|tax)\s+reviewed\b",
+        re.IGNORECASE,
+    ),
 )
 
 _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
@@ -97,6 +109,13 @@ _FINALITY_OR_RELEASE_CLAIM_PATTERNS = (
     re.compile(
         rf"\b{_ENGLISH_DRAFT_OR_RESULT}\s+"
         r"(?:is|was|has\s+been)\s+"
+        rf"{_ENGLISH_INTERVENING_TOKENS}"
+        r"(?:approved(?:\s+for\s+(?:filing|submission))?"
+        r"|cleared\s+for\s+submission)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"{_ENGLISH_COORDINATION}"
         rf"{_ENGLISH_INTERVENING_TOKENS}"
         r"(?:approved(?:\s+for\s+(?:filing|submission))?"
         r"|cleared\s+for\s+submission)\b",
