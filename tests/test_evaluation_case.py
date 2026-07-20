@@ -245,6 +245,7 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         "EvaluationMetricsReport",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
+        "RetrievalEvaluationCase",
         "SyntheticEvaluationFixture",
         "assess_evaluation_run_result",
         "build_synthetic_evaluation_case_library",
