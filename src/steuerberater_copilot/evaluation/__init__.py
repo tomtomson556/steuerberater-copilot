@@ -10,6 +10,10 @@ from .retrieval_assessment import (
 )
 from .retrieval_case import RetrievalEvaluationCase
 from .retrieval_library import build_synthetic_retrieval_evaluation_case_library
+from .retrieval_report import (
+    RetrievalEvaluationMetricsReport,
+    run_offline_retrieval_evaluation_suite,
+)
 from .retrieval_runner import (
     RetrievalEvaluationRunResult,
     run_offline_retrieval_evaluation_case,
@@ -24,6 +28,7 @@ __all__ = [
     "ExpectedAIWorkflowOutcome",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
+    "RetrievalEvaluationMetricsReport",
     "RetrievalEvaluationRunResult",
     "SyntheticEvaluationFixture",
     "assess_evaluation_run_result",
@@ -33,4 +38,5 @@ __all__ = [
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
     "run_offline_retrieval_evaluation_case",
+    "run_offline_retrieval_evaluation_suite",
 ]

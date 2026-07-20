@@ -262,6 +262,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "ExpectedAIWorkflowOutcome",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
+        "RetrievalEvaluationMetricsReport",
         "RetrievalEvaluationRunResult",
         "SyntheticEvaluationFixture",
         "assess_evaluation_run_result",
@@ -271,6 +272,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "run_offline_evaluation_case",
         "run_offline_evaluation_suite",
         "run_offline_retrieval_evaluation_case",
+        "run_offline_retrieval_evaluation_suite",
     ]
 
 
