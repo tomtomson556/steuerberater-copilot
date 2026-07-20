@@ -246,11 +246,13 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
         "RetrievalEvaluationCase",
+        "RetrievalEvaluationRunResult",
         "SyntheticEvaluationFixture",
         "assess_evaluation_run_result",
         "build_synthetic_evaluation_case_library",
         "run_offline_evaluation_case",
         "run_offline_evaluation_suite",
+        "run_offline_retrieval_evaluation_case",
     ]
 
 
