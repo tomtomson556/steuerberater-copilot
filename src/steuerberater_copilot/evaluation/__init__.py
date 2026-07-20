@@ -9,6 +9,7 @@ from .retrieval_assessment import (
     assess_retrieval_evaluation_run_result,
 )
 from .retrieval_case import RetrievalEvaluationCase
+from .retrieval_library import build_synthetic_retrieval_evaluation_case_library
 from .retrieval_runner import (
     RetrievalEvaluationRunResult,
     run_offline_retrieval_evaluation_case,
@@ -28,6 +29,7 @@ __all__ = [
     "assess_evaluation_run_result",
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
+    "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
     "run_offline_retrieval_evaluation_case",
