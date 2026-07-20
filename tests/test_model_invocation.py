@@ -9,6 +9,7 @@ from steuerberater_copilot.ai import (
 )
 from steuerberater_copilot.offline_mvp.model_invocation import (
     SYNTHETIC_MODEL_INVOCATION_POLICY,
+    SYNTHETIC_RAG_MODEL_INVOCATION_POLICY,
     ModelInvocationDeniedError,
     invoke_model_if_allowed,
 )
@@ -21,6 +22,7 @@ from steuerberater_copilot.offline_mvp.models import (
     RiskLevel,
 )
 from steuerberater_copilot.offline_mvp.prompt_definition import (
+    SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1,
     SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1,
 )
 
@@ -36,6 +38,23 @@ def test_synthetic_model_invocation_policy_uses_versioned_prompt_source() -> Non
     )
     assert SYNTHETIC_MODEL_INVOCATION_POLICY.max_request_chars == 16_000
     assert SYNTHETIC_MODEL_INVOCATION_POLICY.max_response_chars == 16_000
+
+
+def test_synthetic_rag_model_invocation_policy_uses_grounded_prompt_source() -> None:
+    assert SYNTHETIC_RAG_MODEL_INVOCATION_POLICY.allowed_prompt_versions == frozenset(
+        {
+            (
+                SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1.prompt_id,
+                SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1.version,
+            )
+        }
+    )
+    assert SYNTHETIC_RAG_MODEL_INVOCATION_POLICY.max_request_chars == 16_000
+    assert SYNTHETIC_RAG_MODEL_INVOCATION_POLICY.max_response_chars == 16_000
+    assert (
+        SYNTHETIC_RAG_MODEL_INVOCATION_POLICY.allowed_prompt_versions
+        != SYNTHETIC_MODEL_INVOCATION_POLICY.allowed_prompt_versions
+    )
 
 
 def test_policy_violation_error_is_distinct_from_control_denial() -> None:
