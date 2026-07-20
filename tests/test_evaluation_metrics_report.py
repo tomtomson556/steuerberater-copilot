@@ -260,6 +260,8 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "EvaluationMetricsReport",
         "EvaluationRunResult",
         "ExpectedAIWorkflowOutcome",
+        "GroundingEvaluationCase",
+        "GroundingEvidenceLabel",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
