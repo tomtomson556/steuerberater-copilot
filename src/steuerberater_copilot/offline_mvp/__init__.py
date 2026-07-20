@@ -3,6 +3,10 @@
 from .ai_workflow import SyntheticAIWorkflowOutput, build_synthetic_ai_workflow
 from .grounded_draft import GroundedDraft, GroundedDraftCitation
 from .grounded_draft_parser import GroundedDraftParseError, parse_grounded_draft
+from .grounded_draft_validator import (
+    GroundedDraftValidationError,
+    validate_grounded_draft,
+)
 from .models import (
     DraftPackage,
     GatewayDecision,
@@ -43,6 +47,7 @@ __all__ = [
     "GroundedDraft",
     "GroundedDraftCitation",
     "GroundedDraftParseError",
+    "GroundedDraftValidationError",
     "IntakeCase",
     "RiskClassification",
     "RiskLevel",
@@ -66,5 +71,6 @@ __all__ = [
     "parse_grounded_draft",
     "parse_structured_draft_output",
     "run_human_review_gate",
+    "validate_grounded_draft",
     "validate_structured_draft_output",
 ]
