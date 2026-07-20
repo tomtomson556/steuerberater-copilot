@@ -41,9 +41,12 @@ class GroundedDraftValidationError(ValueError):
 def validate_grounded_draft(
     grounded_draft: GroundedDraft,
     *,
-    source_documents: tuple[SourceDocument, ...],
+    retrieved_documents: tuple[SourceDocument, ...],
 ) -> None:
-    """Validate grounded citations against the supplied source-document context.
+    """Validate grounded citations against the supplied retrieval context.
+
+    Only the concrete retrieved documents for a request are valid evidence,
+    not the full source-document corpus.
 
     Validation order is stable and first-error-wins:
 
@@ -55,7 +58,7 @@ def validate_grounded_draft(
     if not isinstance(grounded_draft, GroundedDraft):
         raise TypeError("grounded_draft must be a GroundedDraft.")
 
-    documents_by_id = _index_source_documents(source_documents)
+    documents_by_id = _index_retrieved_documents(retrieved_documents)
 
     for citation_index, citation in enumerate(grounded_draft.citations):
         document = documents_by_id.get(citation.document_id)
@@ -85,21 +88,21 @@ def validate_grounded_draft(
             )
 
 
-def _index_source_documents(
-    source_documents: tuple[SourceDocument, ...],
+def _index_retrieved_documents(
+    retrieved_documents: tuple[SourceDocument, ...],
 ) -> dict[str, SourceDocument]:
-    if not isinstance(source_documents, tuple):
-        raise TypeError("source_documents must be a tuple.")
+    if not isinstance(retrieved_documents, tuple):
+        raise TypeError("retrieved_documents must be a tuple.")
 
     documents_by_id: dict[str, SourceDocument] = {}
-    for document in source_documents:
+    for document in retrieved_documents:
         if not isinstance(document, SourceDocument):
             raise TypeError(
-                "source_documents must contain only SourceDocument objects."
+                "retrieved_documents must contain only SourceDocument objects."
             )
         if document.document_id in documents_by_id:
             raise ValueError(
-                "source_documents must not contain duplicate document_id values."
+                "retrieved_documents must not contain duplicate document_id values."
             )
         documents_by_id[document.document_id] = document
     return documents_by_id

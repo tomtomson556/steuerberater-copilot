@@ -23,7 +23,7 @@ def test_validate_grounded_draft_accepts_valid_citations() -> None:
                 ),
             ),
         ),
-        source_documents=(
+        retrieved_documents=(
             _source_document(
                 document_id="SYNTHETIC_SOURCE_001",
                 content=(
@@ -59,7 +59,7 @@ def test_validate_grounded_draft_accepts_multiple_summary_points_and_citations()
                 ),
             ),
         ),
-        source_documents=(
+        retrieved_documents=(
             _source_document(
                 document_id="SYNTHETIC_SOURCE_001",
                 content="Exact synthetic supporting passage one.",
@@ -78,7 +78,7 @@ def test_validate_grounded_draft_accepts_multiple_summary_points_and_citations()
 def test_validate_grounded_draft_accepts_empty_summary_points_and_citations() -> None:
     validate_grounded_draft(
         _grounded_draft(summary_points=(), citations=()),
-        source_documents=(),
+        retrieved_documents=(),
     )
 
 
@@ -93,7 +93,7 @@ def test_validate_grounded_draft_rejects_unknown_document_reference() -> None:
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -120,7 +120,7 @@ def test_validate_grounded_draft_rejects_supporting_text_missing_from_document()
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -150,7 +150,7 @@ def test_validate_grounded_draft_requires_supporting_text_in_referenced_document
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     document_id="SYNTHETIC_SOURCE_001",
                     content="Exact synthetic supporting passage one.",
@@ -178,7 +178,7 @@ def test_validate_grounded_draft_does_not_treat_title_as_citable_content() -> No
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     title="Exact synthetic title passage.",
                     content="Unrelated synthetic document body.",
@@ -193,7 +193,7 @@ def test_validate_grounded_draft_uses_exact_whitespace_and_unicode_matching() ->
         _grounded_draft(
             citations=(_citation(supporting_text=supporting_text),),
         ),
-        source_documents=(
+        retrieved_documents=(
             _source_document(
                 content=f"Prefix{supporting_text}Suffix",
             ),
@@ -214,7 +214,7 @@ def test_validate_grounded_draft_uses_exact_whitespace_and_unicode_matching() ->
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content=f"Prefix{supporting_text}Suffix",
                 ),
@@ -233,7 +233,7 @@ def test_validate_grounded_draft_uses_exact_whitespace_and_unicode_matching() ->
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic Cafe\u0301 supporting passage.",
                 ),
@@ -256,7 +256,7 @@ def test_validate_grounded_draft_rejects_missing_citation_coverage() -> None:
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -283,7 +283,7 @@ def test_validate_grounded_draft_rejects_empty_citations_when_summary_points_exi
                 summary_points=("Synthetic first summary point.",),
                 citations=(),
             ),
-            source_documents=(_source_document(),),
+            retrieved_documents=(_source_document(),),
         )
 
     assert exc_info.value.summary_point_index == 0
@@ -310,7 +310,7 @@ def test_validate_grounded_draft_stops_at_first_citation_error() -> None:
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -339,7 +339,7 @@ def test_validate_grounded_draft_checks_citations_before_coverage() -> None:
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -368,7 +368,7 @@ def test_validate_grounded_draft_reports_first_uncovered_summary_point() -> None
                     ),
                 ),
             ),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(
                     content="Exact synthetic supporting passage one.",
                 ),
@@ -384,37 +384,37 @@ def test_validate_grounded_draft_rejects_non_grounded_draft_input() -> None:
     with pytest.raises(TypeError, match=r"^grounded_draft must be a GroundedDraft\.$"):
         validate_grounded_draft(  # type: ignore[arg-type]
             "not a grounded draft",
-            source_documents=(),
+            retrieved_documents=(),
         )
 
 
-def test_validate_grounded_draft_rejects_non_tuple_source_documents() -> None:
-    with pytest.raises(TypeError, match=r"^source_documents must be a tuple\.$"):
+def test_validate_grounded_draft_rejects_non_tuple_retrieved_documents() -> None:
+    with pytest.raises(TypeError, match=r"^retrieved_documents must be a tuple\.$"):
         validate_grounded_draft(
             _grounded_draft(summary_points=(), citations=()),
-            source_documents=[_source_document()],  # type: ignore[arg-type]
+            retrieved_documents=[_source_document()],  # type: ignore[arg-type]
         )
 
 
-def test_validate_grounded_draft_rejects_foreign_source_document_entries() -> None:
+def test_validate_grounded_draft_rejects_foreign_retrieved_document_entries() -> None:
     with pytest.raises(
         TypeError,
-        match=r"^source_documents must contain only SourceDocument objects\.$",
+        match=r"^retrieved_documents must contain only SourceDocument objects\.$",
     ):
         validate_grounded_draft(
             _grounded_draft(summary_points=(), citations=()),
-            source_documents=("not a source document",),  # type: ignore[arg-type]
+            retrieved_documents=("not a source document",),  # type: ignore[arg-type]
         )
 
 
-def test_validate_grounded_draft_rejects_duplicate_source_document_ids() -> None:
+def test_validate_grounded_draft_rejects_duplicate_retrieved_document_ids() -> None:
     with pytest.raises(
         ValueError,
-        match=r"^source_documents must not contain duplicate document_id values\.$",
+        match=r"^retrieved_documents must not contain duplicate document_id values\.$",
     ):
         validate_grounded_draft(
             _grounded_draft(summary_points=(), citations=()),
-            source_documents=(
+            retrieved_documents=(
                 _source_document(content="First synthetic body."),
                 _source_document(content="Second synthetic body."),
             ),
