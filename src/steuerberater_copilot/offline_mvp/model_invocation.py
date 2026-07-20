@@ -10,7 +10,10 @@ from steuerberater_copilot.ai import (
 )
 
 from .models import GatewayDecision, GatewayResult, ReviewGateDecision
-from .prompt_definition import SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1
+from .prompt_definition import (
+    SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1,
+    SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1,
+)
 
 SYNTHETIC_MODEL_INVOCATION_POLICY = ModelInvocationPolicy(
     allowed_prompt_versions=frozenset(
@@ -18,6 +21,19 @@ SYNTHETIC_MODEL_INVOCATION_POLICY = ModelInvocationPolicy(
             (
                 SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.prompt_id,
                 SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1.version,
+            )
+        }
+    ),
+    max_request_chars=16_000,
+    max_response_chars=16_000,
+)
+
+SYNTHETIC_RAG_MODEL_INVOCATION_POLICY = ModelInvocationPolicy(
+    allowed_prompt_versions=frozenset(
+        {
+            (
+                SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1.prompt_id,
+                SYNTHETIC_GROUNDED_DRAFT_PROMPT_V1.version,
             )
         }
     ),

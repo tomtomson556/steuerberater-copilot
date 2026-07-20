@@ -29,6 +29,7 @@ from .prompt_definition import (
     SYNTHETIC_STRUCTURED_DRAFT_PROMPT_V1,
     VersionedPromptDefinition,
 )
+from .rag_workflow import SyntheticRAGWorkflowOutput, build_synthetic_rag_workflow
 from .structured_output import StructuredDraftOutput
 from .structured_output_parser import (
     StructuredDraftOutputParseError,
@@ -61,12 +62,14 @@ __all__ = [
     "StructuredDraftOutputValidationError",
     "SyntheticAIWorkflowOutput",
     "SyntheticDocument",
+    "SyntheticRAGWorkflowOutput",
     "VersionedPromptDefinition",
     "WorkflowOutput",
     "build_synthetic_ai_workflow",
     "build_synthetic_grounded_model_request",
     "build_synthetic_model_request",
     "build_mock_workflow",
+    "build_synthetic_rag_workflow",
     "classify_internal_risk",
     "parse_grounded_draft",
     "parse_structured_draft_output",
