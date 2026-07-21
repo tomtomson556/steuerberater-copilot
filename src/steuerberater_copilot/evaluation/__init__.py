@@ -2,6 +2,10 @@
 
 from .assessment import EvaluationCaseAssessment, assess_evaluation_run_result
 from .case import EvaluationCase, ExpectedAIWorkflowOutcome
+from .grounding_assessment import (
+    GroundingEvaluationCaseAssessment,
+    assess_grounding_evaluation_case,
+)
 from .grounding_case import GroundingEvaluationCase, GroundingEvidenceLabel
 from .library import SyntheticEvaluationFixture, build_synthetic_evaluation_case_library
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
@@ -28,6 +32,7 @@ __all__ = [
     "EvaluationRunResult",
     "ExpectedAIWorkflowOutcome",
     "GroundingEvaluationCase",
+    "GroundingEvaluationCaseAssessment",
     "GroundingEvidenceLabel",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
@@ -35,6 +40,7 @@ __all__ = [
     "RetrievalEvaluationRunResult",
     "SyntheticEvaluationFixture",
     "assess_evaluation_run_result",
+    "assess_grounding_evaluation_case",
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
