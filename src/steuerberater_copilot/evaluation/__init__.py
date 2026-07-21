@@ -14,6 +14,10 @@ from .grounding_report import (
 )
 from .library import SyntheticEvaluationFixture, build_synthetic_evaluation_case_library
 from .rag_abstention_case import RAGAbstentionEvaluationCase
+from .rag_abstention_runner import (
+    RAGAbstentionEvaluationRunResult,
+    run_offline_rag_abstention_evaluation_case,
+)
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
     RetrievalEvaluationCaseAssessment,
@@ -42,6 +46,7 @@ __all__ = [
     "GroundingEvaluationMetricsReport",
     "GroundingEvidenceLabel",
     "RAGAbstentionEvaluationCase",
+    "RAGAbstentionEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
     "RetrievalEvaluationMetricsReport",
@@ -56,6 +61,7 @@ __all__ = [
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
     "run_offline_grounding_evaluation_suite",
+    "run_offline_rag_abstention_evaluation_case",
     "run_offline_retrieval_evaluation_case",
     "run_offline_retrieval_evaluation_suite",
 ]
