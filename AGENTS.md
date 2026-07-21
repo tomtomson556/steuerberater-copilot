@@ -193,3 +193,24 @@ Agents must report:
 - changed files
 - verification results
 - explicit note that the pull request was not merged
+
+## Cursor Cloud specific instructions
+
+This is a Python 3.12 offline CLI project (`src` layout, setuptools). It has no
+GUI, no server, and no external services; standard tests are network-free and
+use synthetic fixtures with the `FakeModelProvider`.
+
+The startup update script installs the project into a virtualenv at `.venv`
+(the system Python is externally managed, so a venv is required). Activate it
+before running any commands:
+
+```bash
+source .venv/bin/activate
+```
+
+Standard lint/test/run commands are documented in `README.md` and the "Required
+Local Verification Before PR" section above (`ruff check .`, `pytest -q`,
+`python tools/policy_claim_check.py`). Run the offline MVP CLI with
+`python -m steuerberater_copilot.offline_mvp --list-cases` (see `README.md` for
+the full set of flags). The optional OpenAI live smoke test is opt-in only and
+must never run in standard verification.
