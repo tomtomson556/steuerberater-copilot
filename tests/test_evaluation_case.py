@@ -249,6 +249,7 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         "GroundingEvaluationCaseAssessment",
         "GroundingEvaluationMetricsReport",
         "GroundingEvidenceLabel",
+        "RAGAbstentionEvaluationCase",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
