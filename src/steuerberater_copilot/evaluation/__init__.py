@@ -29,6 +29,10 @@ from .rag_abstention_runner import (
     RAGAbstentionEvaluationRunResult,
     run_offline_rag_abstention_evaluation_case,
 )
+from .rag_contradiction_case import (
+    ContradictionEvidenceLabel,
+    RAGContradictionEvaluationCase,
+)
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
     RetrievalEvaluationCaseAssessment,
@@ -47,6 +51,7 @@ from .retrieval_runner import (
 from .runner import EvaluationRunResult, run_offline_evaluation_case
 
 __all__ = [
+    "ContradictionEvidenceLabel",
     "EvaluationCase",
     "EvaluationCaseAssessment",
     "EvaluationMetricsReport",
@@ -60,6 +65,7 @@ __all__ = [
     "RAGAbstentionEvaluationCaseAssessment",
     "RAGAbstentionEvaluationMetricsReport",
     "RAGAbstentionEvaluationRunResult",
+    "RAGContradictionEvaluationCase",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
     "RetrievalEvaluationMetricsReport",

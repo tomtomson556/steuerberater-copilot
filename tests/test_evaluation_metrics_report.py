@@ -255,6 +255,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
     assert evaluation.EvaluationMetricsReport is EvaluationMetricsReport
     assert evaluation.run_offline_evaluation_suite is run_offline_evaluation_suite
     assert evaluation.__all__ == [
+        "ContradictionEvidenceLabel",
         "EvaluationCase",
         "EvaluationCaseAssessment",
         "EvaluationMetricsReport",
@@ -268,6 +269,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "RAGAbstentionEvaluationCaseAssessment",
         "RAGAbstentionEvaluationMetricsReport",
         "RAGAbstentionEvaluationRunResult",
+        "RAGContradictionEvaluationCase",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
