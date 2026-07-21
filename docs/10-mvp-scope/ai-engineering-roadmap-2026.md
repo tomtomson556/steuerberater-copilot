@@ -7,7 +7,7 @@
 - Startdatum der Roadmap: 9. Juli 2026
 - Portfolio-Zieltermin: 31. Dezember 2026
 - Interner Release-Termin: spaetestens 20. Dezember 2026
-- Aktuelle Phase: Evaluation und echter Provider
+- Aktuelle Phase: RAG mit nachvollziehbaren Quellen
 
 ## Zweck
 
@@ -78,6 +78,11 @@ JSON-Modus `text={"format": {"type": "json_object"}}`. Der Adapter ist gegen
 ausdruecklich genau ein gueltiges JSON-Objekt an; der JSON-Modus bietet keine
 Schema-Garantie. Der `FakeModelProvider` bleibt der sichere Standard; der
 Live-Smoke ist ausschliesslich opt-in und operativ noch nicht verifiziert.
+Zusaetzlich ist eine lokale deterministische RAG-Baseline vorhanden: Source
+Document, LocalDocumentRetriever, Grounded Draft, synthetischer RAG-Workflow,
+Retrieval- und Grounding-Evaluation sowie der Abstention-Fallvertrag mit
+Einzelfall-Runner. Abstention-Assessment, Abstention-Fallbibliothek und
+aggregierte Abstention-Metrik fehlen noch.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -107,11 +112,13 @@ ai -> offline_mvp
 
 Noch nicht vorhanden sind insbesondere Retry-Policy, Rate Limiting,
 Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder Modell-Allowlist,
-produktive Evaluation, RAG, FastAPI, Docker, Persistenz, Authentifizierung,
+produktive Evaluation, FastAPI, Docker, Persistenz, Authentifizierung,
 Cloud-Deployment, Infrastructure as Code und Monitoring. Eine erfolgreiche
 Live-Verbindung zum Provider ist ohne expliziten opt-in Smoke-Test nicht
 behauptet. Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht
-benoetigt.
+benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding- und
+Abstention-Evaluation ist bereits in Arbeit; sie ersetzt keine produktive
+Evaluation.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -477,7 +484,7 @@ Die Cloudentscheidung erfolgt spaetestens am 31. August 2026.
 
 Zeitraum: 7. September bis 11. Oktober 2026
 
-Geplante Branches:
+Bereits vorhanden in der lokalen Offline-Baseline:
 
 ```text
 feat/add-source-document-contract
@@ -485,6 +492,17 @@ feat/add-local-document-retriever
 feat/add-grounded-draft-contract
 feat/add-rag-workflow
 feat/add-retrieval-evaluation
+feat/add-grounding-evaluation
+feat/add-rag-abstention-evaluation-case-contract
+feat/add-rag-abstention-evaluation-runner
+```
+
+Noch offen in Phase 3:
+
+```text
+feat/add-rag-abstention-evaluation-assessment
+feat/add-synthetic-rag-abstention-evaluation-case-library
+feat/add-rag-abstention-evaluation-metrics-report
 ```
 
 Bewusste Vereinfachungen:
@@ -495,7 +513,10 @@ Bewusste Vereinfachungen:
 - kein Object Storage
 - keine komplexe Ingestion-Plattform
 
-Zuerst wird eine deterministische lokale Retrieval-Baseline umgesetzt.
+Zuerst wurde eine deterministische lokale Retrieval- und Grounding-Baseline
+umgesetzt. Der Abstention-Runner beobachtet das bestehende RAG-Verhalten bei
+fehlender Evidenz; Assessment, Fallbibliothek und aggregierte Abstention-Metrik
+fehlen noch.
 
 Pflichtmetriken:
 
@@ -507,6 +528,10 @@ Pflichtmetriken:
 - Abstention bei fehlender Quelle
 - Widerspruchserkennung
 - veraltete Dokumentversion
+
+Weiter offen bleiben insbesondere Widerspruchserkennung, Freshness bzw.
+veraltete Dokumentversion sowie mindestens 30 hochwertige synthetische
+Evaluationsfaelle.
 
 Exit-Kriterium: Mindestens 30 hochwertige synthetische Evaluationsfaelle.
 
@@ -876,11 +901,26 @@ Architekturentscheidungen.
 Der unmittelbar naechste Produktionsbranch ist:
 
 ```text
-feat/add-source-document-contract
+feat/add-rag-abstention-evaluation-assessment
 ```
 
-Der OpenAI-Responses-Provideradapter ist implementiert, ohne den
-providerneutralen Vertrag oder die bestehende CLI zu erweitern. Der naechste
-Branch beginnt die lokale deterministische RAG-Baseline mit einem neutralen
-Quelldokumentvertrag. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
-und noch kein RAG.
+Phase 3 ist in Arbeit. Vorhanden sind unter anderem Source Document,
+LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
+Grounding-Evaluation sowie der Abstention-Fallvertrag und der Abstention-Runner.
+Noch offen bleiben Abstention-Assessment, Abstention-Fallbibliothek,
+aggregierte Abstention-Metrik, Widerspruchserkennung, Freshness bzw. veraltete
+Dokumentversion und mindestens 30 hochwertige synthetische Evaluationsfaelle.
+Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
+
+### Aktualisierung vom 21. Juli 2026
+
+- Datum: 21. Juli 2026
+- Aenderung: Der deterministische RAG-Abstention-Einzelfall-Runner und der
+  zugehoerige Run-Result-Vertrag wurden ergaenzt. Die Roadmap spiegelt den
+  realen Phase-3-Stand mit vorhandener Retrieval-, Grounding- und
+  Abstention-Baseline wider.
+- Begruendung: Der naechste sinnvolle Schritt ist der Erwartungsvergleich fuer
+  Missing-Evidence-Abstention, nicht eine vorgezogene Aggregation oder
+  Workflow-Aenderung.
+- Auswirkung: Phase 3 bleibt in Arbeit. Naechster Produktionsbranch ist
+  `feat/add-rag-abstention-evaluation-assessment`.
