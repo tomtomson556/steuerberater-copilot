@@ -262,6 +262,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "ExpectedAIWorkflowOutcome",
         "GroundingEvaluationCase",
         "GroundingEvaluationCaseAssessment",
+        "GroundingEvaluationMetricsReport",
         "GroundingEvidenceLabel",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
@@ -276,6 +277,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "build_synthetic_retrieval_evaluation_case_library",
         "run_offline_evaluation_case",
         "run_offline_evaluation_suite",
+        "run_offline_grounding_evaluation_suite",
         "run_offline_retrieval_evaluation_case",
         "run_offline_retrieval_evaluation_suite",
     ]
