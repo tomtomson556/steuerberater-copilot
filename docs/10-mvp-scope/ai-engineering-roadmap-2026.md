@@ -81,8 +81,8 @@ Live-Smoke ist ausschliesslich opt-in und operativ noch nicht verifiziert.
 Zusaetzlich ist eine lokale deterministische RAG-Baseline vorhanden: Source
 Document, LocalDocumentRetriever, Grounded Draft, synthetischer RAG-Workflow,
 Retrieval- und Grounding-Evaluation sowie der Abstention-Fallvertrag mit
-Einzelfall-Runner, Abstention-Assessment und synthetischer
-Abstention-Fallbibliothek. Aggregierte Abstention-Metrik fehlt noch.
+Einzelfall-Runner, Abstention-Assessment, synthetischer
+Abstention-Fallbibliothek und aggregierter Abstention-Metrik.
 
 Der vorhandene Kontrollfluss ist:
 
@@ -497,11 +497,6 @@ feat/add-rag-abstention-evaluation-case-contract
 feat/add-rag-abstention-evaluation-runner
 feat/add-rag-abstention-evaluation-assessment
 feat/add-synthetic-rag-abstention-evaluation-case-library
-```
-
-Noch offen in Phase 3:
-
-```text
 feat/add-rag-abstention-evaluation-metrics-report
 ```
 
@@ -514,8 +509,8 @@ Bewusste Vereinfachungen:
 - keine komplexe Ingestion-Plattform
 
 Zuerst wurde eine deterministische lokale Retrieval- und Grounding-Baseline
-umgesetzt. Abstention-Fallvertrag, Runner, Assessment und synthetische
-Fallbibliothek sind vorhanden; die aggregierte Abstention-Metrik fehlt noch.
+umgesetzt. Abstention-Fallvertrag, Runner, Assessment, synthetische
+Fallbibliothek und aggregierte Abstention-Metrik sind vorhanden.
 
 Pflichtmetriken:
 
@@ -897,20 +892,17 @@ Architekturentscheidungen.
 
 ## Unmittelbar naechster Produktionsbranch
 
-Der unmittelbar naechste Produktionsbranch ist:
-
-```text
-feat/add-rag-abstention-evaluation-metrics-report
-```
+Der unmittelbar naechste Produktionsbranch wird nach dem Merge dieses Stands
+erneut live bestimmt.
 
 Phase 3 ist in Arbeit. Vorhanden sind unter anderem Source Document,
 LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
 Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
-das Abstention-Assessment und die synthetische Abstention-Fallbibliothek.
-Noch offen bleiben aggregierte Abstention-Metrik, Widerspruchserkennung,
-Freshness bzw. veraltete Dokumentversion und mindestens 30 hochwertige
-synthetische Evaluationsfaelle. Es gibt weiterhin keine API-, Docker- oder
-Cloud-Arbeit in diesem Branch.
+das Abstention-Assessment, die synthetische Abstention-Fallbibliothek und die
+aggregierte Abstention-Metrik. Weiter offen bleiben insbesondere
+Widerspruchserkennung, Freshness bzw. veraltete Dokumentversion und mindestens
+30 hochwertige synthetische Evaluationsfaelle. Es gibt weiterhin keine API-,
+Docker- oder Cloud-Arbeit in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -936,3 +928,15 @@ Cloud-Arbeit in diesem Branch.
   Abstention-Metrik bzw. der Suite-Report, nicht eine Workflow-Aenderung.
 - Auswirkung: Phase 3 bleibt in Arbeit. Naechster Produktionsbranch ist
   `feat/add-rag-abstention-evaluation-metrics-report`.
+
+### Aktualisierung vom 21. Juli 2026 (Abstention-Metrics-Report)
+
+- Datum: 21. Juli 2026
+- Aenderung: Der deterministische aggregierte RAG-Abstention-Metrics-Report
+  und Suite-Runner sind ergaenzt. Die Roadmap spiegelt den realen
+  Phase-3-Stand mit vorhandener Abstention-Aggregation wider.
+- Begruendung: Die Abstention-Baseline-Kette ist damit geschlossen. Der
+  naechste Produktionsbranch wird nach dem Merge erneut live bestimmt und
+  hier nicht spekulativ vorweggenommen.
+- Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
+  nach dem Merge erneut live bestimmt.

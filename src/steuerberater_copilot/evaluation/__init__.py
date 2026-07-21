@@ -21,6 +21,10 @@ from .rag_abstention_case import RAGAbstentionEvaluationCase
 from .rag_abstention_library import (
     build_synthetic_rag_abstention_evaluation_case_library,
 )
+from .rag_abstention_report import (
+    RAGAbstentionEvaluationMetricsReport,
+    run_offline_rag_abstention_evaluation_suite,
+)
 from .rag_abstention_runner import (
     RAGAbstentionEvaluationRunResult,
     run_offline_rag_abstention_evaluation_case,
@@ -54,6 +58,7 @@ __all__ = [
     "GroundingEvidenceLabel",
     "RAGAbstentionEvaluationCase",
     "RAGAbstentionEvaluationCaseAssessment",
+    "RAGAbstentionEvaluationMetricsReport",
     "RAGAbstentionEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
@@ -72,6 +77,7 @@ __all__ = [
     "run_offline_evaluation_suite",
     "run_offline_grounding_evaluation_suite",
     "run_offline_rag_abstention_evaluation_case",
+    "run_offline_rag_abstention_evaluation_suite",
     "run_offline_retrieval_evaluation_case",
     "run_offline_retrieval_evaluation_suite",
 ]
