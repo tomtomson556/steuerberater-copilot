@@ -18,6 +18,9 @@ from .rag_abstention_assessment import (
     assess_rag_abstention_evaluation_run_result,
 )
 from .rag_abstention_case import RAGAbstentionEvaluationCase
+from .rag_abstention_library import (
+    build_synthetic_rag_abstention_evaluation_case_library,
+)
 from .rag_abstention_runner import (
     RAGAbstentionEvaluationRunResult,
     run_offline_rag_abstention_evaluation_case,
@@ -63,6 +66,7 @@ __all__ = [
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
     "build_synthetic_grounding_evaluation_case_library",
+    "build_synthetic_rag_abstention_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",

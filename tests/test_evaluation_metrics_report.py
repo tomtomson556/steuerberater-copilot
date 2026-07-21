@@ -278,6 +278,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "assess_retrieval_evaluation_run_result",
         "build_synthetic_evaluation_case_library",
         "build_synthetic_grounding_evaluation_case_library",
+        "build_synthetic_rag_abstention_evaluation_case_library",
         "build_synthetic_retrieval_evaluation_case_library",
         "run_offline_evaluation_case",
         "run_offline_evaluation_suite",
