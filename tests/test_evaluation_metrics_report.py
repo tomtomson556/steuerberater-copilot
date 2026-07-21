@@ -264,6 +264,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "GroundingEvaluationCaseAssessment",
         "GroundingEvaluationMetricsReport",
         "GroundingEvidenceLabel",
+        "RAGAbstentionEvaluationCase",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
