@@ -7,6 +7,7 @@ from .grounding_assessment import (
     assess_grounding_evaluation_case,
 )
 from .grounding_case import GroundingEvaluationCase, GroundingEvidenceLabel
+from .grounding_library import build_synthetic_grounding_evaluation_case_library
 from .library import SyntheticEvaluationFixture, build_synthetic_evaluation_case_library
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
@@ -43,6 +44,7 @@ __all__ = [
     "assess_grounding_evaluation_case",
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
+    "build_synthetic_grounding_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
