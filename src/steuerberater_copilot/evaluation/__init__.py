@@ -13,6 +13,10 @@ from .grounding_report import (
     run_offline_grounding_evaluation_suite,
 )
 from .library import SyntheticEvaluationFixture, build_synthetic_evaluation_case_library
+from .rag_abstention_assessment import (
+    RAGAbstentionEvaluationCaseAssessment,
+    assess_rag_abstention_evaluation_run_result,
+)
 from .rag_abstention_case import RAGAbstentionEvaluationCase
 from .rag_abstention_runner import (
     RAGAbstentionEvaluationRunResult,
@@ -46,6 +50,7 @@ __all__ = [
     "GroundingEvaluationMetricsReport",
     "GroundingEvidenceLabel",
     "RAGAbstentionEvaluationCase",
+    "RAGAbstentionEvaluationCaseAssessment",
     "RAGAbstentionEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
@@ -54,6 +59,7 @@ __all__ = [
     "SyntheticEvaluationFixture",
     "assess_evaluation_run_result",
     "assess_grounding_evaluation_case",
+    "assess_rag_abstention_evaluation_run_result",
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
     "build_synthetic_grounding_evaluation_case_library",
