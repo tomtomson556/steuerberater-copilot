@@ -240,6 +240,7 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         is build_synthetic_evaluation_case_library
     )
     assert evaluation.__all__ == [
+        "ContradictionEvidenceLabel",
         "EvaluationCase",
         "EvaluationCaseAssessment",
         "EvaluationMetricsReport",
@@ -253,6 +254,7 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         "RAGAbstentionEvaluationCaseAssessment",
         "RAGAbstentionEvaluationMetricsReport",
         "RAGAbstentionEvaluationRunResult",
+        "RAGContradictionEvaluationCase",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
