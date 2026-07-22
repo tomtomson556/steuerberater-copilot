@@ -699,6 +699,43 @@ def test_synthetic_rag_workflow_rejects_unauthorized_prompt(monkeypatch) -> None
     assert provider.requests == ()
 
 
+def test_synthetic_rag_workflow_detects_conflicting_claim_markers_without_provider_call() -> None:
+    documents = (
+        SourceDocument(
+            document_id="SYNTHETIC_SOURCE_CONFLICT_CLOSED",
+            title="Synthetic orchard conflict closed",
+            content=(
+                "Synthetic orchard conflict "
+                "[[SYNTHETIC_CLAIM orchard_status=closed]]."
+            ),
+        ),
+        SourceDocument(
+            document_id="SYNTHETIC_SOURCE_CONFLICT_OPEN",
+            title="Synthetic orchard conflict open",
+            content=(
+                "Synthetic orchard conflict "
+                "[[SYNTHETIC_CLAIM orchard_status=open]]."
+            ),
+        ),
+    )
+    provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
+
+    result = build_synthetic_rag_workflow(
+        _allowed_class_a_case(),
+        provider=provider,
+        retriever=LocalDocumentRetriever(documents=documents),
+        retrieval_query="orchard conflict",
+        top_k=2,
+    )
+
+    assert result.retrieved_documents == documents
+    assert result.contradiction_detected is True
+    assert result.grounded_draft is None
+    assert result.model_response is None
+    assert result.abstained_for_missing_evidence is False
+    assert provider.requests == ()
+
+
 def test_synthetic_rag_workflow_public_export() -> None:
     assert offline_mvp.SyntheticRAGWorkflowOutput is SyntheticRAGWorkflowOutput
     assert offline_mvp.build_synthetic_rag_workflow is build_synthetic_rag_workflow

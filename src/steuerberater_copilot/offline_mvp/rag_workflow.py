@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from steuerberater_copilot.ai import ModelProvider, ModelResponse
-from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
+from steuerberater_copilot.rag import (
+    LocalDocumentRetriever,
+    SourceDocument,
+    detect_synthetic_claim_contradictions,
+)
 
 from ._response_markers import OFFLINE_DRAFT_TITLE_PREFIX
 from .grounded_draft import GroundedDraft
@@ -37,6 +41,12 @@ class SyntheticRAGWorkflowOutput:
     ``abstained_for_missing_evidence`` is True only when controls allowed
     continuation, retrieval ran, and no documents were returned. In that case
     the provider is not called and ``grounded_draft`` remains None.
+
+    ``contradiction_detected`` is True only when controls allowed continuation,
+    retrieval returned documents, and deterministic synthetic claim markers
+    among those documents conflict. In that case the provider is not called and
+    ``grounded_draft`` remains None. This is distinct from missing-evidence
+    abstention.
     """
 
     intake: IntakeCase
@@ -47,6 +57,7 @@ class SyntheticRAGWorkflowOutput:
     model_response: ModelResponse | None
     grounded_draft: GroundedDraft | None
     abstained_for_missing_evidence: bool
+    contradiction_detected: bool = False
 
 
 def build_synthetic_rag_workflow(
@@ -81,6 +92,7 @@ def build_synthetic_rag_workflow(
             model_response=None,
             grounded_draft=None,
             abstained_for_missing_evidence=False,
+            contradiction_detected=False,
         )
 
     retrieved_documents = retriever.retrieve(retrieval_query, top_k=top_k)
@@ -94,6 +106,21 @@ def build_synthetic_rag_workflow(
             model_response=None,
             grounded_draft=None,
             abstained_for_missing_evidence=True,
+            contradiction_detected=False,
+        )
+
+    contradiction = detect_synthetic_claim_contradictions(retrieved_documents)
+    if contradiction.contradiction_present:
+        return SyntheticRAGWorkflowOutput(
+            intake=case,
+            gateway=gateway,
+            risk_classification=risk_classification,
+            review_gate=review_gate,
+            retrieved_documents=retrieved_documents,
+            model_response=None,
+            grounded_draft=None,
+            abstained_for_missing_evidence=False,
+            contradiction_detected=True,
         )
 
     request = build_synthetic_grounded_model_request(
@@ -139,4 +166,5 @@ def build_synthetic_rag_workflow(
         model_response=model_response,
         grounded_draft=grounded_draft,
         abstained_for_missing_evidence=False,
+        contradiction_detected=False,
     )

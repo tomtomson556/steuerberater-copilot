@@ -29,9 +29,38 @@ from .rag_abstention_runner import (
     RAGAbstentionEvaluationRunResult,
     run_offline_rag_abstention_evaluation_case,
 )
+from .rag_contradiction_assessment import (
+    RAGContradictionEvaluationCaseAssessment,
+    assess_rag_contradiction_evaluation_run_result,
+)
 from .rag_contradiction_case import (
     ContradictionEvidenceLabel,
     RAGContradictionEvaluationCase,
+)
+from .rag_contradiction_library import (
+    build_synthetic_rag_contradiction_evaluation_case_library,
+)
+from .rag_contradiction_report import (
+    RAGContradictionEvaluationMetricsReport,
+    run_offline_rag_contradiction_evaluation_suite,
+)
+from .rag_contradiction_runner import (
+    RAGContradictionEvaluationRunResult,
+    run_offline_rag_contradiction_evaluation_case,
+)
+from .rag_freshness_assessment import (
+    RAGFreshnessEvaluationCaseAssessment,
+    assess_rag_freshness_evaluation_run_result,
+)
+from .rag_freshness_case import RAGFreshnessEvaluationCase
+from .rag_freshness_library import build_synthetic_rag_freshness_evaluation_case_library
+from .rag_freshness_report import (
+    RAGFreshnessEvaluationMetricsReport,
+    run_offline_rag_freshness_evaluation_suite,
+)
+from .rag_freshness_runner import (
+    RAGFreshnessEvaluationRunResult,
+    run_offline_rag_freshness_evaluation_case,
 )
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
@@ -66,6 +95,13 @@ __all__ = [
     "RAGAbstentionEvaluationMetricsReport",
     "RAGAbstentionEvaluationRunResult",
     "RAGContradictionEvaluationCase",
+    "RAGContradictionEvaluationCaseAssessment",
+    "RAGContradictionEvaluationMetricsReport",
+    "RAGContradictionEvaluationRunResult",
+    "RAGFreshnessEvaluationCase",
+    "RAGFreshnessEvaluationCaseAssessment",
+    "RAGFreshnessEvaluationMetricsReport",
+    "RAGFreshnessEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
     "RetrievalEvaluationMetricsReport",
@@ -74,16 +110,24 @@ __all__ = [
     "assess_evaluation_run_result",
     "assess_grounding_evaluation_case",
     "assess_rag_abstention_evaluation_run_result",
+    "assess_rag_contradiction_evaluation_run_result",
+    "assess_rag_freshness_evaluation_run_result",
     "assess_retrieval_evaluation_run_result",
     "build_synthetic_evaluation_case_library",
     "build_synthetic_grounding_evaluation_case_library",
     "build_synthetic_rag_abstention_evaluation_case_library",
+    "build_synthetic_rag_contradiction_evaluation_case_library",
+    "build_synthetic_rag_freshness_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
     "run_offline_grounding_evaluation_suite",
     "run_offline_rag_abstention_evaluation_case",
     "run_offline_rag_abstention_evaluation_suite",
+    "run_offline_rag_contradiction_evaluation_case",
+    "run_offline_rag_contradiction_evaluation_suite",
+    "run_offline_rag_freshness_evaluation_case",
+    "run_offline_rag_freshness_evaluation_suite",
     "run_offline_retrieval_evaluation_case",
     "run_offline_retrieval_evaluation_suite",
 ]
