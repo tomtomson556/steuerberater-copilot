@@ -18,9 +18,11 @@ dependencies = [
 
 [project.scripts]
 steuerberater-copilot-offline-mvp = "steuerberater_copilot.offline_mvp.__main__:main"
+steuerberater-copilot-evaluate = "steuerberater_copilot.evaluation.__main__:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff", "fastapi", "httpx", "uvicorn"]
+api = ["fastapi", "uvicorn"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,0 +1,11 @@
+services:
+  demo-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # FakeModelProvider remains the safe default. Do not inject real secrets.
+      STEUERBERATER_COPILOT_PROVIDER: fake
+    read_only: true
+    tmpfs:
+      - /tmp

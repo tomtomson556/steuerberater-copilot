@@ -13,6 +13,11 @@ from .grounding_report import (
     run_offline_grounding_evaluation_suite,
 )
 from .library import SyntheticEvaluationFixture, build_synthetic_evaluation_case_library
+from .portfolio_report import (
+    PortfolioEvaluationBaselineReport,
+    build_portfolio_evaluation_baseline_report,
+    portfolio_evaluation_baseline_to_dict,
+)
 from .rag_abstention_assessment import (
     RAGAbstentionEvaluationCaseAssessment,
     assess_rag_abstention_evaluation_run_result,
@@ -90,6 +95,7 @@ __all__ = [
     "GroundingEvaluationCaseAssessment",
     "GroundingEvaluationMetricsReport",
     "GroundingEvidenceLabel",
+    "PortfolioEvaluationBaselineReport",
     "RAGAbstentionEvaluationCase",
     "RAGAbstentionEvaluationCaseAssessment",
     "RAGAbstentionEvaluationMetricsReport",
@@ -113,12 +119,14 @@ __all__ = [
     "assess_rag_contradiction_evaluation_run_result",
     "assess_rag_freshness_evaluation_run_result",
     "assess_retrieval_evaluation_run_result",
+    "build_portfolio_evaluation_baseline_report",
     "build_synthetic_evaluation_case_library",
     "build_synthetic_grounding_evaluation_case_library",
     "build_synthetic_rag_abstention_evaluation_case_library",
     "build_synthetic_rag_contradiction_evaluation_case_library",
     "build_synthetic_rag_freshness_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
+    "portfolio_evaluation_baseline_to_dict",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
     "run_offline_grounding_evaluation_suite",

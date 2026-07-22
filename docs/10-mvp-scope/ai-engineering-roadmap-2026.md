@@ -895,7 +895,8 @@ Architekturentscheidungen.
 Der unmittelbar naechste Produktionsbranch wird nach dem Merge dieses Stands
 erneut live bestimmt.
 
-Phase 3 ist in Arbeit. Vorhanden sind unter anderem Source Document,
+Im zuletzt dokumentierten gemergten Stand ist Phase 3 in Arbeit. Vorhanden sind
+unter anderem Source Document,
 LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
 Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
 das Abstention-Assessment, die synthetische Abstention-Fallbibliothek und die
@@ -940,3 +941,20 @@ Docker- oder Cloud-Arbeit in diesem Branch.
   hier nicht spekulativ vorweggenommen.
 - Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
   nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 22. Juli 2026 (Experimentbranch Portfolio-Demo)
+
+- Datum: 22. Juli 2026
+- Aenderung: Auf `experiment/cursor-full-project` sind RAG-Widerspruchs- und
+  Freshness-Evaluation, aggregierte Portfolio-Baseline, Observability-Helfer,
+  synthetische FastAPI-Demo, Docker-Artefakte, Azure-Referenzcloud-Skeleton und
+  Portfolio-Dokumentation zusammengefuehrt. Der Experimentbranch behandelt Phase
+  3 damit als geschlossen und deckt Phase 4 sowie Teile von Phase 5 vorlaeufig
+  ab.
+- Begruendung: Der Branch dient als zusammenhaengender Portfolio-Nachweis fuer
+  die lokale synthetische Demo und die naechsten Review-Entscheidungen.
+- Auswirkung: Diese Aktualisierung ist eine Branch-Statusnotiz und keine
+  Behauptung, dass `main` Phase 3 abgeschlossen hat oder dass Phase 4/5 auf
+  `main` vollstaendig umgesetzt sind. Produktive Steuerberatung, produktive
+  Cloud-Nutzung, Live-Provider-Verifikation, Multi-Cloud und reale Daten bleiben
+  weiterhin ausgeschlossen.

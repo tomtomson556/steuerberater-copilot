@@ -60,8 +60,10 @@ Die folgenden Angaben sind frühe Leitplanken für das MVP. Finale Entscheidunge
 - [Security Baseline Policy](docs/02-security/security-baseline-policy.md)
 - [MVP Scope and Roadmap](docs/10-mvp-scope/mvp-scope-and-roadmap.md)
 - [AI-Engineering-Roadmap 2026](docs/10-mvp-scope/ai-engineering-roadmap-2026.md)
+- [Portfolio Status July 2026](docs/10-mvp-scope/portfolio-status-2026-07.md)
 - [Offline MVP Operations Guide](docs/09-operations/offline-mvp-operations.md)
 - [Offline MVP CLI JSON Contract](docs/10-testing-quality/offline-mvp-cli-json-contract.md)
+- [Evaluation Guide](docs/10-testing-quality/evaluation-guide.md)
 - [GoBD-Oriented Storage Baseline](docs/08-gobd-storage/gobd-storage-baseline.md)
 - [Review-to-Final Artifact Boundary](docs/08-gobd-storage/review-to-final-artifact-boundary.md)
 
@@ -91,6 +93,49 @@ ruff check .
 pytest -q
 python tools/policy_claim_check.py
 ```
+
+### FastAPI demo quickstart
+
+Die FastAPI-Demo ist ein synthetischer lokaler HTTP-Systemrand. Sie nutzt
+standardmaessig `FakeModelProvider` und gibt keine vollstaendigen Prompts aus:
+
+```bash
+uvicorn steuerberater_copilot.api.main:app --reload
+```
+
+Beispielaufrufe:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/version
+curl "http://127.0.0.1:8000/v1/demo/draft?case_id=CASE_002"
+curl "http://127.0.0.1:8000/v1/demo/rag?case_id=CASE_002"
+```
+
+### Docker quickstart
+
+Die Container-Demo bleibt synthetisch und nicht-produktiv:
+
+```bash
+docker compose up --build
+```
+
+Danach sind dieselben lokalen Demo-Endpunkte auf Port `8000` erreichbar. Stoppe
+die lokale Demo mit `Ctrl+C`.
+
+### Evaluation command
+
+Die aggregierte Portfolio-Baseline laeuft lokal und deterministisch:
+
+```bash
+python -m steuerberater_copilot.evaluation --portfolio-baseline
+steuerberater-copilot-evaluate --portfolio-baseline
+```
+
+Details zur Interpretation stehen im
+[Evaluation Guide](docs/10-testing-quality/evaluation-guide.md). Der aktuelle
+Branch-Status steht in
+[Portfolio Status July 2026](docs/10-mvp-scope/portfolio-status-2026-07.md).
 
 Lokale Offline-MVP-JSON-Ausgaben fuer synthetische Fixtures:
 
