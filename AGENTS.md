@@ -193,3 +193,23 @@ Agents must report:
 - changed files
 - verification results
 - explicit note that the pull request was not merged
+
+## Cursor Cloud specific instructions
+
+This is a CLI-first, offline Python package (`src` layout, no server or
+frontend). The "application" is the offline MVP CLI. Standard commands live in
+`README.md` (Lokale Entwickler-Validierung) and `pyproject.toml`; do not
+duplicate them here.
+
+Non-obvious environment notes:
+
+- The VM exposes `python3` only; there is no `python` alias. README/CI examples
+  written as `python ...` should be run as `python3 ...`.
+- `pip install -e ".[dev]"` places console scripts (`pytest`, `ruff`,
+  `steuerberater-copilot-offline-mvp`) in `~/.local/bin`, which is not on
+  `PATH` by default. Either invoke via module form (`python3 -m pytest`,
+  `python3 -m ruff`, `python3 -m steuerberater_copilot.offline_mvp`) or prepend
+  `~/.local/bin` to `PATH`.
+- Standard tests and the CLI are fully offline and deterministic; no network,
+  services, or secrets are required. Any real OpenAI call is strictly opt-in via
+  `RUN_OPENAI_LIVE_SMOKE=1` (see README) and must never be run automatically.
