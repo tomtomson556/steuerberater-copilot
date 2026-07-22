@@ -16,14 +16,17 @@ from steuerberater_copilot.evaluation import (
 )
 from steuerberater_copilot.rag import SourceDocument
 
-CLAIM_STATUS_CLOSED = "[[SYNTHETIC_CLAIM orchard_status=closed]]"
-CLAIM_STATUS_OPEN = "[[SYNTHETIC_CLAIM orchard_status=open]]"
+RETENTION_SEVEN_YEARS = "The retention period is 7 years."
+RETENTION_TEN_YEARS = "The retention period is 10 years."
 
 EXPECTED_BASELINE_EVALUATION_IDS = (
-    "EVAL_RAG_CONTRADICTION_BASELINE_PRESENT",
-    "EVAL_RAG_CONTRADICTION_BASELINE_ABSENT",
-    "EVAL_RAG_CONTRADICTION_BASELINE_SAME_VALUE",
-    "EVAL_RAG_CONTRADICTION_BASELINE_MULTI_KEY",
+    "EVAL_RAG_CONTRADICTION_BASELINE_RETENTION_CONFLICT",
+    "EVAL_RAG_CONTRADICTION_BASELINE_NO_CLAIM_OVERLAP",
+    "EVAL_RAG_CONTRADICTION_BASELINE_SAME_FACT_PARAPHRASE",
+    "EVAL_RAG_CONTRADICTION_BASELINE_DEADLINE_CONFLICT",
+    "EVAL_RAG_CONTRADICTION_BASELINE_DIFFERENT_ATTRIBUTES_SAME_NUMBER",
+    "EVAL_RAG_CONTRADICTION_BASELINE_ARCHIVE_REQUIREMENT_CONFLICT",
+    "EVAL_RAG_CONTRADICTION_BASELINE_MARKER_NOISE_IGNORED",
 )
 
 
@@ -73,16 +76,16 @@ def test_baseline_suite_has_exact_metrics() -> None:
 
     report = run_offline_rag_contradiction_evaluation_suite(cases)
 
-    assert report.total_case_count == 4
+    assert report.total_case_count == 7
     assert tuple(
         assessment.evaluation_run_result.evaluation_case.evaluation_id
         for assessment in report.assessments
     ) == EXPECTED_BASELINE_EVALUATION_IDS
-    assert report.passed_case_count == 4
+    assert report.passed_case_count == 7
     assert report.failed_case_count == 0
     assert report.pass_rate == 1.0
     assert report.failed_evaluation_ids == ()
-    assert report.expected_contradiction_case_count == 2
+    assert report.expected_contradiction_case_count == 3
     assert report.contradiction_detection_rate == 1.0
 
 
@@ -199,12 +202,12 @@ def _assessment(
         evaluation_id=evaluation_id,
         source_documents=(
             _document(
-                "SYNTHETIC_SOURCE_CLOSED",
-                content=f"Synthetic orchard note. {CLAIM_STATUS_CLOSED}",
+                "SYNTHETIC_SOURCE_RETENTION_TEN",
+                content=f"Synthetic orchard note. {RETENTION_TEN_YEARS}",
             ),
             _document(
-                "SYNTHETIC_SOURCE_OPEN",
-                content=f"Synthetic meadow note. {CLAIM_STATUS_OPEN}",
+                "SYNTHETIC_SOURCE_RETENTION_SEVEN",
+                content=f"Synthetic meadow note. {RETENTION_SEVEN_YEARS}",
             ),
         ),
         expected_contradiction_present=expected,
@@ -221,12 +224,12 @@ def _assessment(
 def _labels() -> tuple[ContradictionEvidenceLabel, ...]:
     return (
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_CLOSED",
-            supporting_text=CLAIM_STATUS_CLOSED,
+            document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+            supporting_text=RETENTION_TEN_YEARS,
         ),
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_OPEN",
-            supporting_text=CLAIM_STATUS_OPEN,
+            document_id="SYNTHETIC_SOURCE_RETENTION_SEVEN",
+            supporting_text=RETENTION_SEVEN_YEARS,
         ),
     )
 

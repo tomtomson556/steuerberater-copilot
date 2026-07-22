@@ -3,7 +3,8 @@
 ## Scope
 
 This diagram describes the synthetic offline MVP plus experiment-branch demo
-surfaces. It does not describe a productive Steuerberatung system.
+surfaces. It does not describe a productive Steuerberatung system and does not
+claim an accepted reference-cloud selection.
 
 ```mermaid
 flowchart TB
@@ -12,7 +13,7 @@ flowchart TB
     evalcli[Evaluation CLI]
     api[FastAPI demo boundary]
     docker[Docker runtime]
-    azure[Azure reference-cloud skeleton]
+    cloudProto[Experimental cloud IaC prototype]
 
     fixtures[(Synthetic fixtures)]
     gateway[Policy and Privacy Gateway]
@@ -26,6 +27,7 @@ flowchart TB
     rag[RAG workflow]
     retriever[LocalDocumentRetriever]
     docs[(Synthetic source documents)]
+    contradiction[Closed-template contradiction check]
     eval[Offline evaluation suites]
     obs[Structured logs and metrics]
 
@@ -33,7 +35,7 @@ flowchart TB
     user --> evalcli
     user --> api
     api --> docker
-    docker -. optional portfolio deployment .-> azure
+    docker -. optional later prototype only .-> cloudProto
 
     cli --> fixtures
     api --> fixtures
@@ -50,6 +52,7 @@ flowchart TB
     api --> rag
     rag --> retriever
     retriever --> docs
+    rag --> contradiction
     rag --> policy
     rag --> parser
 
@@ -72,9 +75,13 @@ flowchart TB
    responses.
 4. Standard tests and demos use `FakeModelProvider`.
 5. RAG uses local synthetic source documents and local retrieval.
-6. Parsers, validators, and response gateway checks run before draft material is
+6. Contradiction checks use a closed deterministic template extractor over
+   natural synthetic passages; they are not general semantic NLP.
+7. Freshness checks, where used in evaluation, rely on supersession and explicit
+   validity windows rather than treating past start dates as outdated.
+8. Parsers, validators, and response gateway checks run before draft material is
    exposed.
-7. Observability emits structured metadata and counters, not raw prompts, raw
+9. Observability emits structured metadata and counters, not raw prompts, raw
    model payloads, secrets, or real data.
 
 ## Threat and failure boundaries
@@ -86,12 +93,13 @@ flowchart TB
 | Model Invocation Policy | Enforce prompt identity, version, and size limits. | Policy errors stay separate from provider errors. |
 | Parser and validators | Reject malformed or semantically invalid structured output. | Error path without raw prompt or response disclosure. |
 | RAG evidence boundary | Keep source use local and synthetic with citations. | Abstention or uncertainty when evidence is missing. |
+| Contradiction boundary | Flag closed-template attribute conflicts in retrieved synthetic passages. | Skip provider call and expose contradiction flag. |
 | API boundary | Adapt workflows to HTTP for demo only. | HTTP error translation without full prompt exposure. |
 | Observability boundary | Emit runtime metadata for review. | No prompts, secrets, model payloads, or real data in log events. |
-| Azure IaC boundary | Demonstrate one reference-cloud deployment path. | Scale-to-zero and deletion remain the cost off switches. |
+| Experimental cloud IaC | Optional later prototype after cloud comparison. | Not an accepted architecture decision on this branch. |
 
 ## Non-goals
 
 The architecture does not include productive data paths, DATEV, Agenda, ELSTER,
 banking, email, autonomous tax decisions, automatic submissions, Multi-Cloud
-support, or productive tax advice.
+support, accepted Azure lock-in on this branch, or productive tax advice.

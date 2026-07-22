@@ -17,9 +17,11 @@ from steuerberater_copilot.rag import DocumentVersionRecord, SourceDocument
 
 EXPECTED_BASELINE_EVALUATION_IDS = (
     "EVAL_RAG_FRESHNESS_BASELINE_SUPERSEDED",
-    "EVAL_RAG_FRESHNESS_BASELINE_EXPIRED",
-    "EVAL_RAG_FRESHNESS_BASELINE_CURRENT",
+    "EVAL_RAG_FRESHNESS_BASELINE_VALIDITY_ENDED",
+    "EVAL_RAG_FRESHNESS_BASELINE_CURRENT_DESPITE_PAST_START",
+    "EVAL_RAG_FRESHNESS_BASELINE_FUTURE_DRAFT_NOT_OUTDATED",
     "EVAL_RAG_FRESHNESS_BASELINE_MIXED",
+    "EVAL_RAG_FRESHNESS_BASELINE_SAME_FAMILY_NOT_YET_SUPERSEDING",
 )
 
 
@@ -72,12 +74,12 @@ def test_baseline_suite_has_exact_metrics() -> None:
 
     report = run_offline_rag_freshness_evaluation_suite(cases)
 
-    assert report.total_case_count == 4
+    assert report.total_case_count == 6
     assert tuple(
         assessment.evaluation_run_result.evaluation_case.evaluation_id
         for assessment in report.assessments
     ) == EXPECTED_BASELINE_EVALUATION_IDS
-    assert report.passed_case_count == 4
+    assert report.passed_case_count == 6
     assert report.failed_case_count == 0
     assert report.pass_rate == 1.0
     assert report.failed_evaluation_ids == ()
@@ -207,7 +209,8 @@ def _assessment(
                 "SYNTHETIC_SOURCE_MEADOW_EXPIRED",
                 family="meadow",
                 version=1,
-                effective_date="2026-01-01",
+                valid_from="2025-01-01",
+                valid_to="2026-01-01",
             ),
         ),
         reference_date="2026-07-01",
@@ -233,11 +236,13 @@ def _record(
     *,
     family: str,
     version: int,
-    effective_date: str = "2026-07-01",
+    valid_from: str = "2026-01-01",
+    valid_to: str | None = None,
 ) -> DocumentVersionRecord:
     return DocumentVersionRecord(
         document_id=document_id,
         document_family=family,
         version_number=version,
-        effective_date=effective_date,
+        valid_from=valid_from,
+        valid_to=valid_to,
     )

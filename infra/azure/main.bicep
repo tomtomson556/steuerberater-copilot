@@ -1,3 +1,9 @@
+// EXPERIMENTAL PROTOTYPE ONLY.
+// This Bicep file is an experiment-branch sketch for exploring a later
+// single-reference-cloud deployment shape. ADR-004 is Proposed/Deferred.
+// Azure is NOT accepted as the final reference cloud by this artifact.
+// Do not treat this file as a binding architecture decision.
+
 targetScope = 'resourceGroup'
 
 @description('Azure region for the synthetic portfolio demo resources.')

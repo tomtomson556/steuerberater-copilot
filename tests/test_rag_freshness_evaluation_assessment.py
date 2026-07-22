@@ -156,7 +156,8 @@ def _case(*, expected: tuple[str, ...]) -> RAGFreshnessEvaluationCase:
                 "SYNTHETIC_SOURCE_MEADOW_EXPIRED",
                 family="meadow",
                 version=1,
-                effective_date="2026-01-01",
+                valid_from="2025-01-01",
+                valid_to="2026-01-01",
             ),
         ),
         reference_date="2026-07-01",
@@ -177,11 +178,13 @@ def _record(
     *,
     family: str,
     version: int,
-    effective_date: str = "2026-07-01",
+    valid_from: str = "2026-01-01",
+    valid_to: str | None = None,
 ) -> DocumentVersionRecord:
     return DocumentVersionRecord(
         document_id=document_id,
         document_family=family,
         version_number=version,
-        effective_date=effective_date,
+        valid_from=valid_from,
+        valid_to=valid_to,
     )

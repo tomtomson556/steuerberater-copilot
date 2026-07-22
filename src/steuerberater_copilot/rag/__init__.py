@@ -4,6 +4,7 @@ from .contradiction_detector import (
     ContradictionDetectionResult,
     DetectedClaimPassage,
     DetectedContradictionPair,
+    detect_passage_contradictions,
     detect_synthetic_claim_contradictions,
 )
 from .document_freshness import DocumentVersionRecord, find_outdated_document_ids
@@ -17,6 +18,7 @@ __all__ = [
     "DocumentVersionRecord",
     "LocalDocumentRetriever",
     "SourceDocument",
+    "detect_passage_contradictions",
     "detect_synthetic_claim_contradictions",
     "find_outdated_document_ids",
 ]

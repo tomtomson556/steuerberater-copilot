@@ -171,6 +171,12 @@ def portfolio_evaluation_baseline_to_dict(
         "suite_summaries": report.suite_summaries,
         "notes": [
             "Synthetic offline baseline only.",
+            "Experiment-branch aggregation; not a main-branch completion claim.",
+            "Binary pass rate reflects exact expected/observed agreement on "
+            "current deterministic fixtures only.",
+            "Contradiction detection uses closed templates, not general NLP.",
+            "Freshness uses supersession and validity windows, not past-start=outdated.",
+            "Retrieval and grounding remain metric suites without invented pass thresholds.",
             "Not productive evaluation.",
             "Not individual tax advice.",
             "Human Review remains required for tax-relevant drafts.",

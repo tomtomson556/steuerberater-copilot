@@ -699,23 +699,17 @@ def test_synthetic_rag_workflow_rejects_unauthorized_prompt(monkeypatch) -> None
     assert provider.requests == ()
 
 
-def test_synthetic_rag_workflow_detects_conflicting_claim_markers_without_provider_call() -> None:
+def test_synthetic_rag_workflow_detects_conflicting_retention_sentences() -> None:
     documents = (
         SourceDocument(
-            document_id="SYNTHETIC_SOURCE_CONFLICT_CLOSED",
-            title="Synthetic orchard conflict closed",
-            content=(
-                "Synthetic orchard conflict "
-                "[[SYNTHETIC_CLAIM orchard_status=closed]]."
-            ),
+            document_id="SYNTHETIC_SOURCE_CONFLICT_RETENTION_TEN",
+            title="Synthetic orchard conflict retention ten",
+            content="Synthetic orchard conflict. The retention period is 10 years.",
         ),
         SourceDocument(
-            document_id="SYNTHETIC_SOURCE_CONFLICT_OPEN",
-            title="Synthetic orchard conflict open",
-            content=(
-                "Synthetic orchard conflict "
-                "[[SYNTHETIC_CLAIM orchard_status=open]]."
-            ),
+            document_id="SYNTHETIC_SOURCE_CONFLICT_RETENTION_SEVEN",
+            title="Synthetic orchard conflict retention seven",
+            content="Synthetic orchard conflict. The retention period is 7 years.",
         ),
     )
     provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
@@ -728,7 +722,7 @@ def test_synthetic_rag_workflow_detects_conflicting_claim_markers_without_provid
         top_k=2,
     )
 
-    assert result.retrieved_documents == documents
+    assert result.retrieved_documents == (documents[1], documents[0])
     assert result.contradiction_detected is True
     assert result.grounded_draft is None
     assert result.model_response is None

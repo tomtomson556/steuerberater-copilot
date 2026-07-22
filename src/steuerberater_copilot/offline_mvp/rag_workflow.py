@@ -8,7 +8,7 @@ from steuerberater_copilot.ai import ModelProvider, ModelResponse
 from steuerberater_copilot.rag import (
     LocalDocumentRetriever,
     SourceDocument,
-    detect_synthetic_claim_contradictions,
+    detect_passage_contradictions,
 )
 
 from ._response_markers import OFFLINE_DRAFT_TITLE_PREFIX
@@ -43,10 +43,11 @@ class SyntheticRAGWorkflowOutput:
     the provider is not called and ``grounded_draft`` remains None.
 
     ``contradiction_detected`` is True only when controls allowed continuation,
-    retrieval returned documents, and deterministic synthetic claim markers
-    among those documents conflict. In that case the provider is not called and
-    ``grounded_draft`` remains None. This is distinct from missing-evidence
-    abstention.
+    retrieval returned documents, and the closed-template passage contradiction
+    detector found conflicting attribute values among those documents. In that
+    case the provider is not called and ``grounded_draft`` remains None. This is
+    distinct from missing-evidence abstention and is not a general semantic NLP
+    claim.
     """
 
     intake: IntakeCase
@@ -109,7 +110,7 @@ def build_synthetic_rag_workflow(
             contradiction_detected=False,
         )
 
-    contradiction = detect_synthetic_claim_contradictions(retrieved_documents)
+    contradiction = detect_passage_contradictions(retrieved_documents)
     if contradiction.contradiction_present:
         return SyntheticRAGWorkflowOutput(
             intake=case,

@@ -12,8 +12,8 @@ from steuerberater_copilot.evaluation import (
 )
 from steuerberater_copilot.rag import SourceDocument
 
-CLAIM_STATUS_CLOSED = "[[SYNTHETIC_CLAIM orchard_status=closed]]"
-CLAIM_STATUS_OPEN = "[[SYNTHETIC_CLAIM orchard_status=open]]"
+RETENTION_SEVEN_YEARS = "The retention period is 7 years."
+RETENTION_TEN_YEARS = "The retention period is 10 years."
 
 
 def test_contradiction_assessment_is_immutable_and_uses_slots() -> None:
@@ -87,12 +87,12 @@ def test_passage_mismatch_fails_even_when_presence_matches() -> None:
             observed=True,
             observed_passages=(
                 ContradictionEvidenceLabel(
-                    document_id="SYNTHETIC_SOURCE_CLOSED",
-                    supporting_text=CLAIM_STATUS_CLOSED,
+                    document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+                    supporting_text=RETENTION_TEN_YEARS,
                 ),
                 ContradictionEvidenceLabel(
                     document_id="SYNTHETIC_SOURCE_OTHER",
-                    supporting_text="[[SYNTHETIC_CLAIM orchard_status=other]]",
+                    supporting_text="The retention period is 8 years.",
                 ),
             ),
         )
@@ -157,12 +157,16 @@ def _case(*, expected: bool) -> RAGContradictionEvaluationCase:
         evaluation_id="EVAL_RAG_CONTRADICTION_ASSESSMENT",
         source_documents=(
             _document(
-                "SYNTHETIC_SOURCE_CLOSED",
-                content=f"Synthetic orchard note. {CLAIM_STATUS_CLOSED}",
+                "SYNTHETIC_SOURCE_RETENTION_TEN",
+                content=f"Synthetic orchard note. {RETENTION_TEN_YEARS}",
             ),
             _document(
-                "SYNTHETIC_SOURCE_OPEN",
-                content=f"Synthetic meadow note. {CLAIM_STATUS_OPEN}",
+                "SYNTHETIC_SOURCE_RETENTION_SEVEN",
+                content=f"Synthetic meadow note. {RETENTION_SEVEN_YEARS}",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_OTHER",
+                content="Synthetic meadow note. The retention period is 8 years.",
             ),
         ),
         expected_contradiction_present=expected,
@@ -173,12 +177,12 @@ def _case(*, expected: bool) -> RAGContradictionEvaluationCase:
 def _labels() -> tuple[ContradictionEvidenceLabel, ...]:
     return (
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_CLOSED",
-            supporting_text=CLAIM_STATUS_CLOSED,
+            document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+            supporting_text=RETENTION_TEN_YEARS,
         ),
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_OPEN",
-            supporting_text=CLAIM_STATUS_OPEN,
+            document_id="SYNTHETIC_SOURCE_RETENTION_SEVEN",
+            supporting_text=RETENTION_SEVEN_YEARS,
         ),
     )
 

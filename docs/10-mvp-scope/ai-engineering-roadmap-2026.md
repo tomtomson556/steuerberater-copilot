@@ -945,16 +945,32 @@ Docker- oder Cloud-Arbeit in diesem Branch.
 ### Aktualisierung vom 22. Juli 2026 (Experimentbranch Portfolio-Demo)
 
 - Datum: 22. Juli 2026
-- Aenderung: Auf `experiment/cursor-full-project` sind RAG-Widerspruchs- und
-  Freshness-Evaluation, aggregierte Portfolio-Baseline, Observability-Helfer,
-  synthetische FastAPI-Demo, Docker-Artefakte, Azure-Referenzcloud-Skeleton und
-  Portfolio-Dokumentation zusammengefuehrt. Der Experimentbranch behandelt Phase
-  3 damit als geschlossen und deckt Phase 4 sowie Teile von Phase 5 vorlaeufig
-  ab.
-- Begruendung: Der Branch dient als zusammenhaengender Portfolio-Nachweis fuer
-  die lokale synthetische Demo und die naechsten Review-Entscheidungen.
-- Auswirkung: Diese Aktualisierung ist eine Branch-Statusnotiz und keine
-  Behauptung, dass `main` Phase 3 abgeschlossen hat oder dass Phase 4/5 auf
-  `main` vollstaendig umgesetzt sind. Produktive Steuerberatung, produktive
+- Aenderung: Auf `experiment/cursor-full-project` wurden experimentelle
+  Erweiterungen fuer RAG-Widerspruchs- und Freshness-Evaluation, eine
+  aggregierte Portfolio-Baseline, Observability-Helfer, eine synthetische
+  FastAPI-Demo, Docker-Artefakte sowie ein **prototypisches** Azure-IaC-Skeleton
+  ergaenzt. ADR-004 bleibt auf diesem Branch bewusst im Status
+  Proposed/Deferred und legt Azure nicht endgueltig fest.
+- Begruendung: Der Branch buendelt einen lokalen synthetischen Demo-Stand fuer
+  Review. Er ersetzt keine schrittweise Produktionsarbeit auf `main`.
+- Auswirkung: Diese Aktualisierung ist eine Branch-Statusnotiz. Sie behauptet
+  nicht, dass `main` Phase 3 abgeschlossen hat, dass Phase 4/5 abgeschlossen
+  sind, dass Azure als Referenz-Cloud akzeptiert wurde oder dass ein
+  portfolio-reifer Release vorliegt. Produktive Steuerberatung, produktive
   Cloud-Nutzung, Live-Provider-Verifikation, Multi-Cloud und reale Daten bleiben
-  weiterhin ausgeschlossen.
+  ausgeschlossen.
+
+### Aktualisierung vom 22. Juli 2026 (Experimentbranch Review-Korrekturen)
+
+- Datum: 22. Juli 2026
+- Aenderung: Freshness-Semantik auf Supersession und explizite Gueltigkeitsfenster
+  umgestellt; Widerspruchserkennung von Marker-Tags auf geschlossene
+  Template-Extraktion natuerlicher synthetischer Passagen umgestellt; ADR-004
+  und Cloud-Dokumentation auf Proposed/Deferred bzw. Prototyp zurueckgenommen;
+  Portfolio-Dokumentation und Evaluationsclaims zurueckhaltender formuliert.
+- Begruendung: Die vorherige Experiment-Implementierung enthielt fachlich falsche
+  Freshness-Annahmen, zu kuenstliche Contradiction-Marker und eine
+  vorweggenommene Cloudentscheidung.
+- Auswirkung: Der Experimentbranch bleibt experimentell. Phase 3 auf `main`
+  bleibt in Arbeit. Die Cloudentscheidung bleibt bis spaetestens 31. August 2026
+  offen.

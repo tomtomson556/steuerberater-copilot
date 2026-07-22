@@ -11,8 +11,8 @@ from steuerberater_copilot.evaluation import (
 )
 from steuerberater_copilot.rag import SourceDocument
 
-CLAIM_STATUS_CLOSED = "[[SYNTHETIC_CLAIM orchard_status=closed]]"
-CLAIM_STATUS_OPEN = "[[SYNTHETIC_CLAIM orchard_status=open]]"
+RETENTION_SEVEN_YEARS = "The retention period is 7 years."
+RETENTION_TEN_YEARS = "The retention period is 10 years."
 
 
 def test_run_result_keeps_fields_and_identities() -> None:
@@ -138,11 +138,11 @@ def test_runner_observes_no_contradiction_for_same_claim_value() -> None:
         source_documents=(
             _document(
                 "SYNTHETIC_SOURCE_ALPHA",
-                content="Synthetic orchard [[SYNTHETIC_CLAIM meadow_status=open]].",
+                content=f"Synthetic orchard note. {RETENTION_TEN_YEARS}",
             ),
             _document(
                 "SYNTHETIC_SOURCE_BETA",
-                content="Synthetic meadow [[SYNTHETIC_CLAIM meadow_status=open]].",
+                content="Synthetic meadow note. The retention period is ten years.",
             ),
         ),
         expected_contradiction_present=False,
@@ -181,12 +181,12 @@ def _positive_case() -> RAGContradictionEvaluationCase:
         evaluation_id="EVAL_RAG_CONTRADICTION_RUNNER_POSITIVE",
         source_documents=(
             _document(
-                "SYNTHETIC_SOURCE_CLOSED",
-                content=f"Synthetic orchard note. {CLAIM_STATUS_CLOSED}",
+                "SYNTHETIC_SOURCE_RETENTION_TEN",
+                content=f"Synthetic orchard note. {RETENTION_TEN_YEARS}",
             ),
             _document(
-                "SYNTHETIC_SOURCE_OPEN",
-                content=f"Synthetic meadow note. {CLAIM_STATUS_OPEN}",
+                "SYNTHETIC_SOURCE_RETENTION_SEVEN",
+                content=f"Synthetic meadow note. {RETENTION_SEVEN_YEARS}",
             ),
         ),
         expected_contradiction_present=True,
@@ -197,12 +197,12 @@ def _positive_case() -> RAGContradictionEvaluationCase:
 def _labels() -> tuple[ContradictionEvidenceLabel, ...]:
     return (
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_CLOSED",
-            supporting_text=CLAIM_STATUS_CLOSED,
+            document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+            supporting_text=RETENTION_TEN_YEARS,
         ),
         ContradictionEvidenceLabel(
-            document_id="SYNTHETIC_SOURCE_OPEN",
-            supporting_text=CLAIM_STATUS_OPEN,
+            document_id="SYNTHETIC_SOURCE_RETENTION_SEVEN",
+            supporting_text=RETENTION_SEVEN_YEARS,
         ),
     )
 

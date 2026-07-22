@@ -1,68 +1,67 @@
-# ADR 004: Select Azure as the single reference cloud
+# ADR 004: Reference cloud selection (comparison pending)
 
 ## Status
 
-Accepted
+Proposed / Deferred
+
+This ADR is **not** an accepted architecture decision on
+`experiment/cursor-full-project`. It records the open comparison only.
 
 ## Context
 
-ADR 003 keeps the application core local-first and cloud-neutral, but allows one
-reference cloud at the system boundary for the 2026 portfolio. The project needs
-a small deployment proof for the synthetic FastAPI and Docker demo without
-turning the offline MVP into a productive Kanzlei system.
+ADR 003 keeps the application core local-first and cloud-neutral and allows
+exactly one later reference cloud at the system boundary. The binding roadmap
+requires AWS and Azure to be compared by 31 August 2026 before a final choice.
 
-The reference cloud must support an EU region, container execution, managed
-secret storage, observable runtime signals, and a simple cost off switch. It must
-not require real Mandanten-, Kanzlei-, Beleg-, Steuer-, or productive metadata.
+Current preference signals exist for Azure in the German B2B context, but
+account access, cost, EU-region readiness, container operations, secret
+management, monitoring effort, and employment-market fit are not yet finally
+weighed.
 
-## Decision
+An experimental Azure Bicep skeleton may exist under `infra/azure/` on this
+experiment branch. That skeleton is a disposable prototype for exploring IaC
+shape. It is not a binding selection of Azure and must not be read as portfolio
+completion of Phase 5.
 
-Azure is accepted as the single reference cloud for the portfolio deployment
-track.
+## Non-decision
 
-The reference deployment targets an EU Azure region and uses container runtime
-infrastructure at the system boundary. Azure Key Vault is the placeholder for
-future secret integration. No secrets are committed to the repository, and the
-current synthetic demo does not require a real provider secret.
+No reference cloud is accepted by this ADR at this time.
 
-The initial Infrastructure as Code skeleton uses Azure Bicep under
-`infra/azure/`. It is intentionally small and demonstrates:
+Until the comparison is complete and this ADR is rewritten with status
+`Accepted`:
 
-- containerized FastAPI demo deployment
-- Azure Key Vault resource placeholder
-- EU-region parameterization
-- scale-to-zero or equivalent cost off switch
-- no productive data paths
+- Azure is not the final reference cloud
+- AWS remains an open alternative
+- Multi-Cloud support remains out of scope
+- any `infra/azure/` artifacts are experimental prototypes only
 
-This is explicitly not a Multi-Cloud decision. AWS, GCP, hybrid operation, and
-general cloud adapter abstractions remain out of scope for the 2026 portfolio
-baseline unless the roadmap is changed by a later ADR.
+## Comparison criteria (binding)
+
+- target roles and labour market signal
+- available account and service access
+- cost and reliable shut-off
+- EU region
+- model access boundaries remain separate from cloud choice
+- container runtime
+- secret management without repository secrets
+- monitoring baseline
+- IaC effort
 
 ## Consequences
 
-Positive consequences:
+Positive consequences of deferring:
 
-- one concrete cloud target reduces portfolio ambiguity
-- the application core can remain cloud-neutral
-- Bicep artifacts can stay isolated under `infra/azure/`
-- Key Vault can be documented without committing secrets
-- a cost off switch is part of the deployment baseline
+- avoids locking the portfolio to an unverified cloud choice
+- keeps the application core cloud-neutral
+- allows experimental IaC exploration without overstating readiness
 
-Accepted trade-offs:
+Accepted temporary trade-offs:
 
-- cloud depth is limited to one provider
-- Azure-specific IaC exists at the repository boundary
-- no portability layer is built for hypothetical future clouds
+- no live reference-cloud deployment claim
+- documentation must distinguish prototype IaC from accepted architecture
 
-This decision does not introduce productive tax advice, productive tax actions,
-real client data, productive external integrations, or live provider
-verification.
+## Revisit deadline
 
-## Revisit conditions
-
-Revisit this ADR if:
-
-- Azure access becomes unavailable for the portfolio demonstration
-- the portfolio target changes materially
-- real data or productive operation is proposed
-- another cloud becomes mandatory for a concrete employment or review context
+Revisit and either accept a single cloud or explicitly re-scope by
+31 August 2026, consistent with
+`docs/10-mvp-scope/ai-engineering-roadmap-2026.md` and ADR 003.

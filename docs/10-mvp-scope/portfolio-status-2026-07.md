@@ -2,11 +2,9 @@
 
 ## Scope
 
-This document summarizes the work present on
-`experiment/cursor-full-project` as of 22 July 2026. It is a branch status note,
-not a claim that every item is merged to `main`.
-
-The project principle remains:
+This document summarizes work on `experiment/cursor-full-project` as of
+22 July 2026. It is a branch status note, not a claim that items are merged to
+`main`, productively verified, or portfolio-complete.
 
 ```text
 KI bereitet vor.
@@ -14,56 +12,74 @@ Die Kanzlei prueft.
 Der Steuerberater entscheidet.
 ```
 
-## Implemented on the experiment branch
+## Presence matrix
 
-- RAG contradiction and freshness evaluation contracts, libraries, runners,
-  assessments, and aggregate metrics.
-- Portfolio evaluation baseline report across workflow, retrieval, grounding,
-  abstention, contradiction, and freshness suites.
-- Evaluation CLI entry point:
-  `python -m steuerberater_copilot.evaluation --portfolio-baseline`.
-- Structured runtime observability helpers for JSON event lines, request IDs,
-  timers, and in-process metrics snapshots.
-- Synthetic FastAPI demo boundary with health, version, draft, RAG, and metrics
-  endpoints.
-- Dockerfile, Docker Compose file, and `.dockerignore` for local container
-  demonstration.
-- Minimal Azure reference-cloud ADR, deployment guide, and Bicep skeleton.
+| Item | on `main` | on this experiment branch | maturity |
+| --- | --- | --- | --- |
+| Offline MVP CLI, gateway, Human Review, FakeModelProvider | yes | yes | implemented and tested |
+| Semantic draft validation, prompt versioning, offline AI evaluation | yes | yes | implemented and tested |
+| OpenAI Responses adapter | yes | yes | code present; live smoke not verified |
+| Retrieval / grounding / abstention evaluation baseline | yes | yes | implemented and tested |
+| Contradiction evaluation over natural synthetic passages | no | yes | experimental, deterministic closed-template extractor |
+| Freshness evaluation via supersession / validity window | no | yes | experimental, metadata semantics only |
+| Portfolio evaluation baseline CLI | no | yes | experimental aggregation |
+| FastAPI synthetic demo boundary | no | yes | experimental demo |
+| Docker demo runtime | no | yes | experimental local container path |
+| Structured runtime logging / in-process metrics | no | yes | experimental helpers |
+| Azure Bicep / reference-cloud guide | no | yes | prototype sketch only; cloud choice not accepted |
+| ADR-004 final cloud selection | no | proposed/deferred only | not accepted |
 
-## Current portfolio baseline
+## Implemented on the experiment branch only
 
-The branch-level portfolio baseline contains 32 synthetic evaluation cases. The
-binary suites report a pass rate of `1.0` with the current deterministic
-fixtures and `FakeModelProvider` setup.
+- RAG contradiction detection and evaluation using closed-template extraction
+  from natural synthetic sentences. This is **not** general semantic NLP.
+- RAG freshness/outdated detection based on supersession and explicit
+  `valid_to` windows. A past `valid_from` alone does not mark a document
+  outdated.
+- Portfolio evaluation baseline report and CLI.
+- Synthetic FastAPI demo, Docker runtime, and observability helpers.
+- Experimental Azure IaC sketch and deferred ADR-004 comparison note.
 
-Retrieval and grounding remain metric suites without invented binary pass/fail
-thresholds. Their metrics support regression review, not a productive
-steuerliche Qualitaetsaussage.
+## Evaluation posture
 
-## Decisions recorded
+The experiment-branch portfolio baseline currently aggregates the synthetic
+suites available on this branch. Binary suites (workflow, abstention,
+contradiction, freshness) are assessed with exact expected/observed
+comparisons. Retrieval and grounding remain metric suites without invented
+binary pass/fail thresholds.
 
-- The safe default remains local, offline, deterministic, and synthetic.
+A high binary pass rate means the current deterministic fixtures and detectors
+agree on labeled cases. It is not proof of productive RAG quality, general
+contradiction understanding, or End-to-End safety.
+
+## Decisions and non-decisions
+
+- Safe default remains local, offline, deterministic, and synthetic.
 - `FakeModelProvider` remains the default for tests and demos.
-- FastAPI is a system-boundary demo, not workflow logic.
-- Docker is the local deployment baseline for the portfolio.
-- Azure is the single reference cloud for the portfolio track.
-- Multi-Cloud support remains explicitly out of scope.
-- Secrets are placeholders only and are not committed.
+- FastAPI stays a system-boundary demo, not workflow logic.
+- Docker is a local deployment baseline candidate, not a cloud decision.
+- Reference-cloud selection remains open until 31 August 2026.
+- Azure IaC on this branch is an experimental prototype only.
+- Multi-Cloud support remains out of scope.
 
 ## Open items
 
-- Merge readiness for the experiment branch still depends on full local checks
-  and review.
-- A real provider live smoke remains opt-in and is not verified by this branch
-  status.
-- The Azure skeleton still needs a real non-productive image reference before a
-  live deployment attempt.
-- Authentication, persistence, productive monitoring, DATEV, Agenda, ELSTER,
-  banking, and email integrations remain out of scope.
-- Demo video and final portfolio packaging remain later portfolio work.
+- Final AWS vs Azure comparison and an accepted ADR-004.
+- Opt-in OpenAI live smoke verification.
+- Live non-productive container deployment with real image references and a
+  secret store that never commits secrets.
+- Broader adversarial evaluation beyond the current synthetic libraries.
+- Demo video and final portfolio packaging.
+- Any merge to `main` remains a separate human decision and should be sliced.
 
 ## Non-claims
 
-This status does not claim productive tax advice, productive tax actions,
-productive Kanzlei operation, real client data handling, live provider
-verification, or compliance certification.
+This status does not claim:
+
+- portfolio-ready production quality
+- completed Phase 3/4/5 on `main`
+- accepted Azure reference-cloud selection
+- productive tax advice or tax actions
+- general semantic contradiction NLP
+- live provider verification
+- compliance certification

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from steuerberater_copilot.rag import detect_synthetic_claim_contradictions
+from steuerberater_copilot.rag import detect_passage_contradictions
 
 from .rag_contradiction_case import ContradictionEvidenceLabel, RAGContradictionEvaluationCase
 
@@ -13,9 +13,9 @@ from .rag_contradiction_case import ContradictionEvidenceLabel, RAGContradiction
 class RAGContradictionEvaluationRunResult:
     """Observed contradiction signal for one contradiction evaluation case.
 
-    Observations come only from deterministic synthetic claim markers. They are
+    Observations come only from the closed-template passage extractor. They are
     not the ground-truth ``expected_contradiction_present`` labels and do not
-    imply a pass/fail assessment.
+    imply a pass/fail assessment by themselves.
     """
 
     evaluation_case: RAGContradictionEvaluationCase
@@ -49,14 +49,14 @@ class RAGContradictionEvaluationRunResult:
 def run_offline_rag_contradiction_evaluation_case(
     evaluation_case: RAGContradictionEvaluationCase,
 ) -> RAGContradictionEvaluationRunResult:
-    """Detect synthetic claim contradictions without assessing the case."""
+    """Detect passage contradictions without assessing the case."""
     if not isinstance(evaluation_case, RAGContradictionEvaluationCase):
         raise TypeError("evaluation_case must be a RAGContradictionEvaluationCase.")
 
-    detection = detect_synthetic_claim_contradictions(evaluation_case.source_documents)
+    detection = detect_passage_contradictions(evaluation_case.source_documents)
     observed_passages: list[ContradictionEvidenceLabel] = []
     if detection.contradictions:
-        # Portfolio baseline: report the first contradicting pair as two labels.
+        # Report the first contradicting attribute pair as two evidence labels.
         first_pair = detection.contradictions[0]
         observed_passages.extend(
             (

@@ -8,52 +8,57 @@ from steuerberater_copilot.rag import (
     DetectedClaimPassage,
     DetectedContradictionPair,
     SourceDocument,
+    detect_passage_contradictions,
     detect_synthetic_claim_contradictions,
 )
 
 
-def test_detects_opposing_synthetic_claim_markers() -> None:
+def test_detects_opposing_retention_sentences() -> None:
     first = _document(
-        "SYNTHETIC_SOURCE_ORCHARD_OPEN",
-        content="Synthetic orchard note [[SYNTHETIC_CLAIM orchard_status=open]].",
+        "SYNTHETIC_SOURCE_RETENTION_TEN",
+        content="Synthetic orchard note. The retention period is 10 years. End.",
     )
     second = _document(
-        "SYNTHETIC_SOURCE_ORCHARD_CLOSED",
-        content="Synthetic meadow note [[SYNTHETIC_CLAIM orchard_status=closed]].",
+        "SYNTHETIC_SOURCE_RETENTION_SEVEN",
+        content="Synthetic meadow note. The retention period is 7 years. End.",
     )
 
-    result = detect_synthetic_claim_contradictions((first, second))
+    result = detect_passage_contradictions((first, second))
 
     assert result.contradiction_present is True
     assert len(result.contradictions) == 1
     contradiction = result.contradictions[0]
-    assert contradiction.claim_key == "orchard_status"
+    assert contradiction.claim_key == "retention_years"
     assert {
         (contradiction.first.document_id, contradiction.first.claim_value),
         (contradiction.second.document_id, contradiction.second.claim_value),
     } == {
-        ("SYNTHETIC_SOURCE_ORCHARD_OPEN", "open"),
-        ("SYNTHETIC_SOURCE_ORCHARD_CLOSED", "closed"),
+        ("SYNTHETIC_SOURCE_RETENTION_TEN", "10"),
+        ("SYNTHETIC_SOURCE_RETENTION_SEVEN", "7"),
     }
     assert {
         contradiction.first.supporting_text,
         contradiction.second.supporting_text,
     } == {
-        "[[SYNTHETIC_CLAIM orchard_status=open]]",
-        "[[SYNTHETIC_CLAIM orchard_status=closed]]",
+        "The retention period is 10 years.",
+        "The retention period is 7 years.",
     }
 
 
-def test_same_value_claims_are_not_contradictions() -> None:
-    result = detect_synthetic_claim_contradictions(
+def test_same_fact_paraphrase_is_not_a_contradiction() -> None:
+    result = detect_passage_contradictions(
         (
             _document(
-                "SYNTHETIC_SOURCE_RETENTION_ALPHA",
-                content="Synthetic orchard [[SYNTHETIC_CLAIM retention_years=10]].",
+                "SYNTHETIC_SOURCE_RETENTION_DIGITS",
+                content="Synthetic orchard. The retention period is 10 years.",
             ),
             _document(
-                "SYNTHETIC_SOURCE_RETENTION_BETA",
-                content="Synthetic meadow [[SYNTHETIC_CLAIM retention_years=10]].",
+                "SYNTHETIC_SOURCE_RETENTION_WORDS",
+                content="Synthetic meadow. The retention period is ten years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_GERMAN",
+                content="Synthetic meadow. Die Aufbewahrungsfrist betraegt 10 Jahre.",
             ),
         )
     )
@@ -64,16 +69,105 @@ def test_same_value_claims_are_not_contradictions() -> None:
     )
 
 
-def test_no_markers_have_no_contradiction() -> None:
-    result = detect_synthetic_claim_contradictions(
+def test_detects_opposing_deadline_sentences() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_DEADLINE_2024",
+                content="Synthetic calendar. The filing deadline is 2024-12-31.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_DEADLINE_2025",
+                content="Synthetic calendar. The filing deadline is 2025-12-31.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    assert result.contradictions[0].claim_key == "filing_deadline"
+    assert {
+        result.contradictions[0].first.supporting_text,
+        result.contradictions[0].second.supporting_text,
+    } == {
+        "The filing deadline is 2024-12-31.",
+        "The filing deadline is 2025-12-31.",
+    }
+
+
+def test_detects_opposing_archive_requirement_sentences() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_REQUIRED",
+                content="Synthetic archive. The archive is required.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_OPTIONAL",
+                content="Synthetic archive. The archive is optional.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    assert result.contradictions[0].claim_key == "archive_requirement"
+    assert {
+        result.contradictions[0].first.claim_value,
+        result.contradictions[0].second.claim_value,
+    } == {"required", "optional"}
+
+
+def test_different_attributes_with_same_number_are_not_contradictions() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_NUMBER",
+                content="Synthetic orchard. The retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_DEADLINE_NUMBER",
+                content="Synthetic meadow. The filing deadline is 2010-10-10.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is False
+    assert result.contradictions == ()
+
+
+def test_marker_noise_alone_is_ignored() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_MARKER_ALPHA",
+                content=(
+                    "Synthetic orchard note. "
+                    "[[SYNTHETIC_CLAIM retention_years=10]]"
+                ),
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_MARKER_BETA",
+                content=(
+                    "Synthetic meadow note. "
+                    "[[SYNTHETIC_CLAIM retention_years=7]]"
+                ),
+            ),
+        )
+    )
+
+    assert result.contradiction_present is False
+    assert result.contradictions == ()
+
+
+def test_no_closed_template_facts_have_no_contradiction() -> None:
+    result = detect_passage_contradictions(
         (
             _document(
                 "SYNTHETIC_SOURCE_ORCHARD",
-                content="Synthetic orchard content without claim markers.",
+                content="Synthetic orchard content without closed template facts.",
             ),
             _document(
                 "SYNTHETIC_SOURCE_MEADOW",
-                content="Synthetic meadow content without claim markers.",
+                content="Synthetic meadow content without closed template facts.",
             ),
         )
     )
@@ -83,15 +177,15 @@ def test_no_markers_have_no_contradiction() -> None:
 
 
 def test_detection_result_is_immutable_and_uses_slots() -> None:
-    result = detect_synthetic_claim_contradictions(
+    result = detect_passage_contradictions(
         (
             _document(
                 "SYNTHETIC_SOURCE_A",
-                content="Synthetic orchard [[SYNTHETIC_CLAIM status=alpha]].",
+                content="Synthetic orchard. The archive is required.",
             ),
             _document(
                 "SYNTHETIC_SOURCE_B",
-                content="Synthetic meadow [[SYNTHETIC_CLAIM status=beta]].",
+                content="Synthetic meadow. The archive is optional.",
             ),
         )
     )
@@ -134,15 +228,15 @@ def test_detection_result_rejects_inconsistent_bool_and_pairs() -> None:
 def test_detected_pair_rejects_same_claim_values() -> None:
     first = DetectedClaimPassage(
         document_id="SYNTHETIC_SOURCE_ALPHA",
-        supporting_text="[[SYNTHETIC_CLAIM status=open]]",
-        claim_key="status",
-        claim_value="open",
+        supporting_text="The archive is required.",
+        claim_key="archive_requirement",
+        claim_value="required",
     )
     second = DetectedClaimPassage(
         document_id="SYNTHETIC_SOURCE_BETA",
-        supporting_text="[[SYNTHETIC_CLAIM status=open]]",
-        claim_key="status",
-        claim_value="open",
+        supporting_text="The archive is required.",
+        claim_key="archive_requirement",
+        claim_value="required",
     )
 
     with pytest.raises(
@@ -150,7 +244,7 @@ def test_detected_pair_rejects_same_claim_values() -> None:
         match=r"^contradicting passages must have different claim values\.$",
     ):
         DetectedContradictionPair(
-            claim_key="status",
+            claim_key="archive_requirement",
             first=first,
             second=second,
         )
@@ -158,7 +252,7 @@ def test_detected_pair_rejects_same_claim_values() -> None:
 
 def test_rejects_non_tuple_documents() -> None:
     with pytest.raises(TypeError, match=r"^documents must be a tuple\.$"):
-        detect_synthetic_claim_contradictions([_document("SYNTHETIC_SOURCE_001")])
+        detect_passage_contradictions([_document("SYNTHETIC_SOURCE_001")])
 
 
 def test_rejects_non_source_document_entries() -> None:
@@ -166,7 +260,7 @@ def test_rejects_non_source_document_entries() -> None:
         TypeError,
         match=r"^documents must contain only SourceDocument objects\.$",
     ):
-        detect_synthetic_claim_contradictions(("not-a-document",))
+        detect_passage_contradictions(("not-a-document",))
 
 
 def test_rejects_duplicate_document_ids() -> None:
@@ -174,7 +268,7 @@ def test_rejects_duplicate_document_ids() -> None:
         ValueError,
         match=r"^documents must not contain duplicate document_id values\.$",
     ):
-        detect_synthetic_claim_contradictions(
+        detect_passage_contradictions(
             (
                 _document("SYNTHETIC_SOURCE_DUPLICATE"),
                 _document("SYNTHETIC_SOURCE_DUPLICATE"),
@@ -182,10 +276,15 @@ def test_rejects_duplicate_document_ids() -> None:
         )
 
 
+def test_alias_still_points_to_passage_detector() -> None:
+    assert detect_synthetic_claim_contradictions is detect_passage_contradictions
+
+
 def test_rag_package_exports_contradiction_detector_contract() -> None:
     assert rag.ContradictionDetectionResult is ContradictionDetectionResult
     assert rag.DetectedClaimPassage is DetectedClaimPassage
     assert rag.DetectedContradictionPair is DetectedContradictionPair
+    assert rag.detect_passage_contradictions is detect_passage_contradictions
     assert rag.detect_synthetic_claim_contradictions is (
         detect_synthetic_claim_contradictions
     )

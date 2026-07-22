@@ -4,7 +4,8 @@
 
 The evaluation suites are deterministic, local, and synthetic. They are
 engineering regression checks for the offline MVP and RAG demo. They do not
-measure tax correctness, professional review quality, or productive readiness.
+measure tax correctness, professional review quality, general semantic NLP
+quality, or productive readiness.
 
 Human Review remains mandatory for tax-relevant draft material.
 
@@ -40,17 +41,27 @@ The command prints JSON with:
 - `suite_summaries`
 - boundary notes
 
-On the experiment branch, the expected portfolio case count is 32 and the
-expected binary-suite pass rate is `1.0`.
+On the experiment branch after the review corrections, the portfolio baseline
+currently aggregates **37** synthetic cases. A binary-suite pass rate of `1.0`
+means expected and observed labels currently agree for the workflow, abstention,
+contradiction, and freshness suites under the current deterministic fixtures.
+It is not evidence of productive RAG quality.
 
 ## Suite interpretation
 
 Workflow, RAG abstention, RAG contradiction, and RAG freshness expose binary
-pass rates because their synthetic cases have deterministic expected outcomes.
+pass rates because their synthetic cases have deterministic expected outcomes
+that are compared against separately observed results.
 
 Retrieval and grounding expose metrics such as recall and citation/source match
-rates. The project does not invent a pass/fail threshold for those suites in
-this branch.
+rates. The project does not invent a pass/fail threshold for those suites.
+
+Contradiction detection on this branch uses a closed set of deterministic
+templates over natural synthetic sentences. It is not a claim of general
+semantic contradiction understanding.
+
+Freshness detection uses supersession and explicit validity windows. A past
+`valid_from` alone does not make a document outdated.
 
 ## Important boundaries
 
@@ -61,6 +72,7 @@ The evaluation suites:
 - must not require network access in standard tests
 - must not include secrets or real personal data
 - must not be treated as productive tax-quality validation
+- keep ground-truth labels separate from detector observations
 
 The portfolio baseline is useful for regression review and portfolio
 explanation. It does not replace Kanzlei review or Steuerberater responsibility.

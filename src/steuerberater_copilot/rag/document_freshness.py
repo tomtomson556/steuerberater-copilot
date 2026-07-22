@@ -1,4 +1,19 @@
-"""Deterministic outdated-document detection from version records."""
+"""Deterministic outdated-document detection from version metadata.
+
+Outdatedness is derived only from explicit versioning semantics:
+
+1. A newer in-force version in the same ``document_family`` supersedes older
+   versions.
+2. An explicit ``valid_to`` end date closes validity on or after that date.
+
+A document is **not** outdated merely because ``valid_from`` lies in the past.
+That only means the version has already become applicable. Future-dated
+versions that are not yet in force are also not labeled outdated; they are
+simply not yet current.
+
+This helper is evaluation/retrieval metadata only. It makes no steuerliche
+correctness claim.
+"""
 
 from __future__ import annotations
 
@@ -8,19 +23,16 @@ from datetime import date
 
 @dataclass(frozen=True, slots=True)
 class DocumentVersionRecord:
-    """Version metadata for one synthetic source document.
-
-    Records are evaluation and retrieval-side metadata only. They do not change
-    ``SourceDocument`` content and do not assert fachliche document validity.
-    """
+    """Version metadata for one synthetic source document."""
 
     document_id: str
     document_family: str
     version_number: int
-    effective_date: str
+    valid_from: str
+    valid_to: str | None = None
 
     def __post_init__(self) -> None:
-        for field_name in ("document_id", "document_family", "effective_date"):
+        for field_name in ("document_id", "document_family", "valid_from"):
             value = getattr(self, field_name)
             if not isinstance(value, str):
                 raise TypeError(f"{field_name} must be a string.")
@@ -31,11 +43,24 @@ class DocumentVersionRecord:
         if self.version_number <= 0:
             raise ValueError("version_number must be greater than zero.")
         try:
-            date.fromisoformat(self.effective_date)
+            parsed_from = date.fromisoformat(self.valid_from)
         except ValueError as error:
             raise ValueError(
-                "effective_date must be an ISO calendar date YYYY-MM-DD."
+                "valid_from must be an ISO calendar date YYYY-MM-DD."
             ) from error
+        if self.valid_to is not None:
+            if not isinstance(self.valid_to, str):
+                raise TypeError("valid_to must be a string or None.")
+            if not self.valid_to or self.valid_to.isspace():
+                raise ValueError("valid_to must not be blank when provided.")
+            try:
+                parsed_to = date.fromisoformat(self.valid_to)
+            except ValueError as error:
+                raise ValueError(
+                    "valid_to must be an ISO calendar date YYYY-MM-DD."
+                ) from error
+            if parsed_to <= parsed_from:
+                raise ValueError("valid_to must be strictly after valid_from.")
 
 
 def find_outdated_document_ids(
@@ -45,11 +70,14 @@ def find_outdated_document_ids(
 ) -> tuple[str, ...]:
     """Return outdated document IDs in stable document_id order.
 
-    A document is outdated when either:
+    A document is outdated at ``reference_date`` when either:
 
-    1. its ``effective_date`` is strictly before ``reference_date``, or
-    2. another record in the same ``document_family`` has a higher
-       ``version_number``.
+    1. its validity window has closed
+       (``valid_to`` is set and ``valid_to <= reference_date``), or
+    2. another document in the same family has a higher ``version_number`` that
+       is already in force at ``reference_date``.
+
+    A past ``valid_from`` alone never marks a document outdated.
     """
     if not isinstance(records, tuple):
         raise TypeError("records must be a tuple.")
@@ -72,20 +100,42 @@ def find_outdated_document_ids(
             raise ValueError("records must not contain duplicate document_id values.")
         seen_document_ids.add(record.document_id)
 
-    max_version_by_family: dict[str, int] = {}
+    in_force_by_family: dict[str, list[DocumentVersionRecord]] = {}
     for record in records:
-        current_max = max_version_by_family.get(record.document_family)
-        if current_max is None or record.version_number > current_max:
-            max_version_by_family[record.document_family] = record.version_number
+        if _is_in_force(record, parsed_reference):
+            in_force_by_family.setdefault(record.document_family, []).append(record)
+
+    current_version_by_family = {
+        family: max(family_records, key=lambda item: item.version_number).version_number
+        for family, family_records in in_force_by_family.items()
+    }
 
     outdated_ids: list[str] = []
     for record in records:
-        effective = date.fromisoformat(record.effective_date)
-        superseded = (
-            record.version_number < max_version_by_family[record.document_family]
-        )
-        expired = effective < parsed_reference
-        if superseded or expired:
+        validity_closed = _validity_closed(record, parsed_reference)
+        superseded = False
+        current_version = current_version_by_family.get(record.document_family)
+        if current_version is not None and record.version_number < current_version:
+            # Only versions that already started (or whose window closed after
+            # being overtaken) count as superseded. Future drafts are excluded.
+            if date.fromisoformat(record.valid_from) <= parsed_reference:
+                superseded = True
+        if validity_closed or superseded:
             outdated_ids.append(record.document_id)
 
     return tuple(sorted(outdated_ids))
+
+
+def _is_in_force(record: DocumentVersionRecord, reference: date) -> bool:
+    started = date.fromisoformat(record.valid_from) <= reference
+    if not started:
+        return False
+    if record.valid_to is None:
+        return True
+    return date.fromisoformat(record.valid_to) > reference
+
+
+def _validity_closed(record: DocumentVersionRecord, reference: date) -> bool:
+    if record.valid_to is None:
+        return False
+    return date.fromisoformat(record.valid_to) <= reference

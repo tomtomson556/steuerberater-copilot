@@ -15,6 +15,7 @@ def test_rag_package_exports_local_document_retriever() -> None:
         "DocumentVersionRecord",
         "LocalDocumentRetriever",
         "SourceDocument",
+        "detect_passage_contradictions",
         "detect_synthetic_claim_contradictions",
         "find_outdated_document_ids",
     ]
