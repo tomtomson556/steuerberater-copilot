@@ -136,6 +136,8 @@ Details zur Interpretation stehen im
 [Evaluation Guide](docs/10-testing-quality/evaluation-guide.md). Der aktuelle
 Branch-Status steht in
 [Portfolio Status July 2026](docs/10-mvp-scope/portfolio-status-2026-07.md).
+Die Red-Team-/Hardening-Bewertung steht in
+[Experiment Hardening Assessment](docs/10-mvp-scope/experiment-hardening-assessment-2026-07.md).
 
 Lokale Offline-MVP-JSON-Ausgaben fuer synthetische Fixtures:
 

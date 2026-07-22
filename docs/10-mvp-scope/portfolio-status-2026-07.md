@@ -64,6 +64,8 @@ See also
 - `FakeModelProvider` remains the default for tests and demos.
 - FastAPI stays a system-boundary demo, not workflow logic.
 - Docker is a local deployment baseline candidate, not a cloud decision.
+  Container build/smoke was not verified in the latest hardening environment
+  because Docker was unavailable there.
 - Reference-cloud selection remains open until 31 August 2026.
 - Azure IaC on this branch is an experimental prototype only.
 - Multi-Cloud support remains out of scope.
