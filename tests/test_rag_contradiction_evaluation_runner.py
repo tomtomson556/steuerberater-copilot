@@ -155,6 +155,47 @@ def test_runner_observes_no_contradiction_for_same_claim_value() -> None:
     assert result.observed_contradicting_passages == ()
 
 
+def test_runner_observes_polarity_based_retention_contradiction() -> None:
+    evaluation_case = RAGContradictionEvaluationCase(
+        evaluation_id="EVAL_RAG_CONTRADICTION_RUNNER_NEGATION",
+        source_documents=(
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_AFFIRM",
+                content="Natural sentence. The retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_DENY",
+                content="Natural sentence. The retention period is not 10 years.",
+            ),
+        ),
+        expected_contradiction_present=True,
+        contradicting_passages=(
+            ContradictionEvidenceLabel(
+                document_id="SYNTHETIC_SOURCE_RETENTION_AFFIRM",
+                supporting_text="The retention period is 10 years.",
+            ),
+            ContradictionEvidenceLabel(
+                document_id="SYNTHETIC_SOURCE_RETENTION_DENY",
+                supporting_text="The retention period is not 10 years.",
+            ),
+        ),
+    )
+
+    result = run_offline_rag_contradiction_evaluation_case(evaluation_case)
+
+    assert result.observed_contradiction_present is True
+    assert result.observed_contradicting_passages == (
+        ContradictionEvidenceLabel(
+            document_id="SYNTHETIC_SOURCE_RETENTION_AFFIRM",
+            supporting_text="The retention period is 10 years.",
+        ),
+        ContradictionEvidenceLabel(
+            document_id="SYNTHETIC_SOURCE_RETENTION_DENY",
+            supporting_text="The retention period is not 10 years.",
+        ),
+    )
+
+
 def test_runner_rejects_invalid_evaluation_case() -> None:
     with pytest.raises(
         TypeError,

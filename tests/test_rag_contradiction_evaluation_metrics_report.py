@@ -23,10 +23,12 @@ EXPECTED_BASELINE_EVALUATION_IDS = (
     "EVAL_RAG_CONTRADICTION_BASELINE_RETENTION_CONFLICT",
     "EVAL_RAG_CONTRADICTION_BASELINE_NO_CLAIM_OVERLAP",
     "EVAL_RAG_CONTRADICTION_BASELINE_SAME_FACT_PARAPHRASE",
-    "EVAL_RAG_CONTRADICTION_BASELINE_DEADLINE_CONFLICT",
-    "EVAL_RAG_CONTRADICTION_BASELINE_DIFFERENT_ATTRIBUTES_SAME_NUMBER",
-    "EVAL_RAG_CONTRADICTION_BASELINE_ARCHIVE_REQUIREMENT_CONFLICT",
+    "EVAL_RAG_CONTRADICTION_BASELINE_DIFFERENT_SUBJECTS",
+    "EVAL_RAG_CONTRADICTION_BASELINE_TEMPORAL_SCOPES",
+    "EVAL_RAG_CONTRADICTION_BASELINE_RETENTION_NEGATION",
+    "EVAL_RAG_CONTRADICTION_BASELINE_ARCHIVE_NOT_REQUIRED",
     "EVAL_RAG_CONTRADICTION_BASELINE_MARKER_NOISE_IGNORED",
+    "EVAL_RAG_CONTRADICTION_BASELINE_KNOWN_LIMITATION_DECADE",
 )
 
 
@@ -76,17 +78,19 @@ def test_baseline_suite_has_exact_metrics() -> None:
 
     report = run_offline_rag_contradiction_evaluation_suite(cases)
 
-    assert report.total_case_count == 7
+    assert report.total_case_count == 9
     assert tuple(
         assessment.evaluation_run_result.evaluation_case.evaluation_id
         for assessment in report.assessments
     ) == EXPECTED_BASELINE_EVALUATION_IDS
-    assert report.passed_case_count == 7
-    assert report.failed_case_count == 0
-    assert report.pass_rate == 1.0
-    assert report.failed_evaluation_ids == ()
-    assert report.expected_contradiction_case_count == 3
-    assert report.contradiction_detection_rate == 1.0
+    assert report.passed_case_count == 8
+    assert report.failed_case_count == 1
+    assert report.pass_rate == 8 / 9
+    assert report.failed_evaluation_ids == (
+        "EVAL_RAG_CONTRADICTION_BASELINE_KNOWN_LIMITATION_DECADE",
+    )
+    assert report.expected_contradiction_case_count == 4
+    assert report.contradiction_detection_rate == 3 / 4
 
 
 def test_suite_preserves_case_order_and_identities() -> None:

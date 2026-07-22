@@ -48,9 +48,15 @@ contradiction, freshness) are assessed with exact expected/observed
 comparisons. Retrieval and grounding remain metric suites without invented
 binary pass/fail thresholds.
 
-A high binary pass rate means the current deterministic fixtures and detectors
-agree on labeled cases. It is not proof of productive RAG quality, general
+After the hardening pass, the portfolio baseline contains 41 synthetic cases.
+The binary suites contain 28 cases with 27 passing; the failed case is the
+documented contradiction limitation for informal "decade" wording. A high
+binary pass rate means the current deterministic fixtures and detectors agree
+on most labeled cases. It is not proof of productive RAG quality, general
 contradiction understanding, or End-to-End safety.
+
+See also
+[`experiment-hardening-assessment-2026-07.md`](experiment-hardening-assessment-2026-07.md).
 
 ## Decisions and non-decisions
 

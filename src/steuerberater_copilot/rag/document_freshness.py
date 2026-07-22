@@ -3,13 +3,21 @@
 Outdatedness is derived only from explicit versioning semantics:
 
 1. A newer in-force version in the same ``document_family`` supersedes older
-   versions.
-2. An explicit ``valid_to`` end date closes validity on or after that date.
+   started versions.
+2. An explicit ``valid_to`` end date closes validity when
+   ``valid_to <= reference_date`` (exact boundary inclusive for closure).
 
-A document is **not** outdated merely because ``valid_from`` lies in the past.
-That only means the version has already become applicable. Future-dated
-versions that are not yet in force are also not labeled outdated; they are
-simply not yet current.
+Additional deterministic rules:
+
+- A past ``valid_from`` alone never marks a document outdated.
+- Future-dated versions (``valid_from > reference_date``) are not outdated and
+  do not supersede yet.
+- Overlapping in-force windows are allowed; the highest in-force
+  ``version_number`` is current and lower started versions are superseded.
+- If the highest version has already closed, a lower still-open version may
+  remain current.
+- Version gaps are allowed (for example 1 and 3).
+- Duplicate ``version_number`` values inside one family are rejected.
 
 This helper is evaluation/retrieval metadata only. It makes no steuerliche
 correctness claim.
@@ -68,17 +76,7 @@ def find_outdated_document_ids(
     *,
     reference_date: str,
 ) -> tuple[str, ...]:
-    """Return outdated document IDs in stable document_id order.
-
-    A document is outdated at ``reference_date`` when either:
-
-    1. its validity window has closed
-       (``valid_to`` is set and ``valid_to <= reference_date``), or
-    2. another document in the same family has a higher ``version_number`` that
-       is already in force at ``reference_date``.
-
-    A past ``valid_from`` alone never marks a document outdated.
-    """
+    """Return outdated document IDs in stable document_id order."""
     if not isinstance(records, tuple):
         raise TypeError("records must be a tuple.")
     if not isinstance(reference_date, str):
@@ -93,12 +91,20 @@ def find_outdated_document_ids(
         ) from error
 
     seen_document_ids: set[str] = set()
+    seen_family_versions: set[tuple[str, int]] = set()
     for record in records:
         if not isinstance(record, DocumentVersionRecord):
             raise TypeError("records must contain only DocumentVersionRecord objects.")
         if record.document_id in seen_document_ids:
             raise ValueError("records must not contain duplicate document_id values.")
         seen_document_ids.add(record.document_id)
+        family_version = (record.document_family, record.version_number)
+        if family_version in seen_family_versions:
+            raise ValueError(
+                "records must not contain duplicate version_number values "
+                "inside the same document_family."
+            )
+        seen_family_versions.add(family_version)
 
     in_force_by_family: dict[str, list[DocumentVersionRecord]] = {}
     for record in records:
@@ -116,8 +122,6 @@ def find_outdated_document_ids(
         superseded = False
         current_version = current_version_by_family.get(record.document_family)
         if current_version is not None and record.version_number < current_version:
-            # Only versions that already started (or whose window closed after
-            # being overtaken) count as superseded. Future drafts are excluded.
             if date.fromisoformat(record.valid_from) <= parsed_reference:
                 superseded = True
         if validity_closed or superseded:

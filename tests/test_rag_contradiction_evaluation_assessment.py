@@ -56,6 +56,7 @@ def test_expected_and_observed_contradiction_with_matching_passages_passes() -> 
     )
 
     assert assessment.contradiction_present_matches is True
+    assert assessment.contradicting_document_ids_match is True
     assert assessment.contradicting_passages_match is True
     assert assessment.passed is True
 
@@ -66,6 +67,7 @@ def test_expected_absent_and_observed_absent_passes() -> None:
     )
 
     assert assessment.contradiction_present_matches is True
+    assert assessment.contradicting_document_ids_match is True
     assert assessment.contradicting_passages_match is True
     assert assessment.passed is True
 
@@ -76,11 +78,12 @@ def test_presence_mismatch_fails_even_when_passage_sets_match() -> None:
     )
 
     assert assessment.contradiction_present_matches is False
+    assert assessment.contradicting_document_ids_match is False
     assert assessment.contradicting_passages_match is False
     assert assessment.passed is False
 
 
-def test_passage_mismatch_fails_even_when_presence_matches() -> None:
+def test_document_id_mismatch_fails_even_when_presence_matches() -> None:
     assessment = assess_rag_contradiction_evaluation_run_result(
         _run_result(
             expected=True,
@@ -99,8 +102,33 @@ def test_passage_mismatch_fails_even_when_presence_matches() -> None:
     )
 
     assert assessment.contradiction_present_matches is True
+    assert assessment.contradicting_document_ids_match is False
     assert assessment.contradicting_passages_match is False
     assert assessment.passed is False
+
+
+def test_exact_passage_mismatch_is_diagnostic_only_when_document_ids_match() -> None:
+    assessment = assess_rag_contradiction_evaluation_run_result(
+        _run_result(
+            expected=True,
+            observed=True,
+            observed_passages=(
+                ContradictionEvidenceLabel(
+                    document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+                    supporting_text="A normalized paraphrase for ten years.",
+                ),
+                ContradictionEvidenceLabel(
+                    document_id="SYNTHETIC_SOURCE_RETENTION_SEVEN",
+                    supporting_text="A normalized paraphrase for seven years.",
+                ),
+            ),
+        )
+    )
+
+    assert assessment.contradiction_present_matches is True
+    assert assessment.contradicting_document_ids_match is True
+    assert assessment.contradicting_passages_match is False
+    assert assessment.passed is True
 
 
 def test_passage_matching_ignores_observed_label_order() -> None:
@@ -112,6 +140,7 @@ def test_passage_matching_ignores_observed_label_order() -> None:
         )
     )
 
+    assert assessment.contradicting_document_ids_match is True
     assert assessment.contradicting_passages_match is True
     assert assessment.passed is True
 

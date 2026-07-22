@@ -41,11 +41,13 @@ The command prints JSON with:
 - `suite_summaries`
 - boundary notes
 
-On the experiment branch after the review corrections, the portfolio baseline
-currently aggregates **37** synthetic cases. A binary-suite pass rate of `1.0`
-means expected and observed labels currently agree for the workflow, abstention,
-contradiction, and freshness suites under the current deterministic fixtures.
-It is not evidence of productive RAG quality.
+On the experiment branch after the hardening pass, the portfolio baseline
+currently aggregates **41** synthetic cases. The binary suites currently pass
+**27 of 28** cases. The non-passing case is the documented contradiction
+known limitation for informal "decade" wording, so `--portfolio-baseline`
+returns exit code `1` until that limitation is intentionally resolved or the
+baseline is re-scoped. This pass rate is regression information, not a quality
+target and not evidence of productive RAG quality.
 
 ## Suite interpretation
 
@@ -58,10 +60,12 @@ rates. The project does not invent a pass/fail threshold for those suites.
 
 Contradiction detection on this branch uses a closed set of deterministic
 templates over natural synthetic sentences. It is not a claim of general
-semantic contradiction understanding.
+semantic contradiction understanding. The suite intentionally includes one
+expected-positive case that the detector misses for informal "decade" wording.
 
-Freshness detection uses supersession and explicit validity windows. A past
-`valid_from` alone does not make a document outdated.
+Freshness detection uses supersession, explicit validity windows, inclusive
+`valid_to` closure, overlapping-window handling, and duplicate family/version
+rejection. A past `valid_from` alone does not make a document outdated.
 
 ## Important boundaries
 

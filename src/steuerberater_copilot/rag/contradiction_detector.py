@@ -2,13 +2,15 @@
 
 This detector extracts a **closed** set of attribute/value facts from natural
 synthetic sentences using explicit regex templates. It then flags pairs that
-assign different values to the same attribute across source documents.
+conflict on the same scoped attribute key.
 
 It is intentionally limited:
 
 - offline and deterministic
 - no embeddings, no LLM calls, no general semantic NLP claim
 - only attributes covered by the published extraction templates are visible
+- temporally hedged sentences are skipped for unscoped extraction
+- subject-scoped claims do not collide with other subjects
 
 Ground-truth labels for evaluation live outside this module and must not be
 read by the detector.
@@ -24,6 +26,9 @@ from dataclasses import dataclass
 from .source_document import SourceDocument
 
 _SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!?])\s+")
+_TEMPORAL_HEDGE_PATTERN = re.compile(
+    r"\b(?:until|from|before|after|between|starting|through|during|as of|effective)\b"
+)
 _NUMBER_WORDS = {
     "zero": "0",
     "one": "1",
@@ -39,6 +44,7 @@ _NUMBER_WORDS = {
     "eleven": "11",
     "twelve": "12",
 }
+_ALLOWED_POLARITIES = frozenset({"affirm", "deny"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +55,7 @@ class DetectedClaimPassage:
     supporting_text: str
     claim_key: str
     claim_value: str
+    polarity: str = "affirm"
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -56,17 +63,20 @@ class DetectedClaimPassage:
             "supporting_text",
             "claim_key",
             "claim_value",
+            "polarity",
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str):
                 raise TypeError(f"{field_name} must be a string.")
             if not value or value.isspace():
                 raise ValueError(f"{field_name} must not be blank.")
+        if self.polarity not in _ALLOWED_POLARITIES:
+            raise ValueError("polarity must be 'affirm' or 'deny'.")
 
 
 @dataclass(frozen=True, slots=True)
 class DetectedContradictionPair:
-    """Two passages with the same attribute key but different values."""
+    """Two passages that conflict on the same scoped claim key."""
 
     claim_key: str
     first: DetectedClaimPassage
@@ -83,8 +93,8 @@ class DetectedContradictionPair:
             raise TypeError("second must be a DetectedClaimPassage.")
         if self.first.claim_key != self.claim_key or self.second.claim_key != self.claim_key:
             raise ValueError("both passages must use the contradiction claim_key.")
-        if self.first.claim_value == self.second.claim_value:
-            raise ValueError("contradicting passages must have different claim values.")
+        if not _claims_conflict(self.first, self.second):
+            raise ValueError("passages must form a contradiction under closed rules.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +128,7 @@ class ContradictionDetectionResult:
 def detect_passage_contradictions(
     documents: tuple[SourceDocument, ...],
 ) -> ContradictionDetectionResult:
-    """Detect attribute-value conflicts across natural synthetic passages."""
+    """Detect scoped attribute-value conflicts across natural synthetic passages."""
     if not isinstance(documents, tuple):
         raise TypeError("documents must be a tuple.")
 
@@ -136,22 +146,9 @@ def detect_passage_contradictions(
     contradictions: list[DetectedContradictionPair] = []
     for claim_key in sorted(passages_by_key):
         passages = passages_by_key[claim_key]
-        first_by_value: dict[str, DetectedClaimPassage] = {}
-        for passage in passages:
-            if passage.claim_value not in first_by_value:
-                first_by_value[passage.claim_value] = passage
-        distinct_values = sorted(first_by_value)
-        if len(distinct_values) < 2:
-            continue
-        first = first_by_value[distinct_values[0]]
-        second = first_by_value[distinct_values[1]]
-        contradictions.append(
-            DetectedContradictionPair(
-                claim_key=claim_key,
-                first=first,
-                second=second,
-            )
-        )
+        pair = _first_conflict_pair(claim_key, passages)
+        if pair is not None:
+            contradictions.append(pair)
 
     return ContradictionDetectionResult(
         contradiction_present=bool(contradictions),
@@ -163,21 +160,67 @@ def detect_passage_contradictions(
 detect_synthetic_claim_contradictions = detect_passage_contradictions
 
 
+def _claims_conflict(
+    first: DetectedClaimPassage,
+    second: DetectedClaimPassage,
+) -> bool:
+    if first.claim_key != second.claim_key:
+        return False
+    if first.polarity == "affirm" and second.polarity == "affirm":
+        return first.claim_value != second.claim_value
+    if first.claim_value == second.claim_value and first.polarity != second.polarity:
+        return True
+    return False
+
+
+def _first_conflict_pair(
+    claim_key: str,
+    passages: list[DetectedClaimPassage],
+) -> DetectedContradictionPair | None:
+    for index, first in enumerate(passages):
+        for second in passages[index + 1 :]:
+            if _claims_conflict(first, second):
+                ordered = sorted(
+                    (first, second),
+                    key=lambda item: (
+                        item.claim_value,
+                        item.polarity,
+                        item.document_id,
+                        item.supporting_text,
+                    ),
+                )
+                return DetectedContradictionPair(
+                    claim_key=claim_key,
+                    first=ordered[0],
+                    second=ordered[1],
+                )
+    return None
+
+
 def _extract_facts(document: SourceDocument) -> tuple[DetectedClaimPassage, ...]:
     facts: list[DetectedClaimPassage] = []
     for sentence in _split_sentences(document.content):
         normalized_sentence = _normalize_text(sentence)
-        for claim_key, pattern, normalize_value in _FACT_EXTRACTORS:
-            match = pattern.search(normalized_sentence)
+        match_text = normalized_sentence.rstrip(".!?")
+        for extractor in _FACT_EXTRACTORS:
+            match = extractor.pattern.search(match_text)
             if match is None:
                 continue
-            raw_value = match.group("value")
+            if extractor.skip_temporal_hedges and _TEMPORAL_HEDGE_PATTERN.search(
+                match_text
+            ):
+                continue
+            subject = match.groupdict().get("subject")
+            claim_key = extractor.attribute
+            if subject:
+                claim_key = f"{extractor.attribute}::client_{subject}"
             facts.append(
                 DetectedClaimPassage(
                     document_id=document.document_id,
                     supporting_text=sentence,
                     claim_key=claim_key,
-                    claim_value=normalize_value(raw_value),
+                    claim_value=extractor.normalize_value(match.group("value")),
+                    polarity=extractor.polarity,
                 )
             )
     return tuple(facts)
@@ -215,28 +258,64 @@ def _normalize_binary_requirement(value: str) -> str:
     token = value.casefold().strip()
     if token in {"required", "pflicht", "mandatory", "erforderlich"}:
         return "required"
-    if token in {"optional", "freiwillig", "not required"}:
+    if token in {"optional", "freiwillig"}:
         return "optional"
     return token
 
 
-_FACT_EXTRACTORS: tuple[
-    tuple[str, re.Pattern[str], Callable[[str], str]],
-    ...,
-] = (
-    (
-        "retention_years",
-        re.compile(
-            r"(?:the\s+)?retention(?:\s+period)?\s+is\s+(?P<value>\d+|ten|eleven|twelve)\s+years?"
+@dataclass(frozen=True, slots=True)
+class _FactExtractor:
+    attribute: str
+    pattern: re.Pattern[str]
+    normalize_value: Callable[[str], str]
+    polarity: str = "affirm"
+    skip_temporal_hedges: bool = True
+
+
+_FACT_EXTRACTORS: tuple[_FactExtractor, ...] = (
+    _FactExtractor(
+        attribute="retention_years",
+        pattern=re.compile(
+            r"^client\s+(?P<subject>[a-z0-9_-]+)\s+retention(?:\s+period)?\s+is\s+"
+            r"(?P<value>\d+|ten|eleven|twelve)\s+years?$"
         ),
-        _normalize_number_token,
+        normalize_value=_normalize_number_token,
+        skip_temporal_hedges=False,
     ),
-    (
-        "retention_years",
-        re.compile(
-            r"aufbewahrungsfrist\s+betraegt\s+(?P<value>\d+|zehn|elf|zwoelf)\s+jahre?"
+    _FactExtractor(
+        attribute="retention_years",
+        pattern=re.compile(
+            r"^client\s+(?P<subject>[a-z0-9_-]+)\s+retention(?:\s+period)?\s+is\s+not\s+"
+            r"(?P<value>\d+|ten|eleven|twelve)\s+years?$"
         ),
-        lambda value: _normalize_number_token(
+        normalize_value=_normalize_number_token,
+        polarity="deny",
+        skip_temporal_hedges=False,
+    ),
+    _FactExtractor(
+        attribute="retention_years",
+        pattern=re.compile(
+            r"^(?:the\s+)?retention(?:\s+period)?\s+is\s+not\s+"
+            r"(?P<value>\d+|ten|eleven|twelve)\s+years?$"
+        ),
+        normalize_value=_normalize_number_token,
+        polarity="deny",
+    ),
+    _FactExtractor(
+        attribute="retention_years",
+        pattern=re.compile(
+            r"^(?:the\s+)?retention(?:\s+period)?\s+is\s+"
+            r"(?P<value>\d+|ten|eleven|twelve)\s+years?$"
+        ),
+        normalize_value=_normalize_number_token,
+    ),
+    _FactExtractor(
+        attribute="retention_years",
+        pattern=re.compile(
+            r"^(?:die\s+)?aufbewahrungsfrist\s+betraegt\s+"
+            r"(?P<value>\d+|zehn|elf|zwoelf)\s+jahre?$"
+        ),
+        normalize_value=lambda value: _normalize_number_token(
             {
                 "zehn": "ten",
                 "elf": "eleven",
@@ -244,32 +323,40 @@ _FACT_EXTRACTORS: tuple[
             }.get(value.casefold(), value)
         ),
     ),
-    (
-        "filing_deadline",
-        re.compile(
-            r"(?:the\s+)?filing\s+deadline\s+is\s+(?P<value>\d{4}-\d{2}-\d{2})"
+    _FactExtractor(
+        attribute="filing_deadline",
+        pattern=re.compile(
+            r"^(?:the\s+)?filing\s+deadline\s+is\s+(?P<value>\d{4}-\d{2}-\d{2})$"
         ),
-        str.strip,
+        normalize_value=str.strip,
     ),
-    (
-        "filing_deadline",
-        re.compile(
-            r"abgabefrist\s+endet\s+am\s+(?P<value>\d{4}-\d{2}-\d{2})"
+    _FactExtractor(
+        attribute="filing_deadline",
+        pattern=re.compile(
+            r"^abgabefrist\s+endet\s+am\s+(?P<value>\d{4}-\d{2}-\d{2})$"
         ),
-        str.strip,
+        normalize_value=str.strip,
     ),
-    (
-        "archive_requirement",
-        re.compile(
-            r"(?:the\s+)?archive\s+is\s+(?P<value>required|optional|mandatory|not required)"
+    # Negated archive wording normalizes to optional; list before positive form.
+    _FactExtractor(
+        attribute="archive_requirement",
+        pattern=re.compile(
+            r"^(?:the\s+)?archive\s+is\s+not\s+(?P<value>required|mandatory)$"
         ),
-        _normalize_binary_requirement,
+        normalize_value=lambda _value: "optional",
     ),
-    (
-        "archive_requirement",
-        re.compile(
-            r"archivierung\s+ist\s+(?P<value>pflicht|freiwillig|erforderlich|optional)"
+    _FactExtractor(
+        attribute="archive_requirement",
+        pattern=re.compile(
+            r"^(?:the\s+)?archive\s+is\s+(?P<value>required|optional|mandatory)$"
         ),
-        _normalize_binary_requirement,
+        normalize_value=_normalize_binary_requirement,
+    ),
+    _FactExtractor(
+        attribute="archive_requirement",
+        pattern=re.compile(
+            r"^archivierung\s+ist\s+(?P<value>pflicht|freiwillig|erforderlich|optional)$"
+        ),
+        normalize_value=_normalize_binary_requirement,
     ),
 )

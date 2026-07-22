@@ -113,6 +113,26 @@ def test_runner_observes_empty_tuple_for_current_documents() -> None:
     assert result.observed_outdated_document_ids == ()
 
 
+def test_runner_observes_valid_to_exact_reference_as_outdated() -> None:
+    evaluation_case = RAGFreshnessEvaluationCase(
+        evaluation_id="EVAL_RAG_FRESHNESS_RUNNER_VALID_TO_EXACT",
+        source_documents=(_document("SYNTHETIC_SOURCE_EXACT_VALID_TO"),),
+        version_records=(
+            _record(
+                "SYNTHETIC_SOURCE_EXACT_VALID_TO",
+                valid_from="2025-01-01",
+                valid_to="2026-07-01",
+            ),
+        ),
+        reference_date="2026-07-01",
+        expected_outdated_document_ids=("SYNTHETIC_SOURCE_EXACT_VALID_TO",),
+    )
+
+    result = run_offline_rag_freshness_evaluation_case(evaluation_case)
+
+    assert result.observed_outdated_document_ids == ("SYNTHETIC_SOURCE_EXACT_VALID_TO",)
+
+
 def test_runner_rejects_invalid_evaluation_case() -> None:
     with pytest.raises(
         TypeError,

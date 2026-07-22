@@ -172,11 +172,13 @@ def portfolio_evaluation_baseline_to_dict(
         "notes": [
             "Synthetic offline baseline only.",
             "Experiment-branch aggregation; not a main-branch completion claim.",
-            "Binary pass rate reflects exact expected/observed agreement on "
-            "current deterministic fixtures only.",
-            "Contradiction detection uses closed templates, not general NLP.",
-            "Freshness uses supersession and validity windows, not past-start=outdated.",
+            "Binary pass rate is not a quality target; known detector limitations may fail.",
+            "Contradiction detection uses closed templates with subject/temporal limits, "
+            "not general NLP.",
+            "Freshness uses supersession and inclusive valid_to closure.",
             "Retrieval and grounding remain metric suites without invented pass thresholds.",
+            "Docker container smoke was not verified in the hardening environment "
+            "when Docker was unavailable.",
             "Not productive evaluation.",
             "Not individual tax advice.",
             "Human Review remains required for tax-relevant drafts.",

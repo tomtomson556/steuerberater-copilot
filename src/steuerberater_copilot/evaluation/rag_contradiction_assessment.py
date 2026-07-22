@@ -9,13 +9,16 @@ from .rag_contradiction_runner import RAGContradictionEvaluationRunResult
 
 @dataclass(frozen=True, slots=True)
 class RAGContradictionEvaluationCaseAssessment:
-    """Exact contradiction presence and passage match for one result.
+    """Contradiction presence and implicated-document match for one result.
 
-    Pass requires an exact bool match for contradiction presence. Positive
-    expected cases also require exact multiset equality of
-    ``(document_id, supporting_text)`` pairs between expected and observed
-    passages. Negative cases already require empty expected passages by
-    contract.
+    Pass requires:
+
+    1. exact bool match for contradiction presence, and
+    2. exact set equality of implicated ``document_id`` values.
+
+    Exact supporting-text equality is reported as a diagnostic signal only. It
+    is intentionally not required for ``passed``, so evaluation does not reward
+    copying detector sentence strings into ground truth.
     """
 
     evaluation_run_result: RAGContradictionEvaluationRunResult
@@ -38,7 +41,20 @@ class RAGContradictionEvaluationCaseAssessment:
         )
 
     @property
+    def contradicting_document_ids_match(self) -> bool:
+        expected = {
+            label.document_id
+            for label in self.evaluation_run_result.evaluation_case.contradicting_passages
+        }
+        observed = {
+            label.document_id
+            for label in self.evaluation_run_result.observed_contradicting_passages
+        }
+        return expected == observed
+
+    @property
     def contradicting_passages_match(self) -> bool:
+        """Diagnostic exact passage match; not required for ``passed``."""
         expected = {
             (label.document_id, label.supporting_text)
             for label in self.evaluation_run_result.evaluation_case.contradicting_passages
@@ -51,13 +67,16 @@ class RAGContradictionEvaluationCaseAssessment:
 
     @property
     def passed(self) -> bool:
-        return self.contradiction_present_matches and self.contradicting_passages_match
+        return (
+            self.contradiction_present_matches
+            and self.contradicting_document_ids_match
+        )
 
 
 def assess_rag_contradiction_evaluation_run_result(
     evaluation_run_result: RAGContradictionEvaluationRunResult,
 ) -> RAGContradictionEvaluationCaseAssessment:
-    """Assess one contradiction result using exact expected/observed comparison."""
+    """Assess one contradiction result using presence and document-id comparison."""
     return RAGContradictionEvaluationCaseAssessment(
         evaluation_run_result=evaluation_run_result,
     )

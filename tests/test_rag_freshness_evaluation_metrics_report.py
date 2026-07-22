@@ -20,8 +20,10 @@ EXPECTED_BASELINE_EVALUATION_IDS = (
     "EVAL_RAG_FRESHNESS_BASELINE_VALIDITY_ENDED",
     "EVAL_RAG_FRESHNESS_BASELINE_CURRENT_DESPITE_PAST_START",
     "EVAL_RAG_FRESHNESS_BASELINE_FUTURE_DRAFT_NOT_OUTDATED",
-    "EVAL_RAG_FRESHNESS_BASELINE_MIXED",
-    "EVAL_RAG_FRESHNESS_BASELINE_SAME_FAMILY_NOT_YET_SUPERSEDING",
+    "EVAL_RAG_FRESHNESS_BASELINE_OVERLAPPING_WINDOWS",
+    "EVAL_RAG_FRESHNESS_BASELINE_HIGHEST_EXPIRED_LOWER_CURRENT",
+    "EVAL_RAG_FRESHNESS_BASELINE_VALID_TO_EXACT_REFERENCE",
+    "EVAL_RAG_FRESHNESS_BASELINE_VERSION_GAP",
 )
 
 
@@ -74,16 +76,16 @@ def test_baseline_suite_has_exact_metrics() -> None:
 
     report = run_offline_rag_freshness_evaluation_suite(cases)
 
-    assert report.total_case_count == 6
+    assert report.total_case_count == 8
     assert tuple(
         assessment.evaluation_run_result.evaluation_case.evaluation_id
         for assessment in report.assessments
     ) == EXPECTED_BASELINE_EVALUATION_IDS
-    assert report.passed_case_count == 6
+    assert report.passed_case_count == 8
     assert report.failed_case_count == 0
     assert report.pass_rate == 1.0
     assert report.failed_evaluation_ids == ()
-    assert report.expected_outdated_document_count == 4
+    assert report.expected_outdated_document_count == 6
     assert report.outdated_detection_rate == 1.0
 
 

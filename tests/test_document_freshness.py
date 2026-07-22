@@ -187,6 +187,22 @@ def test_find_outdated_document_ids_detects_closed_validity_window() -> None:
     )
 
 
+def test_find_outdated_document_ids_treats_valid_to_reference_date_as_closed() -> None:
+    records = (
+        _record(
+            "SYNTHETIC_EXACT_BOUNDARY_NOTICE",
+            family="boundary_notice",
+            version=1,
+            valid_from="2025-01-01",
+            valid_to="2026-07-01",
+        ),
+    )
+
+    assert find_outdated_document_ids(records, reference_date="2026-07-01") == (
+        "SYNTHETIC_EXACT_BOUNDARY_NOTICE",
+    )
+
+
 def test_find_outdated_document_ids_keeps_past_valid_from_current() -> None:
     records = (
         _record(
@@ -217,6 +233,71 @@ def test_find_outdated_document_ids_future_draft_is_not_outdated_and_does_not_su
     )
 
     assert find_outdated_document_ids(records, reference_date="2026-07-01") == ()
+
+
+def test_find_outdated_document_ids_handles_overlapping_in_force_windows() -> None:
+    records = (
+        _record(
+            "SYNTHETIC_OVERLAP_POLICY_V1",
+            family="overlap_policy",
+            version=1,
+            valid_from="2025-01-01",
+            valid_to="2026-12-31",
+        ),
+        _record(
+            "SYNTHETIC_OVERLAP_POLICY_V2",
+            family="overlap_policy",
+            version=2,
+            valid_from="2026-01-01",
+        ),
+    )
+
+    assert find_outdated_document_ids(records, reference_date="2026-07-01") == (
+        "SYNTHETIC_OVERLAP_POLICY_V1",
+    )
+
+
+def test_find_outdated_document_ids_keeps_lower_open_when_highest_version_expired() -> None:
+    records = (
+        _record(
+            "SYNTHETIC_HIGHEST_EXPIRED_POLICY_V1",
+            family="highest_expired_policy",
+            version=1,
+            valid_from="2024-01-01",
+        ),
+        _record(
+            "SYNTHETIC_HIGHEST_EXPIRED_POLICY_V2",
+            family="highest_expired_policy",
+            version=2,
+            valid_from="2025-01-01",
+            valid_to="2026-01-01",
+        ),
+    )
+
+    assert find_outdated_document_ids(records, reference_date="2026-07-01") == (
+        "SYNTHETIC_HIGHEST_EXPIRED_POLICY_V2",
+    )
+
+
+def test_find_outdated_document_ids_allows_version_gaps() -> None:
+    records = (
+        _record(
+            "SYNTHETIC_GAP_POLICY_V1",
+            family="gap_policy",
+            version=1,
+            valid_from="2024-01-01",
+        ),
+        _record(
+            "SYNTHETIC_GAP_POLICY_V3",
+            family="gap_policy",
+            version=3,
+            valid_from="2026-01-01",
+        ),
+    )
+
+    assert find_outdated_document_ids(records, reference_date="2026-07-01") == (
+        "SYNTHETIC_GAP_POLICY_V1",
+    )
 
 
 def test_find_outdated_document_ids_handles_mixed_outdated_reasons() -> None:
@@ -310,6 +391,31 @@ def test_find_outdated_document_ids_rejects_duplicate_document_ids() -> None:
             (
                 _record("SYNTHETIC_SOURCE_DUPLICATE"),
                 _record("SYNTHETIC_SOURCE_DUPLICATE"),
+            ),
+            reference_date="2026-07-01",
+        )
+
+
+def test_find_outdated_document_ids_rejects_duplicate_family_versions() -> None:
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"^records must not contain duplicate version_number values "
+            r"inside the same document_family\.$"
+        ),
+    ):
+        find_outdated_document_ids(
+            (
+                _record(
+                    "SYNTHETIC_POLICY_ALPHA",
+                    family="duplicate_family",
+                    version=2,
+                ),
+                _record(
+                    "SYNTHETIC_POLICY_BETA",
+                    family="duplicate_family",
+                    version=2,
+                ),
             ),
             reference_date="2026-07-01",
         )

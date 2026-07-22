@@ -10,15 +10,17 @@ EXPECTED_BASELINE_EVALUATION_IDS = (
     "EVAL_RAG_FRESHNESS_BASELINE_VALIDITY_ENDED",
     "EVAL_RAG_FRESHNESS_BASELINE_CURRENT_DESPITE_PAST_START",
     "EVAL_RAG_FRESHNESS_BASELINE_FUTURE_DRAFT_NOT_OUTDATED",
-    "EVAL_RAG_FRESHNESS_BASELINE_MIXED",
-    "EVAL_RAG_FRESHNESS_BASELINE_SAME_FAMILY_NOT_YET_SUPERSEDING",
+    "EVAL_RAG_FRESHNESS_BASELINE_OVERLAPPING_WINDOWS",
+    "EVAL_RAG_FRESHNESS_BASELINE_HIGHEST_EXPIRED_LOWER_CURRENT",
+    "EVAL_RAG_FRESHNESS_BASELINE_VALID_TO_EXACT_REFERENCE",
+    "EVAL_RAG_FRESHNESS_BASELINE_VERSION_GAP",
 )
 
 
-def test_library_has_exactly_six_cases_with_expected_ids() -> None:
+def test_library_has_exactly_eight_cases_with_expected_ids() -> None:
     cases = build_synthetic_rag_freshness_evaluation_case_library()
 
-    assert len(cases) == 6
+    assert len(cases) == 8
     assert tuple(case.evaluation_id for case in cases) == EXPECTED_BASELINE_EVALUATION_IDS
     assert all(isinstance(case, RAGFreshnessEvaluationCase) for case in cases)
 
@@ -31,11 +33,10 @@ def test_library_cases_have_expected_outdated_document_ids() -> None:
         ("SYNTHETIC_FRESHNESS_VALIDITY_ENDED",),
         (),
         (),
-        (
-            "SYNTHETIC_FRESHNESS_MIXED_ENDED",
-            "SYNTHETIC_FRESHNESS_MIXED_OLD",
-        ),
-        (),
+        ("SYNTHETIC_FRESHNESS_OVERLAP_V1",),
+        ("SYNTHETIC_FRESHNESS_HIGHEST_EXPIRED_V2",),
+        ("SYNTHETIC_FRESHNESS_VALID_TO_EXACT",),
+        ("SYNTHETIC_FRESHNESS_GAP_V1",),
     )
 
 
@@ -44,8 +45,8 @@ def test_freshness_suite_passes_without_model_provider() -> None:
 
     report = run_offline_rag_freshness_evaluation_suite(cases)
 
-    assert report.total_case_count == 6
-    assert report.passed_case_count == 6
+    assert report.total_case_count == 8
+    assert report.passed_case_count == 8
     assert report.failed_case_count == 0
     assert report.pass_rate == 1.0
     assert report.failed_evaluation_ids == ()

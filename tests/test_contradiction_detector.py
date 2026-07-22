@@ -43,6 +43,84 @@ def test_detects_opposing_retention_sentences() -> None:
         "The retention period is 10 years.",
         "The retention period is 7 years.",
     }
+    assert {contradiction.first.polarity, contradiction.second.polarity} == {"affirm"}
+
+
+def test_subject_scoped_retention_conflicts_only_with_same_subject() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_ALPHA_TEN",
+                content="Client Alpha retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_ALPHA_SEVEN",
+                content="Client Alpha retention period is 7 years.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    assert result.contradictions[0].claim_key == "retention_years::client_alpha"
+
+
+def test_different_subject_retention_sentences_do_not_collide() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_ALPHA",
+                content="Client Alpha retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_BETA",
+                content="Client Beta retention period is 7 years.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is False
+    assert result.contradictions == ()
+
+
+def test_temporal_retention_sentences_are_not_unscoped_facts() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_UNTIL",
+                content="Until 2024, the retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_FROM",
+                content="From 2025, the retention period is 7 years.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is False
+    assert result.contradictions == ()
+
+
+def test_negated_retention_sentence_conflicts_by_polarity() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_AFFIRM",
+                content="The retention period is 10 years.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_RETENTION_DENY",
+                content="The retention period is not 10 years.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    contradiction = result.contradictions[0]
+    assert contradiction.claim_key == "retention_years"
+    assert {
+        (contradiction.first.claim_value, contradiction.first.polarity),
+        (contradiction.second.claim_value, contradiction.second.polarity),
+    } == {("10", "affirm"), ("10", "deny")}
 
 
 def test_same_fact_paraphrase_is_not_a_contradiction() -> None:
@@ -116,6 +194,50 @@ def test_detects_opposing_archive_requirement_sentences() -> None:
     } == {"required", "optional"}
 
 
+def test_archive_not_required_normalizes_to_optional_conflict() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_REQUIRED",
+                content="Synthetic archive. The archive is required.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_NOT_REQUIRED",
+                content="Synthetic archive. The archive is not required.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    contradiction = result.contradictions[0]
+    assert contradiction.claim_key == "archive_requirement"
+    assert {
+        (contradiction.first.claim_value, contradiction.first.polarity),
+        (contradiction.second.claim_value, contradiction.second.polarity),
+    } == {("required", "affirm"), ("optional", "affirm")}
+
+
+def test_sentence_final_punctuation_is_stripped_for_matching() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_REQUIRED",
+                content="Synthetic archive. The archive is required!",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_ARCHIVE_OPTIONAL",
+                content="Synthetic archive. The archive is optional?",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is True
+    assert {
+        result.contradictions[0].first.supporting_text,
+        result.contradictions[0].second.supporting_text,
+    } == {"The archive is required!", "The archive is optional?"}
+
+
 def test_different_attributes_with_same_number_are_not_contradictions() -> None:
     result = detect_passage_contradictions(
         (
@@ -176,6 +298,24 @@ def test_no_closed_template_facts_have_no_contradiction() -> None:
     assert result.contradictions == ()
 
 
+def test_informal_decade_wording_is_not_extracted() -> None:
+    result = detect_passage_contradictions(
+        (
+            _document(
+                "SYNTHETIC_SOURCE_DECADE",
+                content="Orchard guidance. Records must be kept for a decade.",
+            ),
+            _document(
+                "SYNTHETIC_SOURCE_SEVEN",
+                content="Orchard guidance. The retention period is 7 years.",
+            ),
+        )
+    )
+
+    assert result.contradiction_present is False
+    assert result.contradictions == ()
+
+
 def test_detection_result_is_immutable_and_uses_slots() -> None:
     result = detect_passage_contradictions(
         (
@@ -203,6 +343,7 @@ def test_detection_result_is_immutable_and_uses_slots() -> None:
         "supporting_text",
         "claim_key",
         "claim_value",
+        "polarity",
     )
     assert DetectedContradictionPair.__slots__ == (
         "claim_key",
@@ -225,7 +366,29 @@ def test_detection_result_rejects_inconsistent_bool_and_pairs() -> None:
         )
 
 
-def test_detected_pair_rejects_same_claim_values() -> None:
+def test_detected_claim_passage_defaults_to_affirm_polarity() -> None:
+    passage = DetectedClaimPassage(
+        document_id="SYNTHETIC_SOURCE_ALPHA",
+        supporting_text="The archive is required.",
+        claim_key="archive_requirement",
+        claim_value="required",
+    )
+
+    assert passage.polarity == "affirm"
+
+
+def test_detected_claim_passage_rejects_unknown_polarity() -> None:
+    with pytest.raises(ValueError, match=r"^polarity must be 'affirm' or 'deny'\.$"):
+        DetectedClaimPassage(
+            document_id="SYNTHETIC_SOURCE_ALPHA",
+            supporting_text="The archive is required.",
+            claim_key="archive_requirement",
+            claim_value="required",
+            polarity="unknown",
+        )
+
+
+def test_detected_pair_rejects_non_conflicting_claims() -> None:
     first = DetectedClaimPassage(
         document_id="SYNTHETIC_SOURCE_ALPHA",
         supporting_text="The archive is required.",
@@ -241,7 +404,7 @@ def test_detected_pair_rejects_same_claim_values() -> None:
 
     with pytest.raises(
         ValueError,
-        match=r"^contradicting passages must have different claim values\.$",
+        match=r"^passages must form a contradiction under closed rules\.$",
     ):
         DetectedContradictionPair(
             claim_key="archive_requirement",
