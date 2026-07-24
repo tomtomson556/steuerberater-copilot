@@ -111,7 +111,8 @@ ai -> offline_mvp
 ```
 
 Als HTTP-Systemrand ist eine minimale FastAPI-Basis mit App Factory,
-`/health` und `/version` vorhanden. Noch nicht vorhanden sind insbesondere
+`/health`, `/version` und dem kontrollierten synthetischen Endpunkt
+`POST /ai/draft` vorhanden. Noch nicht vorhanden sind insbesondere
 Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer,
 Provider- oder Modell-Allowlist, produktive Evaluation, Docker, Persistenz,
 Authentifizierung, Cloud-Deployment, Infrastructure as Code und Monitoring.
@@ -572,20 +573,25 @@ API-Basis:
 - keine Authentifizierung als Pflicht
 
 Die FastAPI-Basis liegt als klarer HTTP-Systemrand unter
-`steuerberater_copilot.api`. Sie stellt nur die App Factory sowie die
-deterministischen Endpunkte `/health` und `/version` bereit und ruft keinen
-RAG-, AI- oder Offline-MVP-Workflow auf. Stabile CLI-JSON-Vertraege bleiben
-unveraendert.
+`steuerberater_copilot.api`. Sie stellt die App Factory sowie die
+deterministischen Endpunkte `/health` und `/version` bereit. Der kontrollierte
+synthetische AI-Draft-Endpunkt `POST /ai/draft` ruft den bestehenden
+RAG-Workflow mit `FakeModelProvider` und lokalen synthetischen Quellen auf.
+Stabile CLI-JSON-Vertraege bleiben unveraendert.
 
 AI-Draft-Endpunkt:
 
-- nur synthetische Demo-Daten
-- kontrollierten AI-Workflow aufrufen
-- strukturierten Output liefern
+- nur synthetische Demo-Daten ueber bekannte `case_id`-Werte
+- kontrollierten synthetischen RAG-Workflow aufrufen
+- strukturierten Pydantic-Output liefern
 - Reviewstatus anzeigen
-- Quellen anzeigen
+- Quellen/Citations anzeigen
 - keine Secrets
 - keine vollstaendigen internen Prompts
+- keine rohe ModelResponse
+- `FakeModelProvider` als sicherer Standard
+- unbekannte Demo-Fall-IDs werden abgelehnt
+- Block/Escalate/Abstain bleiben kontrollierte Workflow-Ergebnisse
 
 Docker-Anforderungen:
 
@@ -1116,3 +1122,21 @@ Cloud-Arbeit in diesem Branch.
   Fachlogik, Authentifizierung, Uvicorn-Start, Docker, Provider- oder
   Secret-Konfiguration. Der naechste Produktionsbranch wird nach dem Merge
   erneut live bestimmt und hier nicht spekulativ vorweggenommen.
+
+### Aktualisierung vom 24. Juli 2026 (AI-Draft-Endpunkt)
+
+- Datum: 24. Juli 2026
+- Aenderung: Der kontrollierte synthetische AI-Draft-Endpunkt
+  `POST /ai/draft` wurde ergaenzt.
+- Umfang: Pydantic Request-/Response-Vertraege als Runtime-Abhaengigkeit
+  `pydantic==2.13.4`, bekannte Demo-Faelle per `case_id`, Aufruf von
+  `build_synthetic_rag_workflow` mit `FakeModelProvider` und
+  `LocalDocumentRetriever`, strukturierte Response mit Gateway-, Risk-,
+  Review-, Abstention- und Citation-Feldern ohne rohe ModelResponse oder
+  interne Prompts sowie offline HTTP-Vertragstests fuer grounded Draft,
+  unbekannte `case_id`, Abstention und Gateway-Block.
+- Auswirkung: Die FastAPI-Demo ruft den bestehenden RAG-Workflow am
+  HTTP-Systemrand auf, ohne Fachlogik in FastAPI, ohne freien Textteingang,
+  ohne echten Provider und ohne Aenderung stabiler CLI-JSON-Vertraege. Der
+  naechste Produktionsbranch wird nach dem Merge erneut live bestimmt und
+  hier nicht spekulativ vorweggenommen.
