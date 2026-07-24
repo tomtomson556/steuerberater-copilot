@@ -500,6 +500,7 @@ feat/add-synthetic-rag-abstention-evaluation-case-library
 feat/add-rag-abstention-evaluation-metrics-report
 feat/add-rag-contradiction-evaluation-case-contract
 feat/add-rag-contradiction-detector
+feat/add-rag-contradiction-evaluation-runner
 ```
 
 Bewusste Vereinfachungen:
@@ -514,7 +515,8 @@ Zuerst wurde eine deterministische lokale Retrieval- und Grounding-Baseline
 umgesetzt. Abstention-Fallvertrag, Runner, Assessment, synthetische
 Fallbibliothek und aggregierte Abstention-Metrik sind vorhanden. Der
 Contradiction-Fallvertrag und die Closed-Template-Widerspruchsbaseline ueber
-natuerliche synthetische Passagen sind ebenfalls vorhanden.
+natuerliche synthetische Passagen sowie der deterministische
+Contradiction-Einzelfall-Runner sind ebenfalls vorhanden.
 
 Pflichtmetriken:
 
@@ -527,10 +529,9 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Weiter offen bleiben insbesondere Contradiction-Evaluation
-(Runner/Assessment/Bibliothek/Metrik), Freshness bzw. veraltete
-Dokumentversion sowie mindestens 30 hochwertige synthetische
-Evaluationsfaelle.
+Weiter offen bleiben insbesondere Contradiction-Assessment, -Fallbibliothek
+und -Metrik, Freshness bzw. veraltete Dokumentversion sowie mindestens 30
+hochwertige synthetische Evaluationsfaelle.
 
 Exit-Kriterium: Mindestens 30 hochwertige synthetische Evaluationsfaelle.
 
@@ -905,10 +906,11 @@ LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
 Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
 das Abstention-Assessment, die synthetische Abstention-Fallbibliothek, die
 aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
-Closed-Template-Widerspruchsbaseline. Weiter offen bleiben insbesondere
-Contradiction-Evaluation, Freshness bzw. veraltete Dokumentversion und
-mindestens 30 hochwertige synthetische Evaluationsfaelle. Es gibt weiterhin
-keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
+Closed-Template-Widerspruchsbaseline sowie der Contradiction-Einzelfall-Runner.
+Weiter offen bleiben insbesondere Contradiction-Assessment, -Fallbibliothek
+und -Metrik, Freshness bzw. veraltete Dokumentversion und mindestens 30
+hochwertige synthetische Evaluationsfaelle. Es gibt weiterhin keine API-,
+Docker- oder Cloud-Arbeit in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -957,5 +959,16 @@ keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
 - Begruendung: Der naechste sinnvolle Schritt bleibt live zu bestimmen und
   wird hier nicht spekulativ vorweggenommen; Evaluation-Runner und Freshness
   bleiben ausserhalb dieses Stands.
+- Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
+  nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Contradiction-Einzelfall-Runner)
+
+- Datum: 24. Juli 2026
+- Aenderung: Der deterministische RAG-Contradiction-Einzelfall-Runner und der
+  zugehoerige Run-Result-Vertrag wurden ergaenzt.
+- Begruendung: Die vorhandene Detector-Ausgabe kann damit fuer einen
+  synthetischen Evaluationsfall unveraendert beobachtet werden, ohne Ground
+  Truth zur Steuerung der Detection oder fuer ein Assessment zu verwenden.
 - Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
   nach dem Merge erneut live bestimmt.

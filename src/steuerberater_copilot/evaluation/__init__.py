@@ -33,6 +33,10 @@ from .rag_contradiction_case import (
     ContradictionEvidenceLabel,
     RAGContradictionEvaluationCase,
 )
+from .rag_contradiction_runner import (
+    RAGContradictionEvaluationRunResult,
+    run_offline_rag_contradiction_evaluation_case,
+)
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
     RetrievalEvaluationCaseAssessment,
@@ -66,6 +70,7 @@ __all__ = [
     "RAGAbstentionEvaluationMetricsReport",
     "RAGAbstentionEvaluationRunResult",
     "RAGContradictionEvaluationCase",
+    "RAGContradictionEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
     "RetrievalEvaluationMetricsReport",
@@ -84,6 +89,7 @@ __all__ = [
     "run_offline_grounding_evaluation_suite",
     "run_offline_rag_abstention_evaluation_case",
     "run_offline_rag_abstention_evaluation_suite",
+    "run_offline_rag_contradiction_evaluation_case",
     "run_offline_retrieval_evaluation_case",
     "run_offline_retrieval_evaluation_suite",
 ]
