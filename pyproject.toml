@@ -13,6 +13,7 @@ authors = [
   { name = "Steuerberater-Copilot contributors" },
 ]
 dependencies = [
+  "fastapi==0.139.2",
   "openai==2.45.0",
 ]
 
@@ -20,7 +21,7 @@ dependencies = [
 steuerberater-copilot-offline-mvp = "steuerberater_copilot.offline_mvp.__main__:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["httpx==0.28.1", "pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
