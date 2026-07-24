@@ -1108,7 +1108,7 @@ Cloud-Arbeit in diesem Branch.
 
 - Datum: 24. Juli 2026
 - Aenderung: Die minimale FastAPI-Basis als HTTP-Systemrand wurde ergaenzt.
-- Umfang: Runtime-Abhaengigkeit `fastapi`, Testabhaengigkeit `httpx`, Paketgrenze
+- Umfang: Runtime-Abhaengigkeit `fastapi`, Testabhaengigkeit `httpx2`, Paketgrenze
   `steuerberater_copilot.api`, App Factory `create_app()`, deterministische
   Endpunkte `GET /health` und `GET /version` inklusive Package-Metadata-
   Semantik mit `unknown`-Fallback sowie offline HTTP-Vertragstests.
