@@ -274,6 +274,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "RAGContradictionEvaluationMetricsReport",
         "RAGContradictionEvaluationRunResult",
         "RAGFreshnessEvaluationCase",
+        "RAGFreshnessEvaluationRunResult",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
@@ -296,6 +297,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "run_offline_rag_abstention_evaluation_suite",
         "run_offline_rag_contradiction_evaluation_case",
         "run_offline_rag_contradiction_evaluation_suite",
+        "run_offline_rag_freshness_evaluation_case",
         "run_offline_retrieval_evaluation_case",
         "run_offline_retrieval_evaluation_suite",
     ]
