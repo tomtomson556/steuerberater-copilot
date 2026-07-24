@@ -21,7 +21,7 @@ dependencies = [
 steuerberater-copilot-offline-mvp = "steuerberater_copilot.offline_mvp.__main__:main"
 
 [project.optional-dependencies]
-dev = ["httpx==0.28.1", "pytest", "ruff"]
+dev = ["httpx2==2.7.0", "pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
