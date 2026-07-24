@@ -37,6 +37,9 @@ from .rag_contradiction_case import (
     ContradictionEvidenceLabel,
     RAGContradictionEvaluationCase,
 )
+from .rag_contradiction_library import (
+    build_synthetic_rag_contradiction_evaluation_case_library,
+)
 from .rag_contradiction_runner import (
     RAGContradictionEvaluationRunResult,
     run_offline_rag_contradiction_evaluation_case,
@@ -89,6 +92,7 @@ __all__ = [
     "build_synthetic_evaluation_case_library",
     "build_synthetic_grounding_evaluation_case_library",
     "build_synthetic_rag_abstention_evaluation_case_library",
+    "build_synthetic_rag_contradiction_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",
