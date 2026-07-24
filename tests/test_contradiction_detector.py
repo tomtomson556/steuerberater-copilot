@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError
+from itertools import permutations
 
 import pytest
 
@@ -199,6 +200,51 @@ def test_contradiction_order_is_deterministic() -> None:
     assert retention.first.claim_value == "10"
     assert retention.second.document_id == "SYNTHETIC_SOURCE_RETENTION_SEVEN"
     assert retention.second.claim_value == "7"
+
+
+def test_three_conflicting_claims_select_canonical_pair_across_permutations() -> None:
+    documents = (
+        _document(
+            "SYNTHETIC_SOURCE_RETENTION_TEN",
+            content="Synthetic orchard. The retention period is 10 years.",
+        ),
+        _document(
+            "SYNTHETIC_SOURCE_RETENTION_SEVEN",
+            content="Synthetic meadow. The retention period is 7 years.",
+        ),
+        _document(
+            "SYNTHETIC_SOURCE_RETENTION_FIVE",
+            content="Synthetic lantern. The retention period is 5 years.",
+        ),
+    )
+    expected = ContradictionDetectionResult(
+        contradiction_present=True,
+        contradictions=(
+            DetectedContradictionPair(
+                claim_key="retention_years",
+                first=DetectedClaimPassage(
+                    document_id="SYNTHETIC_SOURCE_RETENTION_TEN",
+                    supporting_text="The retention period is 10 years.",
+                    claim_key="retention_years",
+                    claim_value="10",
+                ),
+                second=DetectedClaimPassage(
+                    document_id="SYNTHETIC_SOURCE_RETENTION_FIVE",
+                    supporting_text="The retention period is 5 years.",
+                    claim_key="retention_years",
+                    claim_value="5",
+                ),
+            ),
+        ),
+    )
+
+    results = [
+        detect_passage_contradictions(permutation)
+        for permutation in permutations(documents)
+    ]
+
+    assert all(result == expected for result in results)
+    assert len(results[0].contradictions) == 1
 
 
 def test_detection_result_is_immutable_and_uses_slots() -> None:

@@ -146,7 +146,7 @@ def detect_passage_contradictions(
     contradictions: list[DetectedContradictionPair] = []
     for claim_key in sorted(passages_by_key):
         passages = passages_by_key[claim_key]
-        pair = _first_conflict_pair(claim_key, passages)
+        pair = _canonical_conflict_pair(claim_key, passages)
         if pair is not None:
             contradictions.append(pair)
 
@@ -169,26 +169,35 @@ def _claims_conflict(
     return False
 
 
-def _first_conflict_pair(
+def _passage_sort_key(
+    passage: DetectedClaimPassage,
+) -> tuple[str, str, str, str]:
+    return (
+        passage.claim_value,
+        passage.polarity,
+        passage.document_id,
+        passage.supporting_text,
+    )
+
+
+def _canonical_conflict_pair(
     claim_key: str,
     passages: list[DetectedClaimPassage],
 ) -> DetectedContradictionPair | None:
-    for index, first in enumerate(passages):
-        for second in passages[index + 1 :]:
+    """Return one conflict pair independent of input document order.
+
+    Candidates are sorted canonically first. The first conflicting pair in that
+    ordered scan is selected, so three or more candidates for the same
+    ``claim_key`` always yield the same observed pair.
+    """
+    ordered_passages = sorted(passages, key=_passage_sort_key)
+    for index, first in enumerate(ordered_passages):
+        for second in ordered_passages[index + 1 :]:
             if _claims_conflict(first, second):
-                ordered = sorted(
-                    (first, second),
-                    key=lambda item: (
-                        item.claim_value,
-                        item.polarity,
-                        item.document_id,
-                        item.supporting_text,
-                    ),
-                )
                 return DetectedContradictionPair(
                     claim_key=claim_key,
-                    first=ordered[0],
-                    second=ordered[1],
+                    first=first,
+                    second=second,
                 )
     return None
 
