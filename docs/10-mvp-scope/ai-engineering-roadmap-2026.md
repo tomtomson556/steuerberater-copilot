@@ -505,6 +505,7 @@ feat/add-rag-contradiction-evaluation-assessment
 feat/add-synthetic-rag-contradiction-evaluation-case-library
 feat/add-rag-contradiction-evaluation-metrics-report
 feat/add-rag-freshness-evaluation-case-contract
+feat/add-rag-freshness-evaluation-runner
 ```
 
 Bewusste Vereinfachungen:
@@ -523,7 +524,7 @@ natuerliche synthetische Passagen sowie der deterministische
 Contradiction-Einzelfall-Runner, das exakte Contradiction-Assessment und eine
 synthetische Contradiction-Fallbibliothek mit aggregierter Contradiction-Metrik
 sind ebenfalls vorhanden. Fuer Freshness ist ein struktureller Fallvertrag mit
-Current-/Stale-Ground-Truth vorhanden.
+Current-/Stale-Ground-Truth samt deterministischem Einzelfall-Runner vorhanden.
 
 Pflichtmetriken:
 
@@ -536,8 +537,8 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Freshness-Ausfuehrung, Assessment, Fallbibliothek und Metrik bleiben offen. Der
-stabile Gesamtbestand umfasst 33 synthetische Evaluationsfaelle.
+Freshness-Assessment, Fallbibliothek und Metrik bleiben offen. Der stabile
+Gesamtbestand umfasst 33 synthetische Evaluationsfaelle.
 
 Exit-Kriterium: Mit 33 stabilen synthetischen Evaluationsfaellen erreicht.
 
@@ -915,10 +916,11 @@ aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
 Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
 das Contradiction-Assessment sowie die synthetische Contradiction-Fallbibliothek.
 Die aggregierte Contradiction-Metrik ist ebenfalls vorhanden. Weiter offen
-bleiben Freshness-Runner, -Assessment, -Fallbibliothek und -Metrik; nur der
-strukturelle Freshness-Fallvertrag ist vorhanden. Der stabile Gesamtbestand von
-33 synthetischen Evaluationsfaellen erfuellt das Phase-3-Exit-Kriterium. Es gibt
-weiterhin keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
+bleiben Freshness-Assessment, -Fallbibliothek und -Metrik; der strukturelle
+Freshness-Fallvertrag und Einzelfall-Runner sind vorhanden. Der stabile
+Gesamtbestand von 33 synthetischen Evaluationsfaellen erfuellt das
+Phase-3-Exit-Kriterium. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
+in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1029,3 +1031,14 @@ weiterhin keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
   Metrik sind nicht Bestandteil dieses Stands.
 - Auswirkung: Freshness ist noch nicht abgeschlossen. Der naechste
   Produktionsbranch wird nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Freshness-Einzelfall-Runner)
+
+- Datum: 24. Juli 2026
+- Aenderung: Ein deterministischer Freshness-Einzelfall-Runner und sein
+  unveraenderlicher Run-Result-Vertrag wurden ergaenzt.
+- Abgrenzung: Der Runner verwendet ausschliesslich Dokumente, Retrieval-Query
+  und `top_k` des Falls mit dem bestehenden `LocalDocumentRetriever`.
+  Current-/Stale-Ground-Truth beeinflusst die Ausfuehrung nicht.
+- Auswirkung: Freshness-Assessment, Fallbibliothek und Metrik bleiben offen.
+  Der naechste Produktionsbranch wird nach dem Merge erneut live bestimmt.
