@@ -7,7 +7,7 @@
 - Startdatum der Roadmap: 9. Juli 2026
 - Portfolio-Zieltermin: 31. Dezember 2026
 - Interner Release-Termin: spaetestens 20. Dezember 2026
-- Aktuelle Phase: RAG mit nachvollziehbaren Quellen
+- Aktuelle Phase: API und Docker-Demo
 
 ## Zweck
 
@@ -110,15 +110,16 @@ Verboten bleibt:
 ai -> offline_mvp
 ```
 
-Noch nicht vorhanden sind insbesondere Retry-Policy, Rate Limiting,
-Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder Modell-Allowlist,
-produktive Evaluation, FastAPI, Docker, Persistenz, Authentifizierung,
-Cloud-Deployment, Infrastructure as Code und Monitoring. Eine erfolgreiche
-Live-Verbindung zum Provider ist ohne expliziten opt-in Smoke-Test nicht
-behauptet. Eine Prompt Registry ist bewusst aufgeschoben und aktuell nicht
-benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding- und
-Abstention-Evaluation ist bereits in Arbeit; sie ersetzt keine produktive
-Evaluation.
+Als HTTP-Systemrand ist eine minimale FastAPI-Basis mit App Factory,
+`/health` und `/version` vorhanden. Noch nicht vorhanden sind insbesondere
+Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer,
+Provider- oder Modell-Allowlist, produktive Evaluation, Docker, Persistenz,
+Authentifizierung, Cloud-Deployment, Infrastructure as Code und Monitoring.
+Eine erfolgreiche Live-Verbindung zum Provider ist ohne expliziten opt-in
+Smoke-Test nicht behauptet. Eine Prompt Registry ist bewusst aufgeschoben und
+aktuell nicht benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding-,
+Abstention-, Contradiction- und Freshness-Evaluation ist vorhanden; sie
+ersetzt keine produktive Evaluation.
 
 ## Pflichtumfang bis Ende 2026
 
@@ -564,11 +565,17 @@ feat/add-docker-runtime
 
 API-Basis:
 
-- App Factory
-- `/health`
-- `/version`
+- App Factory vorhanden
+- `/health` vorhanden
+- `/version` vorhanden
 - keine Fachlogik in FastAPI
 - keine Authentifizierung als Pflicht
+
+Die FastAPI-Basis liegt als klarer HTTP-Systemrand unter
+`steuerberater_copilot.api`. Sie stellt nur die App Factory sowie die
+deterministischen Endpunkte `/health` und `/version` bereit und ruft keinen
+RAG-, AI- oder Offline-MVP-Workflow auf. Stabile CLI-JSON-Vertraege bleiben
+unveraendert.
 
 AI-Draft-Endpunkt:
 
@@ -1096,3 +1103,16 @@ Cloud-Arbeit in diesem Branch.
   Evaluationsfaellen und allen geplanten aggregierten Metriken vollstaendig
   erfuellt. Der naechste Produktionsbranch wird nach dem Merge erneut live
   bestimmt und hier nicht spekulativ vorweggenommen.
+
+### Aktualisierung vom 24. Juli 2026 (FastAPI-Basis)
+
+- Datum: 24. Juli 2026
+- Aenderung: Die minimale FastAPI-Basis als HTTP-Systemrand wurde ergaenzt.
+- Umfang: Runtime-Abhaengigkeit `fastapi`, Testabhaengigkeit `httpx`, Paketgrenze
+  `steuerberater_copilot.api`, App Factory `create_app()`, deterministische
+  Endpunkte `GET /health` und `GET /version` inklusive Package-Metadata-
+  Semantik mit `unknown`-Fallback sowie offline HTTP-Vertragstests.
+- Auswirkung: Phase 4 beginnt mit der kleinsten HTTP-Oberflaeche ohne
+  Fachlogik, Authentifizierung, Uvicorn-Start, Docker, Provider- oder
+  Secret-Konfiguration. Der naechste Produktionsbranch wird nach dem Merge
+  erneut live bestimmt und hier nicht spekulativ vorweggenommen.
