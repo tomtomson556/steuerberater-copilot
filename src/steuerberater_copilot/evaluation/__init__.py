@@ -53,6 +53,9 @@ from .rag_freshness_assessment import (
     assess_rag_freshness_evaluation_run_result,
 )
 from .rag_freshness_case import RAGFreshnessEvaluationCase
+from .rag_freshness_library import (
+    build_synthetic_rag_freshness_evaluation_case_library,
+)
 from .rag_freshness_runner import (
     RAGFreshnessEvaluationRunResult,
     run_offline_rag_freshness_evaluation_case,
@@ -111,6 +114,7 @@ __all__ = [
     "build_synthetic_grounding_evaluation_case_library",
     "build_synthetic_rag_abstention_evaluation_case_library",
     "build_synthetic_rag_contradiction_evaluation_case_library",
+    "build_synthetic_rag_freshness_evaluation_case_library",
     "build_synthetic_retrieval_evaluation_case_library",
     "run_offline_evaluation_case",
     "run_offline_evaluation_suite",

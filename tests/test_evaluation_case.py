@@ -276,6 +276,7 @@ def test_evaluation_package_has_exact_public_exports() -> None:
         "build_synthetic_grounding_evaluation_case_library",
         "build_synthetic_rag_abstention_evaluation_case_library",
         "build_synthetic_rag_contradiction_evaluation_case_library",
+        "build_synthetic_rag_freshness_evaluation_case_library",
         "build_synthetic_retrieval_evaluation_case_library",
         "run_offline_evaluation_case",
         "run_offline_evaluation_suite",
