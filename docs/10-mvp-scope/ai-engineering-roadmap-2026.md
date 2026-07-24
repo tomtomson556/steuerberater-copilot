@@ -503,6 +503,7 @@ feat/add-rag-contradiction-detector
 feat/add-rag-contradiction-evaluation-runner
 feat/add-rag-contradiction-evaluation-assessment
 feat/add-synthetic-rag-contradiction-evaluation-case-library
+feat/add-rag-contradiction-evaluation-metrics-report
 ```
 
 Bewusste Vereinfachungen:
@@ -519,7 +520,8 @@ Fallbibliothek und aggregierte Abstention-Metrik sind vorhanden. Der
 Contradiction-Fallvertrag und die Closed-Template-Widerspruchsbaseline ueber
 natuerliche synthetische Passagen sowie der deterministische
 Contradiction-Einzelfall-Runner, das exakte Contradiction-Assessment und eine
-synthetische Contradiction-Fallbibliothek sind ebenfalls vorhanden.
+synthetische Contradiction-Fallbibliothek mit aggregierter Contradiction-Metrik
+sind ebenfalls vorhanden.
 
 Pflichtmetriken:
 
@@ -532,9 +534,8 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Weiter offen bleiben insbesondere die Contradiction-Metrik sowie Freshness
-bzw. veraltete Dokumentversion. Der stabile Gesamtbestand umfasst 33
-synthetische Evaluationsfaelle.
+Weiter offen bleibt insbesondere Freshness bzw. veraltete Dokumentversion. Der
+stabile Gesamtbestand umfasst 33 synthetische Evaluationsfaelle.
 
 Exit-Kriterium: Mit 33 stabilen synthetischen Evaluationsfaellen erreicht.
 
@@ -911,10 +912,11 @@ das Abstention-Assessment, die synthetische Abstention-Fallbibliothek, die
 aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
 Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
 das Contradiction-Assessment sowie die synthetische Contradiction-Fallbibliothek.
-Weiter offen bleiben insbesondere die Contradiction-Metrik sowie Freshness
-bzw. veraltete Dokumentversion. Der stabile Gesamtbestand von 33 synthetischen
-Evaluationsfaellen erfuellt das Phase-3-Exit-Kriterium. Es gibt weiterhin keine
-API-, Docker- oder Cloud-Arbeit in diesem Branch.
+Die aggregierte Contradiction-Metrik ist ebenfalls vorhanden. Weiter offen
+bleibt insbesondere Freshness bzw. veraltete Dokumentversion. Der stabile
+Gesamtbestand von 33 synthetischen Evaluationsfaellen erfuellt das
+Phase-3-Exit-Kriterium. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
+in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -999,4 +1001,16 @@ API-, Docker- oder Cloud-Arbeit in diesem Branch.
   33 synthetische Evaluationsfaelle.
 - Auswirkung: Das Phase-3-Exit-Kriterium von mindestens 30 Faellen ist erreicht;
   Contradiction-Metrik und Freshness bleiben offen. Der naechste
+  Produktionsbranch wird nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Contradiction-Metrics-Report)
+
+- Datum: 24. Juli 2026
+- Aenderung: Der deterministische Contradiction-Suite-Runner und ein
+  unveraenderlicher aggregierter Metrics-Report wurden ergaenzt.
+- Umfang: Pass Rate, fehlgeschlagene Fall-IDs, eine nur auf erwartete positive
+  Faelle bezogene Detection Rate sowie getrennte False-Negative- und
+  False-Positive-Zaehler.
+- Auswirkung: Die Contradiction-Evaluationskette ist damit geschlossen;
+  Freshness bzw. veraltete Dokumentversion bleibt offen. Der naechste
   Produktionsbranch wird nach dem Merge erneut live bestimmt.
