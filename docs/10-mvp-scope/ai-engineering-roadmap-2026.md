@@ -508,6 +508,7 @@ feat/add-rag-freshness-evaluation-case-contract
 feat/add-rag-freshness-evaluation-runner
 feat/add-rag-freshness-evaluation-assessment
 feat/add-synthetic-rag-freshness-evaluation-case-library
+feat/add-rag-freshness-evaluation-metrics-report
 ```
 
 Bewusste Vereinfachungen:
@@ -527,7 +528,8 @@ Contradiction-Einzelfall-Runner, das exakte Contradiction-Assessment und eine
 synthetische Contradiction-Fallbibliothek mit aggregierter Contradiction-Metrik
 sind ebenfalls vorhanden. Fuer Freshness sind ein struktureller Fallvertrag mit
 Current-/Stale-Ground-Truth, der deterministische Einzelfall-Runner, das
-Assessment und eine synthetische Fallbibliothek vorhanden.
+Assessment, eine synthetische Fallbibliothek und die aggregierte
+Freshness-Metrik vorhanden.
 
 Pflichtmetriken:
 
@@ -540,8 +542,10 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Nur die aggregierte Freshness-Metrik bleibt offen. Der stabile Gesamtbestand
-umfasst 38 synthetische Evaluationsfaelle.
+Der aktuelle Phase-3-Code-Scope ist mit 38 stabilen synthetischen
+Evaluationsfaellen und allen geplanten aggregierten Metriken vollstaendig
+erfuellt. Der stabile Gesamtbestand umfasst 38 synthetische
+Evaluationsfaelle.
 
 Exit-Kriterium: Mit 38 stabilen synthetischen Evaluationsfaellen erreicht.
 
@@ -911,19 +915,21 @@ Architekturentscheidungen.
 Der unmittelbar naechste Produktionsbranch wird nach dem Merge dieses Stands
 erneut live bestimmt.
 
-Phase 3 ist in Arbeit. Vorhanden sind unter anderem Source Document,
+Der aktuelle Phase-3-Code-Scope ist mit 38 stabilen synthetischen
+Evaluationsfaellen und allen geplanten aggregierten Metriken vollstaendig
+erfuellt. Vorhanden sind unter anderem Source Document,
 LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
 Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
 das Abstention-Assessment, die synthetische Abstention-Fallbibliothek, die
 aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
 Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
-das Contradiction-Assessment sowie die synthetische Contradiction-Fallbibliothek.
-Die aggregierte Contradiction-Metrik ist ebenfalls vorhanden. Fuer Freshness
-sind der strukturelle Fallvertrag, Einzelfall-Runner, Assessment und die
-synthetische Fallbibliothek vorhanden; nur die aggregierte Freshness-Metrik
-bleibt offen. Der stabile Gesamtbestand von 38 synthetischen
-Evaluationsfaellen erfuellt das Phase-3-Exit-Kriterium. Es gibt weiterhin keine
-API-, Docker- oder Cloud-Arbeit in diesem Branch.
+das Contradiction-Assessment, die synthetische Contradiction-Fallbibliothek,
+die aggregierte Contradiction-Metrik, der Freshness-Fallvertrag, der
+Freshness-Einzelfall-Runner, das Freshness-Assessment, die synthetische
+Freshness-Fallbibliothek und die aggregierte Freshness-Metrik. Der naechste
+Produktionsbranch wird nach dem Merge erneut live bestimmt und hier nicht
+spekulativ vorweggenommen. Es gibt weiterhin keine API-, Docker- oder
+Cloud-Arbeit in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
