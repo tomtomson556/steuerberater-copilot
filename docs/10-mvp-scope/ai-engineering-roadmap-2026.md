@@ -506,6 +506,7 @@ feat/add-synthetic-rag-contradiction-evaluation-case-library
 feat/add-rag-contradiction-evaluation-metrics-report
 feat/add-rag-freshness-evaluation-case-contract
 feat/add-rag-freshness-evaluation-runner
+feat/add-rag-freshness-evaluation-assessment
 ```
 
 Bewusste Vereinfachungen:
@@ -524,7 +525,8 @@ natuerliche synthetische Passagen sowie der deterministische
 Contradiction-Einzelfall-Runner, das exakte Contradiction-Assessment und eine
 synthetische Contradiction-Fallbibliothek mit aggregierter Contradiction-Metrik
 sind ebenfalls vorhanden. Fuer Freshness ist ein struktureller Fallvertrag mit
-Current-/Stale-Ground-Truth samt deterministischem Einzelfall-Runner vorhanden.
+Current-/Stale-Ground-Truth samt deterministischem Einzelfall-Runner und
+Assessment vorhanden.
 
 Pflichtmetriken:
 
@@ -537,7 +539,7 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Freshness-Assessment, Fallbibliothek und Metrik bleiben offen. Der stabile
+Freshness-Fallbibliothek und aggregierte Metrik bleiben offen. Der stabile
 Gesamtbestand umfasst 33 synthetische Evaluationsfaelle.
 
 Exit-Kriterium: Mit 33 stabilen synthetischen Evaluationsfaellen erreicht.
@@ -916,9 +918,9 @@ aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
 Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
 das Contradiction-Assessment sowie die synthetische Contradiction-Fallbibliothek.
 Die aggregierte Contradiction-Metrik ist ebenfalls vorhanden. Weiter offen
-bleiben Freshness-Assessment, -Fallbibliothek und -Metrik; der strukturelle
-Freshness-Fallvertrag und Einzelfall-Runner sind vorhanden. Der stabile
-Gesamtbestand von 33 synthetischen Evaluationsfaellen erfuellt das
+bleiben Freshness-Fallbibliothek und -Metrik; der strukturelle
+Freshness-Fallvertrag, Einzelfall-Runner und das Assessment sind vorhanden. Der
+stabile Gesamtbestand von 33 synthetischen Evaluationsfaellen erfuellt das
 Phase-3-Exit-Kriterium. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
 in diesem Branch.
 
@@ -1041,4 +1043,15 @@ in diesem Branch.
   und `top_k` des Falls mit dem bestehenden `LocalDocumentRetriever`.
   Current-/Stale-Ground-Truth beeinflusst die Ausfuehrung nicht.
 - Auswirkung: Freshness-Assessment, Fallbibliothek und Metrik bleiben offen.
+  Der naechste Produktionsbranch wird nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Freshness-Assessment)
+
+- Datum: 24. Juli 2026
+- Aenderung: Das deterministische Freshness-Einzelfall-Assessment wurde
+  ergaenzt.
+- Umfang: Innerhalb von `top_k` wird nachvollziehbar ausgewiesen, ob das
+  erwartete aktuelle Dokument und welche veralteten Dokumente gefunden wurden.
+  Ein Fall besteht nur mit aktuellem Dokument und ohne veraltetes Dokument.
+- Auswirkung: Freshness-Fallbibliothek und aggregierte Metrik bleiben offen.
   Der naechste Produktionsbranch wird nach dem Merge erneut live bestimmt.
