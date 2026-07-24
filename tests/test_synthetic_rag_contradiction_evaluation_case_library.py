@@ -7,6 +7,7 @@ from steuerberater_copilot.evaluation import (
     build_synthetic_grounding_evaluation_case_library,
     build_synthetic_rag_abstention_evaluation_case_library,
     build_synthetic_rag_contradiction_evaluation_case_library,
+    build_synthetic_rag_freshness_evaluation_case_library,
     build_synthetic_retrieval_evaluation_case_library,
     run_offline_rag_contradiction_evaluation_case,
 )
@@ -188,18 +189,32 @@ def test_evaluation_package_exports_contradiction_library_builder() -> None:
     )
 
 
-def test_stable_synthetic_evaluation_libraries_total_thirty_three_cases() -> None:
+def test_stable_synthetic_evaluation_libraries_total_thirty_eight_cases() -> None:
     ai_fixtures = build_synthetic_evaluation_case_library()
     retrieval_cases = build_synthetic_retrieval_evaluation_case_library()
     grounding_cases = build_synthetic_grounding_evaluation_case_library()
     abstention_cases = build_synthetic_rag_abstention_evaluation_case_library()
     contradiction_cases = build_synthetic_rag_contradiction_evaluation_case_library()
+    freshness_cases = build_synthetic_rag_freshness_evaluation_case_library()
     all_evaluation_ids = (
         tuple(fixture.evaluation_case.evaluation_id for fixture in ai_fixtures)
         + tuple(case.evaluation_id for case in retrieval_cases)
         + tuple(case.evaluation_id for case in grounding_cases)
         + tuple(case.evaluation_id for case in abstention_cases)
         + tuple(case.evaluation_id for case in contradiction_cases)
+        + tuple(case.evaluation_id for case in freshness_cases)
+    )
+    all_source_document_ids = tuple(
+        document.document_id
+        for library in (
+            retrieval_cases,
+            grounding_cases,
+            abstention_cases,
+            contradiction_cases,
+            freshness_cases,
+        )
+        for case in library
+        for document in case.source_documents
     )
 
     assert tuple(
@@ -210,7 +225,9 @@ def test_stable_synthetic_evaluation_libraries_total_thirty_three_cases() -> Non
             grounding_cases,
             abstention_cases,
             contradiction_cases,
+            freshness_cases,
         )
-    ) == (7, 4, 9, 4, 9)
-    assert len(all_evaluation_ids) == 33
+    ) == (7, 4, 9, 4, 9, 5)
+    assert len(all_evaluation_ids) == 38
     assert len(all_evaluation_ids) == len(set(all_evaluation_ids))
+    assert len(all_source_document_ids) == len(set(all_source_document_ids))
