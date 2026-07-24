@@ -273,6 +273,7 @@ def test_evaluation_package_has_exact_report_exports() -> None:
         "RAGContradictionEvaluationCaseAssessment",
         "RAGContradictionEvaluationMetricsReport",
         "RAGContradictionEvaluationRunResult",
+        "RAGFreshnessEvaluationCase",
         "RetrievalEvaluationCase",
         "RetrievalEvaluationCaseAssessment",
         "RetrievalEvaluationMetricsReport",
