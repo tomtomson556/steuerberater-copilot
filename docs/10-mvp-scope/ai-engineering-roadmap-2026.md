@@ -498,6 +498,8 @@ feat/add-rag-abstention-evaluation-runner
 feat/add-rag-abstention-evaluation-assessment
 feat/add-synthetic-rag-abstention-evaluation-case-library
 feat/add-rag-abstention-evaluation-metrics-report
+feat/add-rag-contradiction-evaluation-case-contract
+feat/add-rag-contradiction-detector
 ```
 
 Bewusste Vereinfachungen:
@@ -510,7 +512,9 @@ Bewusste Vereinfachungen:
 
 Zuerst wurde eine deterministische lokale Retrieval- und Grounding-Baseline
 umgesetzt. Abstention-Fallvertrag, Runner, Assessment, synthetische
-Fallbibliothek und aggregierte Abstention-Metrik sind vorhanden.
+Fallbibliothek und aggregierte Abstention-Metrik sind vorhanden. Der
+Contradiction-Fallvertrag und die Closed-Template-Widerspruchsbaseline ueber
+natuerliche synthetische Passagen sind ebenfalls vorhanden.
 
 Pflichtmetriken:
 
@@ -523,8 +527,9 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Weiter offen bleiben insbesondere Widerspruchserkennung, Freshness bzw.
-veraltete Dokumentversion sowie mindestens 30 hochwertige synthetische
+Weiter offen bleiben insbesondere Contradiction-Evaluation
+(Runner/Assessment/Bibliothek/Metrik), Freshness bzw. veraltete
+Dokumentversion sowie mindestens 30 hochwertige synthetische
 Evaluationsfaelle.
 
 Exit-Kriterium: Mindestens 30 hochwertige synthetische Evaluationsfaelle.
@@ -898,11 +903,12 @@ erneut live bestimmt.
 Phase 3 ist in Arbeit. Vorhanden sind unter anderem Source Document,
 LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
 Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
-das Abstention-Assessment, die synthetische Abstention-Fallbibliothek und die
-aggregierte Abstention-Metrik. Weiter offen bleiben insbesondere
-Widerspruchserkennung, Freshness bzw. veraltete Dokumentversion und mindestens
-30 hochwertige synthetische Evaluationsfaelle. Es gibt weiterhin keine API-,
-Docker- oder Cloud-Arbeit in diesem Branch.
+das Abstention-Assessment, die synthetische Abstention-Fallbibliothek, die
+aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
+Closed-Template-Widerspruchsbaseline. Weiter offen bleiben insbesondere
+Contradiction-Evaluation, Freshness bzw. veraltete Dokumentversion und
+mindestens 30 hochwertige synthetische Evaluationsfaelle. Es gibt weiterhin
+keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -938,5 +944,18 @@ Docker- oder Cloud-Arbeit in diesem Branch.
 - Begruendung: Die Abstention-Baseline-Kette ist damit geschlossen. Der
   naechste Produktionsbranch wird nach dem Merge erneut live bestimmt und
   hier nicht spekulativ vorweggenommen.
+- Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
+  nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Contradiction-Detector)
+
+- Datum: 24. Juli 2026
+- Aenderung: Die deterministische Closed-Template-Widerspruchsbaseline ueber
+  natuerliche synthetische `SourceDocument`-Passagen und der bereits
+  vorhandene Contradiction-Fallvertrag sind in der Phase-3-Baseline
+  abgebildet.
+- Begruendung: Der naechste sinnvolle Schritt bleibt live zu bestimmen und
+  wird hier nicht spekulativ vorweggenommen; Evaluation-Runner und Freshness
+  bleiben ausserhalb dieses Stands.
 - Auswirkung: Phase 3 bleibt in Arbeit. Der naechste Produktionsbranch wird
   nach dem Merge erneut live bestimmt.
