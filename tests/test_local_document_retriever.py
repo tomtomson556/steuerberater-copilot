@@ -8,7 +8,14 @@ from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
 
 def test_rag_package_exports_local_document_retriever() -> None:
     assert rag.LocalDocumentRetriever is LocalDocumentRetriever
-    assert rag.__all__ == ["SourceDocument", "LocalDocumentRetriever"]
+    assert rag.__all__ == [
+        "ContradictionDetectionResult",
+        "DetectedClaimPassage",
+        "DetectedContradictionPair",
+        "LocalDocumentRetriever",
+        "SourceDocument",
+        "detect_passage_contradictions",
+    ]
 
 
 def test_retriever_accepts_tuple_of_source_documents() -> None:

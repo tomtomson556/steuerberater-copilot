@@ -72,7 +72,14 @@ def test_source_document_rejects_whitespace_only_fields(field_name: str) -> None
 
 def test_rag_package_exports_source_document() -> None:
     assert rag.SourceDocument is SourceDocument
-    assert rag.__all__ == ["SourceDocument", "LocalDocumentRetriever"]
+    assert rag.__all__ == [
+        "ContradictionDetectionResult",
+        "DetectedClaimPassage",
+        "DetectedContradictionPair",
+        "LocalDocumentRetriever",
+        "SourceDocument",
+        "detect_passage_contradictions",
+    ]
 
 
 def _source_document() -> SourceDocument:
