@@ -1072,3 +1072,21 @@ API-, Docker- oder Cloud-Arbeit in diesem Branch.
   synthetische Evaluationsfaelle.
 - Auswirkung: Nur die aggregierte Freshness-Metrik bleibt offen. Es gibt
   weiterhin keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
+
+### Aktualisierung vom 24. Juli 2026 (Freshness-Metrics-Report)
+
+- Datum: 24. Juli 2026
+- Aenderung: Der deterministische aggregierte Freshness-Metrics-Report und
+  Suite-Runner wurden ergaenzt.
+- Umfang: Pass Rate, fehlgeschlagene Fall-IDs, Current-Document-Retrieval-Rate
+  ueber alle Faelle, Stale-Document-Retrieval-Rate fallbezogen (ein Fall zaehlt
+  einmal, sobald mindestens ein gelabeltes stale Dokument innerhalb top_k
+  beobachtet wurde), Missing-Current-Count und Stale-Case-Count. Der
+  Suite-Runner fuehrt Faelle in Eingabereihenfolge mit dem vorhandenen Runner
+  aus, wendet das bestehende Assessment an und erzeugt einen unveraenderlichen
+  Report. Leere Suites werden abgelehnt.
+- Auswirkung: Die Freshness-Evaluationskette ist damit geschlossen. Der
+  aktuelle Phase-3-Code-Scope ist mit 38 stabilen synthetischen
+  Evaluationsfaellen und allen geplanten aggregierten Metriken vollstaendig
+  erfuellt. Der naechste Produktionsbranch wird nach dem Merge erneut live
+  bestimmt und hier nicht spekulativ vorweggenommen.

@@ -56,6 +56,10 @@ from .rag_freshness_case import RAGFreshnessEvaluationCase
 from .rag_freshness_library import (
     build_synthetic_rag_freshness_evaluation_case_library,
 )
+from .rag_freshness_report import (
+    RAGFreshnessEvaluationMetricsReport,
+    run_offline_rag_freshness_evaluation_suite,
+)
 from .rag_freshness_runner import (
     RAGFreshnessEvaluationRunResult,
     run_offline_rag_freshness_evaluation_case,
@@ -98,6 +102,7 @@ __all__ = [
     "RAGContradictionEvaluationRunResult",
     "RAGFreshnessEvaluationCase",
     "RAGFreshnessEvaluationCaseAssessment",
+    "RAGFreshnessEvaluationMetricsReport",
     "RAGFreshnessEvaluationRunResult",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
@@ -124,6 +129,7 @@ __all__ = [
     "run_offline_rag_contradiction_evaluation_case",
     "run_offline_rag_contradiction_evaluation_suite",
     "run_offline_rag_freshness_evaluation_case",
+    "run_offline_rag_freshness_evaluation_suite",
     "run_offline_retrieval_evaluation_case",
     "run_offline_retrieval_evaluation_suite",
 ]
