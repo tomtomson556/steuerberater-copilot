@@ -48,6 +48,7 @@ from .rag_contradiction_runner import (
     RAGContradictionEvaluationRunResult,
     run_offline_rag_contradiction_evaluation_case,
 )
+from .rag_freshness_case import RAGFreshnessEvaluationCase
 from .report import EvaluationMetricsReport, run_offline_evaluation_suite
 from .retrieval_assessment import (
     RetrievalEvaluationCaseAssessment,
@@ -84,6 +85,7 @@ __all__ = [
     "RAGContradictionEvaluationCaseAssessment",
     "RAGContradictionEvaluationMetricsReport",
     "RAGContradictionEvaluationRunResult",
+    "RAGFreshnessEvaluationCase",
     "RetrievalEvaluationCase",
     "RetrievalEvaluationCaseAssessment",
     "RetrievalEvaluationMetricsReport",

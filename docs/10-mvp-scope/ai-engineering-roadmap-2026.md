@@ -504,6 +504,7 @@ feat/add-rag-contradiction-evaluation-runner
 feat/add-rag-contradiction-evaluation-assessment
 feat/add-synthetic-rag-contradiction-evaluation-case-library
 feat/add-rag-contradiction-evaluation-metrics-report
+feat/add-rag-freshness-evaluation-case-contract
 ```
 
 Bewusste Vereinfachungen:
@@ -521,7 +522,8 @@ Contradiction-Fallvertrag und die Closed-Template-Widerspruchsbaseline ueber
 natuerliche synthetische Passagen sowie der deterministische
 Contradiction-Einzelfall-Runner, das exakte Contradiction-Assessment und eine
 synthetische Contradiction-Fallbibliothek mit aggregierter Contradiction-Metrik
-sind ebenfalls vorhanden.
+sind ebenfalls vorhanden. Fuer Freshness ist ein struktureller Fallvertrag mit
+Current-/Stale-Ground-Truth vorhanden.
 
 Pflichtmetriken:
 
@@ -534,7 +536,7 @@ Pflichtmetriken:
 - Widerspruchserkennung
 - veraltete Dokumentversion
 
-Weiter offen bleibt insbesondere Freshness bzw. veraltete Dokumentversion. Der
+Freshness-Ausfuehrung, Assessment, Fallbibliothek und Metrik bleiben offen. Der
 stabile Gesamtbestand umfasst 33 synthetische Evaluationsfaelle.
 
 Exit-Kriterium: Mit 33 stabilen synthetischen Evaluationsfaellen erreicht.
@@ -913,10 +915,10 @@ aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
 Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
 das Contradiction-Assessment sowie die synthetische Contradiction-Fallbibliothek.
 Die aggregierte Contradiction-Metrik ist ebenfalls vorhanden. Weiter offen
-bleibt insbesondere Freshness bzw. veraltete Dokumentversion. Der stabile
-Gesamtbestand von 33 synthetischen Evaluationsfaellen erfuellt das
-Phase-3-Exit-Kriterium. Es gibt weiterhin keine API-, Docker- oder Cloud-Arbeit
-in diesem Branch.
+bleiben Freshness-Runner, -Assessment, -Fallbibliothek und -Metrik; nur der
+strukturelle Freshness-Fallvertrag ist vorhanden. Der stabile Gesamtbestand von
+33 synthetischen Evaluationsfaellen erfuellt das Phase-3-Exit-Kriterium. Es gibt
+weiterhin keine API-, Docker- oder Cloud-Arbeit in diesem Branch.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1013,4 +1015,17 @@ in diesem Branch.
   False-Positive-Zaehler.
 - Auswirkung: Die Contradiction-Evaluationskette ist damit geschlossen;
   Freshness bzw. veraltete Dokumentversion bleibt offen. Der naechste
+  Produktionsbranch wird nach dem Merge erneut live bestimmt.
+
+### Aktualisierung vom 24. Juli 2026 (Freshness-Fallvertrag)
+
+- Datum: 24. Juli 2026
+- Aenderung: Ein unveraenderlicher struktureller
+  RAG-Freshness-Evaluationsfallvertrag mit Retrieval-Eingaben, genau einem
+  erwarteten aktuellen Dokument und mindestens einem veralteten Dokument wurde
+  ergaenzt.
+- Abgrenzung: `SourceDocument`, Retriever und Workflow bleiben unveraendert;
+  beobachtete Retrieval-Ergebnisse, Runner, Assessment, Fallbibliothek und
+  Metrik sind nicht Bestandteil dieses Stands.
+- Auswirkung: Freshness ist noch nicht abgeschlossen. Der naechste
   Produktionsbranch wird nach dem Merge erneut live bestimmt.
