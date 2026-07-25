@@ -607,14 +607,17 @@ Die lokale Docker-Laufzeit startet die bestehende FastAPI-Demo ueber ein
 gepinntes Basisimage und Uvicorn mit `create_app` als Factory. Der
 Build-Kontext ist deny-by-default und laesst nur freigegebene Dateien zu.
 Ins Image gelangt ausschliesslich die synthetische Fixture-Datei
-`fixtures/offline_mvp/cases.json`. Containerabhaengigkeiten werden vollstaendig
-ueber `requirements-runtime.lock` mit exakten Pins und Hashes installiert; das
+`fixtures/offline_mvp/cases.json`. Die Docker-Grenze installiert diese Datei
+nach der nicht-editable Paketinstallation am bestehenden generischen
+`DEFAULT_FIXTURE_PATH`; der Anwendungskern enthaelt keine Docker- oder
+Deployment-Konfiguration. Containerabhaengigkeiten werden vollstaendig ueber
+`requirements-runtime.lock` mit exakten Pins und Hashes installiert; das
 lokale Paket folgt ohne Dependency-Auflösung und ohne editable Install, damit
 Package-Metadaten und Console-Script-Deklarationen erhalten bleiben.
-Anwendungscode und Fixtures bleiben root-owned und fuer UID `10001` nicht
+Paketpfad und Fixture bleiben root-owned und fuer UID `10001` nicht
 beschreibbar. Ein separater CI-Docker-Smoke-Job prueft Allowlist,
-Nicht-Schreibbarkeit, Docker-Health sowie `/health` und `POST /ai/draft`.
-Standard-pytest bleibt docker- und netzwerkfrei.
+Nicht-Schreibbarkeit, Docker-Health sowie `/health`, `/version` und
+`POST /ai/draft`. Standard-pytest bleibt docker- und netzwerkfrei.
 
 Die bestehende CLI bleibt funktionsfaehig. Stabile CLI-JSON-Vertraege duerfen
 nicht stillschweigend veraendert werden.
@@ -1190,12 +1193,14 @@ Cloud-Arbeit in diesem Branch.
 - Aenderung: Die kleinste reproduzierbare lokale Docker-Laufzeit fuer die
   bestehende FastAPI-Demo wurde ergaenzt.
 - Umfang: deny-by-default Context-Allowlist, ausschliesslich
-  `fixtures/offline_mvp/cases.json`, gepinntes Python-/Debian-Basisimage inkl.
-  Digest, `requirements-runtime.lock` mit exakten Pins und Hashes,
-  nicht-editable lokale Paketinstallation mit `--no-deps` und
-  `--no-build-isolation`, root-owned nicht beschreibbarer Anwendungscode,
-  Non-Root-User, dynamischer Docker-Health-Smoke sowie schlanke statische
-  Offline-Tests. `FakeModelProvider` bleibt sicherer Standard;
+  `fixtures/offline_mvp/cases.json`, Installation dieser Datei am bestehenden
+  generischen `DEFAULT_FIXTURE_PATH` durch die Docker-Grenze, gepinntes
+  Python-/Debian-Basisimage inkl. Digest, `requirements-runtime.lock` mit
+  exakten Pins und Hashes, nicht-editable lokale Paketinstallation mit
+  `--no-deps` und `--no-build-isolation`, root-owned nicht beschreibbarer
+  Paket- und Fixture-Pfad, Non-Root-User, dynamischer Docker-Health-Smoke
+  sowie schlanke statische Offline-Tests. Keine Docker-Konfiguration im
+  Anwendungskern. `FakeModelProvider` bleibt sicherer Standard;
   Standard-pytest bleibt docker- und netzwerkfrei.
 - Auswirkung: Phase 4 erhaelt die lokale Deployment-Baseline fuer die
   FastAPI-Demo, ohne Compose, Auth, Persistenz oder Aenderung stabiler

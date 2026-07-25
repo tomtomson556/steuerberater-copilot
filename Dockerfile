@@ -13,6 +13,10 @@ COPY fixtures/offline_mvp/cases.json ./fixtures/offline_mvp/cases.json
 
 RUN python -m pip install --no-cache-dir --require-hashes -r requirements-runtime.lock \
     && python -m pip install --no-cache-dir --no-deps --no-build-isolation . \
+    && TARGET="$(python -c "from steuerberater_copilot.offline_mvp.workflow import DEFAULT_FIXTURE_PATH; print(DEFAULT_FIXTURE_PATH)")" \
+    && mkdir -p "$(dirname "$TARGET")" \
+    && install -m 0444 /app/fixtures/offline_mvp/cases.json "$TARGET" \
+    && rm -rf /app/fixtures \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 USER 10001

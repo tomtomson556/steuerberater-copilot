@@ -71,18 +71,26 @@ jobs:
           uid="$(docker exec steuerberater-copilot-ci id -u)"
           test "$uid" = "10001"
 
-          if docker exec steuerberater-copilot-ci python -c "import os; raise SystemExit(0 if not os.access('/app/src', os.W_OK) else 1)"; then
-            echo "/app/src is not writable"
-          else
-            echo "/app/src unexpectedly writable" >&2
-            exit 1
-          fi
-          if docker exec steuerberater-copilot-ci python -c "import os; raise SystemExit(0 if not os.access('/app/fixtures', os.W_OK) else 1)"; then
-            echo "/app/fixtures is not writable"
-          else
-            echo "/app/fixtures unexpectedly writable" >&2
-            exit 1
-          fi
+          docker exec -i steuerberater-copilot-ci python - <<'PY'
+          import os
+          from pathlib import Path
+
+          import steuerberater_copilot
+          from steuerberater_copilot.offline_mvp.workflow import (
+              DEFAULT_FIXTURE_PATH,
+              load_fixture_cases,
+          )
+
+          package_path = Path(steuerberater_copilot.__file__).resolve()
+          fixture_path = Path(DEFAULT_FIXTURE_PATH).resolve()
+          assert package_path.exists(), package_path
+          assert fixture_path.is_file(), fixture_path
+          assert not os.access(package_path, os.W_OK), package_path
+          assert not os.access(fixture_path, os.W_OK), fixture_path
+          cases = load_fixture_cases()
+          assert any(case.case_id == "CASE_002" for case in cases)
+          print("runtime_paths_ok")
+          PY
 
           healthy=0
           for _ in $(seq 1 60); do
@@ -106,6 +114,13 @@ jobs:
           from pathlib import Path
           payload = json.loads(Path("/tmp/health.json").read_text(encoding="utf-8"))
           assert payload == {"status": "ok"}, payload
+          PY
+          curl -fsS http://127.0.0.1:8000/version > /tmp/version.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/version.json").read_text(encoding="utf-8"))
+          assert payload == {"version": "0.1.0"}, payload
           PY
           curl -fsS -X POST http://127.0.0.1:8000/ai/draft \
             -H "Content-Type: application/json" \

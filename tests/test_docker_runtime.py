@@ -11,6 +11,7 @@ DOCKERFILE = ROOT / "Dockerfile"
 DOCKERIGNORE = ROOT / ".dockerignore"
 PYPROJECT = ROOT / "pyproject.toml"
 RUNTIME_LOCK = ROOT / "requirements-runtime.lock"
+WORKFLOW = ROOT / "src" / "steuerberater_copilot" / "offline_mvp" / "workflow.py"
 
 PINNED_BASE_IMAGE = (
     "python:3.12.13-slim-bookworm@"
@@ -83,7 +84,17 @@ def test_dockerignore_uses_allowlist() -> None:
     assert missing == []
 
 
-def test_dockerfile_copies_only_cases_json_fixture() -> None:
+def test_workflow_has_no_docker_specific_fixture_fallback() -> None:
+    contents = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "_DOCKER_FIXTURE_PATH" not in contents
+    assert "_resolve_default_fixture_path" not in contents
+    assert "/app/fixtures" not in contents
+    assert 'Path("/app' not in contents
+    assert "def load_fixture_cases(path: Path = DEFAULT_FIXTURE_PATH)" in contents
+
+
+def test_dockerfile_copies_only_cases_json_and_installs_at_default_path() -> None:
     contents = DOCKERFILE.read_text(encoding="utf-8")
 
     assert (
@@ -92,6 +103,9 @@ def test_dockerfile_copies_only_cases_json_fixture() -> None:
     )
     assert "COPY fixtures/offline_mvp ./fixtures/offline_mvp" not in contents
     assert "COPY fixtures ./fixtures" not in contents
+    assert "DEFAULT_FIXTURE_PATH" in contents
+    assert "install -m 0444 /app/fixtures/offline_mvp/cases.json" in contents
+    assert "rm -rf /app/fixtures" in contents
 
 
 def test_dockerfile_uses_hashed_lock_and_no_deps_local_install() -> None:
@@ -110,7 +124,9 @@ def test_runtime_lock_contains_exact_pins_and_hashes() -> None:
     requirement_lines = [
         line.strip()
         for line in contents.splitlines()
-        if line.strip() and not line.strip().startswith("#") and not line.strip().startswith("--")
+        if line.strip()
+        and not line.strip().startswith("#")
+        and not line.strip().startswith("--")
     ]
     package_lines = [line.rstrip(" \\") for line in requirement_lines if "==" in line]
 
