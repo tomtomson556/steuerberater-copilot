@@ -605,6 +605,19 @@ Docker-Anforderungen:
 Die bestehende CLI bleibt funktionsfaehig. Stabile CLI-JSON-Vertraege duerfen
 nicht stillschweigend veraendert werden.
 
+Evaluation-Command:
+
+- Console Script `steuerberater-copilot-evaluate` vorhanden
+- Modulaufruf `python -m steuerberater_copilot.evaluation` vorhanden
+- fuehrt alle sechs vorhandenen synthetischen Suites offline aus
+- Gesamtbestand: 38 synthetische Evaluationsfaelle
+- Suites: AI-Workflow, Retrieval, Grounding, RAG-Abstention,
+  RAG-Contradiction, RAG-Freshness
+- maschinenlesbares deterministisches JSON mit stabilem Vertrag
+- ausschliesslich bestehende Fallbibliotheken, Suite-Runner und
+  Metrics-Reports
+- kein HTTP, kein Docker, kein echter Provider, kein Netzwerkzugriff
+
 ### Phase 5 - Referenz-Cloud und Observability
 
 Zeitraum: 9. bis 30. November 2026
@@ -1140,3 +1153,19 @@ Cloud-Arbeit in diesem Branch.
   ohne echten Provider und ohne Aenderung stabiler CLI-JSON-Vertraege. Der
   naechste Produktionsbranch wird nach dem Merge erneut live bestimmt und
   hier nicht spekulativ vorweggenommen.
+
+### Aktualisierung vom 25. Juli 2026 (Evaluation-Command)
+
+- Datum: 25. Juli 2026
+- Aenderung: Der eigenstaendige Offline-Evaluation-Command wurde ergaenzt.
+- Umfang: Console Script `steuerberater-copilot-evaluate`, Modulaufruf
+  `python -m steuerberater_copilot.evaluation`, Summary-/Serialization-Layer
+  ueber die sechs vorhandenen Suites mit 38 synthetischen Faellen sowie
+  maschinenlesbares deterministisches JSON. RAG-Abstention nutzt frische
+  `FakeModelProvider`-Instanzen. Stabile Offline-MVP-CLI-JSON-Vertraege
+  bleiben unveraendert. Docker wird nicht vorgezogen.
+- Auswirkung: Phase-4-Evaluation laeuft vollstaendig offline und
+  reproduzierbar am CLI-Systemrand, ohne HTTP, ohne echten Provider und ohne
+  neue Evaluationsfaelle oder Metriken. Der naechste Produktionsbranch wird
+  nach dem Merge erneut live bestimmt und hier nicht spekulativ
+  vorweggenommen.
