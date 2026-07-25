@@ -106,6 +106,26 @@ python -m steuerberater_copilot.offline_mvp --review-summary
 python -m steuerberater_copilot.offline_mvp --review-summary --review-min-risk C
 ```
 
+## Lokale Docker-Demo
+
+Die lokale Docker-Laufzeit startet die bestehende FastAPI-Demo mit
+`FakeModelProvider` als sicherem Standard. Es gibt keine Secrets im Image und
+keinen echten Provider im Default-Pfad.
+
+```bash
+docker build -t steuerberater-copilot:local .
+docker run --rm -p 8000:8000 steuerberater-copilot:local
+```
+
+Beispielaufrufe:
+
+```bash
+curl -sS http://127.0.0.1:8000/health
+curl -sS -X POST http://127.0.0.1:8000/ai/draft \
+  -H "Content-Type: application/json" \
+  -d '{"case_id":"CASE_002"}'
+```
+
 Der Console Script Entry Point `steuerberater-copilot-offline-mvp` ruft dieselbe
 Offline-MVP-CLI auf wie `python -m steuerberater_copilot.offline_mvp`.
 `steuerberater-copilot-offline-mvp --version` gibt eine kurze lokale

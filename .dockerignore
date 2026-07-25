@@ -1,0 +1,13 @@
+# Deny-by-default Docker build context. Only explicitly allowed paths are sent.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!requirements-runtime.lock
+!README.md
+!LICENSE
+!src/
+!src/**
+!fixtures/
+!fixtures/offline_mvp/
+!fixtures/offline_mvp/cases.json

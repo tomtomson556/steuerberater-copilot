@@ -36,3 +36,104 @@ jobs:
 
       - name: Run policy claim check
         run: python tools/policy_claim_check.py
+
+  docker-smoke:
+    name: Docker runtime smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Plant build-context sentinel files
+        run: |
+          echo "sentinel-root" > DOCKER_CONTEXT_SENTINEL_ROOT.txt
+          echo "sentinel-fixture" > fixtures/offline_mvp/DOCKER_CONTEXT_SENTINEL.txt
+
+      - name: Build local FastAPI demo image
+        run: docker build -t steuerberater-copilot:ci .
+
+      - name: Assert sentinel files are absent from the image
+        run: |
+          if docker run --rm --entrypoint python steuerberater-copilot:ci -c \
+            "import pathlib; root=pathlib.Path('/app'); raise SystemExit(1 if (root/'DOCKER_CONTEXT_SENTINEL_ROOT.txt').exists() or (root/'fixtures'/'offline_mvp'/'DOCKER_CONTEXT_SENTINEL.txt').exists() else 0)"; then
+            echo "Sentinel files correctly absent from image"
+          else
+            echo "Sentinel files leaked into the image" >&2
+            exit 1
+          fi
+
+      - name: Run container and smoke health and AI draft
+        run: |
+          docker run -d --name steuerberater-copilot-ci -p 8000:8000 steuerberater-copilot:ci
+
+          uid="$(docker exec steuerberater-copilot-ci id -u)"
+          test "$uid" = "10001"
+
+          docker exec -i steuerberater-copilot-ci python - <<'PY'
+          import os
+          from pathlib import Path
+
+          import steuerberater_copilot
+          from steuerberater_copilot.offline_mvp.workflow import (
+              DEFAULT_FIXTURE_PATH,
+              load_fixture_cases,
+          )
+
+          package_path = Path(steuerberater_copilot.__file__).resolve()
+          fixture_path = Path(DEFAULT_FIXTURE_PATH).resolve()
+          assert package_path.exists(), package_path
+          assert fixture_path.is_file(), fixture_path
+          assert not os.access(package_path, os.W_OK), package_path
+          assert not os.access(fixture_path, os.W_OK), fixture_path
+          cases = load_fixture_cases()
+          assert any(case.case_id == "CASE_002" for case in cases)
+          print("runtime_paths_ok")
+          PY
+
+          healthy=0
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' steuerberater-copilot-ci)"
+            if [ "$status" = "healthy" ]; then
+              healthy=1
+              break
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Container reported unhealthy" >&2
+              docker logs steuerberater-copilot-ci >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+          test "$healthy" = "1"
+
+          curl -fsS http://127.0.0.1:8000/health > /tmp/health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/health.json").read_text(encoding="utf-8"))
+          assert payload == {"status": "ok"}, payload
+          PY
+          curl -fsS http://127.0.0.1:8000/version > /tmp/version.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/version.json").read_text(encoding="utf-8"))
+          assert payload == {"version": "0.1.0"}, payload
+          PY
+          curl -fsS -X POST http://127.0.0.1:8000/ai/draft \
+            -H "Content-Type: application/json" \
+            -d '{"case_id":"CASE_002"}' | tee /tmp/ai_draft.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/ai_draft.json").read_text(encoding="utf-8"))
+          assert payload["case_id"] == "CASE_002"
+          assert payload["draft"] is not None
+          assert payload["draft"]["review_status"] == "Draft"
+          PY
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f steuerberater-copilot-ci 2>/dev/null || true
