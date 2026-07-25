@@ -36,3 +36,48 @@ jobs:
 
       - name: Run policy claim check
         run: python tools/policy_claim_check.py
+
+  docker-smoke:
+    name: Docker runtime smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build local FastAPI demo image
+        run: docker build -t steuerberater-copilot:ci .
+
+      - name: Run container and smoke health and AI draft
+        run: |
+          docker run -d --name steuerberater-copilot-ci -p 8000:8000 steuerberater-copilot:ci
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = "1"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/health.json").read_text(encoding="utf-8"))
+          assert payload == {"status": "ok"}, payload
+          PY
+          curl -fsS -X POST http://127.0.0.1:8000/ai/draft \
+            -H "Content-Type: application/json" \
+            -d '{"case_id":"CASE_002"}' | tee /tmp/ai_draft.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("/tmp/ai_draft.json").read_text(encoding="utf-8"))
+          assert payload["case_id"] == "CASE_002"
+          assert payload["draft"] is not None
+          assert payload["draft"]["review_status"] == "Draft"
+          PY
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f steuerberater-copilot-ci

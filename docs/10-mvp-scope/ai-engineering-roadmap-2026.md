@@ -112,10 +112,11 @@ ai -> offline_mvp
 
 Als HTTP-Systemrand ist eine minimale FastAPI-Basis mit App Factory,
 `/health`, `/version` und dem kontrollierten synthetischen Endpunkt
-`POST /ai/draft` vorhanden. Noch nicht vorhanden sind insbesondere
-Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer,
-Provider- oder Modell-Allowlist, produktive Evaluation, Docker, Persistenz,
-Authentifizierung, Cloud-Deployment, Infrastructure as Code und Monitoring.
+`POST /ai/draft` vorhanden. Die lokale Docker-Laufzeit fuer diese Demo ist
+ebenfalls vorhanden. Noch nicht vorhanden sind insbesondere Retry-Policy,
+Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder
+Modell-Allowlist, produktive Evaluation, Persistenz, Authentifizierung,
+Cloud-Deployment, Infrastructure as Code und Monitoring.
 Eine erfolgreiche Live-Verbindung zum Provider ist ohne expliziten opt-in
 Smoke-Test nicht behauptet. Eine Prompt Registry ist bewusst aufgeschoben und
 aktuell nicht benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding-,
@@ -595,12 +596,20 @@ AI-Draft-Endpunkt:
 
 Docker-Anforderungen:
 
-- reproduzierbarer Build
-- nicht privilegierter Benutzer
-- Health Check
+- reproduzierbarer Build vorhanden
+- nicht privilegierter Benutzer vorhanden
+- Health Check vorhanden
 - keine Secrets im Image
 - `FakeModelProvider` als sicherer Standard
 - echter Provider nur per expliziter Konfiguration
+
+Die lokale Docker-Laufzeit startet die bestehende FastAPI-Demo ueber ein
+gepinntes Basisimage und Uvicorn mit `create_app` als Factory. Das Image
+installiert das Paket editable inklusive der vorhandenen synthetischen
+Fixtures, ohne Packaging-Metadaten oder Console-Script-Deklarationen zu
+aendern; vorhandene Commands werden weder ausgefuehrt noch ueber HTTP
+exponiert. Ein separater CI-Docker-Smoke-Job ergaenzt die weiterhin docker-
+und netzwerkfreien Standardtests.
 
 Die bestehende CLI bleibt funktionsfaehig. Stabile CLI-JSON-Vertraege duerfen
 nicht stillschweigend veraendert werden.
@@ -1169,3 +1178,20 @@ Cloud-Arbeit in diesem Branch.
   neue Evaluationsfaelle oder Metriken. Der naechste Produktionsbranch wird
   nach dem Merge erneut live bestimmt und hier nicht spekulativ
   vorweggenommen.
+
+### Aktualisierung vom 25. Juli 2026 (Docker-Laufzeit)
+
+- Datum: 25. Juli 2026
+- Aenderung: Die kleinste reproduzierbare lokale Docker-Laufzeit fuer die
+  bestehende FastAPI-Demo wurde ergaenzt.
+- Umfang: `Dockerfile` mit konkret gepinntem Python-/Debian-Basisimage inkl.
+  Digest, Non-Root-User, Health Check, `uvicorn` als Runtime-Abhaengigkeit,
+  Factory-Start von `create_app`, editable Install inkl. synthetischer
+  Fixtures, `.dockerignore` ohne Ausschluss von `README.md`/`LICENSE`,
+  schlanke statische Offline-Tests sowie separater CI-Docker-Smoke-Job.
+  `FakeModelProvider` bleibt sicherer Standard; Standard-pytest bleibt
+  docker- und netzwerkfrei. Cloud wird nicht vorgezogen.
+- Auswirkung: Phase 4 erhaelt die lokale Deployment-Baseline fuer die
+  FastAPI-Demo, ohne Compose, Auth, Persistenz oder Aenderung stabiler
+  CLI-/HTTP-Vertraege. Der naechste Produktionsbranch wird nach dem Merge
+  erneut live bestimmt und hier nicht spekulativ vorweggenommen.
