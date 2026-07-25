@@ -958,9 +958,6 @@ Architekturentscheidungen.
 
 ## Unmittelbar naechster Produktionsbranch
 
-Der unmittelbar naechste Produktionsbranch wird nach dem Merge dieses Stands
-erneut live bestimmt.
-
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle naechste
 Abschnitt ist Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud
 ist AWS laut ADR-004. Der naechste Produktionsbranch wird nach dem Merge erneut

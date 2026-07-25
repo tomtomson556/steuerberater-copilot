@@ -26,6 +26,11 @@ Cloudwahl nicht.
 
 AWS ist die einzige Referenz-Cloud fuer den Portfolio-Release 2026.
 
+ADR-004 loest ausschliesslich die bisher offene Auswahl der Referenz-Cloud
+sowie die fruehere unverbindliche Azure-Praeferenz aus ADR-003 ab. Alle
+uebrigen Entscheidungen und Leitplanken aus ADR-003 bleiben unveraendert
+gueltig.
+
 Verbindliche Leitplanken:
 
 - genau eine Referenz-Cloud: AWS
