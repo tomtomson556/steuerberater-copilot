@@ -40,26 +40,67 @@ jobs:
   docker-smoke:
     name: Docker runtime smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Plant build-context sentinel files
+        run: |
+          echo "sentinel-root" > DOCKER_CONTEXT_SENTINEL_ROOT.txt
+          echo "sentinel-fixture" > fixtures/offline_mvp/DOCKER_CONTEXT_SENTINEL.txt
+
       - name: Build local FastAPI demo image
         run: docker build -t steuerberater-copilot:ci .
+
+      - name: Assert sentinel files are absent from the image
+        run: |
+          if docker run --rm --entrypoint python steuerberater-copilot:ci -c \
+            "import pathlib; root=pathlib.Path('/app'); raise SystemExit(1 if (root/'DOCKER_CONTEXT_SENTINEL_ROOT.txt').exists() or (root/'fixtures'/'offline_mvp'/'DOCKER_CONTEXT_SENTINEL.txt').exists() else 0)"; then
+            echo "Sentinel files correctly absent from image"
+          else
+            echo "Sentinel files leaked into the image" >&2
+            exit 1
+          fi
 
       - name: Run container and smoke health and AI draft
         run: |
           docker run -d --name steuerberater-copilot-ci -p 8000:8000 steuerberater-copilot:ci
-          ready=0
-          for _ in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json; then
-              ready=1
+
+          uid="$(docker exec steuerberater-copilot-ci id -u)"
+          test "$uid" = "10001"
+
+          if docker exec steuerberater-copilot-ci python -c "import os; raise SystemExit(0 if not os.access('/app/src', os.W_OK) else 1)"; then
+            echo "/app/src is not writable"
+          else
+            echo "/app/src unexpectedly writable" >&2
+            exit 1
+          fi
+          if docker exec steuerberater-copilot-ci python -c "import os; raise SystemExit(0 if not os.access('/app/fixtures', os.W_OK) else 1)"; then
+            echo "/app/fixtures is not writable"
+          else
+            echo "/app/fixtures unexpectedly writable" >&2
+            exit 1
+          fi
+
+          healthy=0
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' steuerberater-copilot-ci)"
+            if [ "$status" = "healthy" ]; then
+              healthy=1
               break
+            fi
+            if [ "$status" = "unhealthy" ]; then
+              echo "Container reported unhealthy" >&2
+              docker logs steuerberater-copilot-ci >&2 || true
+              exit 1
             fi
             sleep 1
           done
-          test "$ready" = "1"
+          test "$healthy" = "1"
+
+          curl -fsS http://127.0.0.1:8000/health > /tmp/health.json
           python - <<'PY'
           import json
           from pathlib import Path

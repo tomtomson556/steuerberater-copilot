@@ -7,13 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE requirements-runtime.lock ./
 COPY src ./src
-COPY fixtures/offline_mvp ./fixtures/offline_mvp
+COPY fixtures/offline_mvp/cases.json ./fixtures/offline_mvp/cases.json
 
-RUN pip install --no-cache-dir -e . \
-    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser \
-    && chown -R appuser:appuser /app
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements-runtime.lock \
+    && python -m pip install --no-cache-dir --no-deps --no-build-isolation . \
+    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 USER 10001
 

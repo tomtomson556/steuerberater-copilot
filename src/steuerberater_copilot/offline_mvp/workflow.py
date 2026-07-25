@@ -40,12 +40,23 @@ from .privacy_gateway import (
 DEFAULT_FIXTURE_PATH = (
     Path(__file__).resolve().parents[3] / "fixtures" / "offline_mvp" / "cases.json"
 )
+_DOCKER_FIXTURE_PATH = Path("/app/fixtures/offline_mvp/cases.json")
 
 
-def load_fixture_cases(path: Path = DEFAULT_FIXTURE_PATH) -> tuple[IntakeCase, ...]:
+def _resolve_default_fixture_path() -> Path:
+    """Resolve synthetic fixtures for src-layout and installed Docker runtime."""
+    if DEFAULT_FIXTURE_PATH.is_file():
+        return DEFAULT_FIXTURE_PATH
+    if _DOCKER_FIXTURE_PATH.is_file():
+        return _DOCKER_FIXTURE_PATH
+    return DEFAULT_FIXTURE_PATH
+
+
+def load_fixture_cases(path: Path | None = None) -> tuple[IntakeCase, ...]:
     """Load synthetic offline MVP cases from a local JSON fixture."""
 
-    raw_cases = json.loads(path.read_text(encoding="utf-8"))
+    fixture_path = _resolve_default_fixture_path() if path is None else path
+    raw_cases = json.loads(fixture_path.read_text(encoding="utf-8"))
     return tuple(_case_from_mapping(raw_case) for raw_case in raw_cases)
 
 
