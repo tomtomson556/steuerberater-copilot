@@ -7,10 +7,13 @@ Der AWS-Dokumentations-MCP unter
 ausschliesslich zur read-only Recherche in oeffentlicher offizieller
 AWS-Dokumentation und oeffentlichen regionalen Serviceinformationen.
 
-Er ist keine Anwendungskomponente. Er stellt keine Verbindung zu einem
-AWS-Konto her und darf nicht fuer AWS-API-Aufrufe, Resource-Discovery,
-Skriptausfuehrung, Infrastructure as Code oder Schreiboperationen verwendet
-werden.
+Er ist keine Anwendungskomponente. Die vorliegende Freigabe umfasst
+ausschliesslich die unauthentifizierte read-only Dokumentationsnutzung. In
+dieser freigegebenen Nutzung wird keine Verbindung zu einem AWS-Konto
+hergestellt. Authentifizierte AWS-API-, Skript- oder Kontofunktionen des
+Servers sind nicht freigegeben und duerfen nicht verwendet werden.
+Resource-Discovery, Infrastructure as Code und Schreiboperationen bleiben
+ebenfalls ausgeschlossen.
 
 Die verbindlichen Nutzungsgrenzen stehen in
 [agent-mcp-boundaries.md](agent-mcp-boundaries.md).
@@ -86,6 +89,8 @@ Ergebnis des bereits manuell ausgefuehrten Entwicklungsnachweises:
 Verwendete offizielle AWS-Quellen:
 
 - [Amazon ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)
+- [Amazon ECS endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/ecs-service.html)
+- [Supported Regions for Amazon ECS on AWS Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate-Regions.html)
 - [AWS Services by Region](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/)
 
 Die ECS-Dokumentation beschreibt Express Mode als in den AWS-Regionen

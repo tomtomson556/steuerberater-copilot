@@ -21,8 +21,12 @@ Entwicklungsagenten frei. Es konfiguriert keinen MCP-Server im Repository und
 aktiviert keine produktive Schnittstelle.
 
 Der MCP ist ausschliesslich eine Recherchehilfe fuer Entwicklungsarbeit. Er ist
-keine Anwendungskomponente, kein Bestandteil der Runtime und kein Zugang zu
-einem AWS-Konto.
+keine Anwendungskomponente und kein Bestandteil der Runtime. Die vorliegende
+Freigabe umfasst ausschliesslich die unauthentifizierte read-only
+Dokumentationsnutzung. In dieser freigegebenen Nutzung wird keine Verbindung zu
+einem AWS-Konto hergestellt. Authentifizierte AWS-API-, Skript- oder
+Kontofunktionen des Servers sind nicht freigegeben und duerfen nicht verwendet
+werden.
 
 MCP-Tools duerfen das **Policy- und Privacy-Gateway** nicht umgehen und keine
 vertraulichen oder abgeleiteten vertraulichen Inhalte an Public-LLMs
@@ -85,6 +89,7 @@ Nicht erlaubt sind:
 - produktive Datenbank-, Storage- oder Cloud-MCPs
 - MCPs mit echten Mandanten-, Beleg-, Steuer-, Kanzlei- oder Metadaten
 - MCPs mit abgeleiteten vertraulichen Inhalten
+- MCPs mit Secrets, Tokens, Zugangsdaten oder Zertifikaten im Repository
 - Schreibtools auf produktive Systeme
 - MCP-Tools, die steuerlich wirksame Handlungen ohne Kanzlei-Freigabe ausloesen
   koennen
