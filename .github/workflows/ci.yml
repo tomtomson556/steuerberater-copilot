@@ -80,4 +80,4 @@ jobs:
 
       - name: Stop container
         if: always()
-        run: docker rm -f steuerberater-copilot-ci
+        run: docker rm -f steuerberater-copilot-ci 2>/dev/null || true

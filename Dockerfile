@@ -9,10 +9,9 @@ WORKDIR /app
 
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-COPY fixtures ./fixtures
+COPY fixtures/offline_mvp ./fixtures/offline_mvp
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e . \
+RUN pip install --no-cache-dir -e . \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser \
     && chown -R appuser:appuser /app
 

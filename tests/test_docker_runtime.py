@@ -16,6 +16,35 @@ PINNED_BASE_IMAGE = (
     "sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b"
 )
 
+REQUIRED_DOCKERIGNORE_ENTRIES = (
+    "fixtures/private/",
+    "data/",
+    "storage/",
+    "exports/",
+    "uploads/",
+    "downloads/",
+    "mandanten/",
+    "belege/",
+    "kanzlei/",
+    "agenda/",
+    "elster/",
+    "secrets/",
+    "vault/",
+    "*.sqlite",
+    "*.sqlite3",
+    "*.db",
+    "*.duckdb",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.kdbx",
+    "*.age",
+    "*.gpg",
+    ".env",
+    ".env.*",
+)
+
 
 def test_dockerfile_and_dockerignore_exist() -> None:
     assert DOCKERFILE.is_file()
@@ -66,11 +95,24 @@ def test_dockerignore_keeps_readme_and_license() -> None:
     assert "!README.md" in lines
 
 
-def test_dockerfile_includes_fixtures_for_demo_path() -> None:
+def test_dockerignore_excludes_sensitive_local_data_and_secret_paths() -> None:
+    lines = {
+        line.strip()
+        for line in DOCKERIGNORE.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+
+    missing = [entry for entry in REQUIRED_DOCKERIGNORE_ENTRIES if entry not in lines]
+    assert missing == []
+
+
+def test_dockerfile_copies_only_offline_mvp_fixtures() -> None:
     contents = DOCKERFILE.read_text(encoding="utf-8")
 
-    assert "COPY fixtures ./fixtures" in contents
+    assert "COPY fixtures/offline_mvp ./fixtures/offline_mvp" in contents
+    assert "COPY fixtures ./fixtures" not in contents
     assert "pip install --no-cache-dir -e ." in contents
+    assert "--upgrade pip" not in contents
 
 
 def test_pyproject_declares_uvicorn_runtime_dependency() -> None:
