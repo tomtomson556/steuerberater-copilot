@@ -154,6 +154,15 @@ without a current need.
 MCP use for repository agent work is currently limited to documentation or
 read-only access to public or explicitly approved documentation sources.
 
+The approved read-only AWS documentation MCP may be used only for public,
+official AWS documentation and regional AWS service information. It is a
+development research aid, not an application component.
+
+Time-dependent or service-specific AWS architecture claims must be checked
+against current official AWS sources. Architecture and decision documents must
+name the sources used so that the claims remain traceable. MCP results are
+research input and never an automatic architecture decision.
+
 Productive MCP servers, MCPs with real or derived confidential content, MCPs
 with repository secrets, and MCP write tools for productive systems are not
 allowed. MCP must not bypass the Policy and Privacy Gateway. Details are
