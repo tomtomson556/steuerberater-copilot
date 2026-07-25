@@ -7,7 +7,7 @@
 - Startdatum der Roadmap: 9. Juli 2026
 - Portfolio-Zieltermin: 31. Dezember 2026
 - Interner Release-Termin: spaetestens 20. Dezember 2026
-- Aktuelle Phase: API und Docker-Demo
+- Aktuelle Phase: Referenz-Cloud und Observability
 
 ## Zweck
 
@@ -302,34 +302,31 @@ Der spaetere lokale Demo-Stack soll diese Eigenschaften haben:
 
 Es wird genau eine Referenz-Cloud umgesetzt. Multi-Cloud ist kein Ziel.
 
-Die aktuelle Praeferenz ist Azure. Azure ist jedoch noch keine endgueltige
-Architekturentscheidung. AWS und Azure werden spaetestens bis zum
-31. August 2026 verbindlich verglichen. Die konkrete Auswahl wird in einem
-spaeteren eigenen ADR dokumentiert:
+Die Cloudentscheidung ist abgeschlossen. Gewaehlte Referenz-Cloud ist AWS.
+Die fruehere Azure-Praeferenz und die Vergleichsfrist bis zum 31. August 2026
+sind damit abgeloest. Die verbindliche Auswahl ist in ADR-004 dokumentiert:
 
 ```text
 docs/15-decisions/adr/adr-004-select-reference-cloud.md
 ```
 
-Entscheidungskriterien sind:
+Verbindliche Leitplanken:
 
-- Zielstellen und Arbeitsmarkt
-- verfuegbarer Account und Dienstzugang
-- Kosten
-- EU-Region
-- Modellzugang
-- Containerbetrieb
-- Secret Management
-- Monitoring
-- IaC-Aufwand
-- zuverlaessige Abschaltmoeglichkeit
+- genau eine Referenz-Cloud: AWS
+- keine Multi-Cloud-Unterstuetzung
+- cloud-neutraler Anwendungskern
+- AWS-Komponenten nur an Systemraendern
+- Modellprovider und Laufzeit-Cloud bleiben getrennte Entscheidungen
+- ausschliesslich synthetische Daten
+- EU-Region als Pflicht; vorgesehene Referenzregion `eu-central-1`
+- Kostenkontrolle und zuverlaessige Abschaltbarkeit sind Pflicht
+- lokale Docker-Demo und offline deterministische Standardtests bleiben der
+  sichere Standard
 
-Defaultregel: Falls keine deutliche AWS-Dominanz im relevanten Stellenmarkt
-besteht und Azure technisch sowie wirtschaftlich zugaenglich ist, wird Azure
-als Referenzplattform gewaehlt.
-
-Die Wahl des Modellproviders und die Wahl der Laufzeit-Cloud sind getrennte
-Entscheidungen.
+Azure bleibt technisch tragfaehig, wurde fuer den Portfolio-Release 2026 aber
+bewusst nicht gewaehlt. Die konkrete AWS-Laufzeit (zum Beispiel App Runner
+versus ECS Fargate) ist noch nicht entschieden und gehoert in den spaeteren
+Architekturbranch.
 
 ## Zeitlich verbindliche Roadmap
 
@@ -481,7 +478,8 @@ kontrollierte Adaptergrenze von 2.000 Output-Tokens nicht, dass das Budget fuer
 jedes Modell ausreicht. Modellkompatibilitaet, reales Response-Verhalten und
 Outputbudget bleiben Gegenstand des noch ausstehenden opt-in Live-Smokes.
 
-Die Cloudentscheidung erfolgt spaetestens am 31. August 2026.
+Die Cloudentscheidung ist mit ADR-004 abgeschlossen; gewaehlte Referenz-Cloud
+ist AWS.
 
 ### Phase 3 - RAG mit nachvollziehbaren Quellen
 
@@ -555,6 +553,8 @@ Exit-Kriterium: Mit 38 stabilen synthetischen Evaluationsfaellen erreicht.
 ### Phase 4 - API und Docker-Demo
 
 Zeitraum: 12. Oktober bis 8. November 2026
+
+Status: Abgeschlossen am 25. Juli 2026.
 
 Geplante Branches:
 
@@ -638,6 +638,9 @@ Evaluation-Command:
 ### Phase 5 - Referenz-Cloud und Observability
 
 Zeitraum: 9. bis 30. November 2026
+
+Status: Aktueller naechster Abschnitt. Referenz-Cloud ist AWS laut ADR-004.
+Konkrete AWS-Laufzeitdienste und Observability-Implementierung stehen noch aus.
 
 Minimaler Cloud-Scope:
 
@@ -955,24 +958,12 @@ Architekturentscheidungen.
 
 ## Unmittelbar naechster Produktionsbranch
 
-Der unmittelbar naechste Produktionsbranch wird nach dem Merge dieses Stands
-erneut live bestimmt.
-
-Der aktuelle Phase-3-Code-Scope ist mit 38 stabilen synthetischen
-Evaluationsfaellen und allen geplanten aggregierten Metriken vollstaendig
-erfuellt. Vorhanden sind unter anderem Source Document,
-LocalDocumentRetriever, Grounded Draft, RAG-Workflow, Retrieval-Evaluation,
-Grounding-Evaluation sowie der Abstention-Fallvertrag, der Abstention-Runner,
-das Abstention-Assessment, die synthetische Abstention-Fallbibliothek, die
-aggregierte Abstention-Metrik, der Contradiction-Fallvertrag und die
-Closed-Template-Widerspruchsbaseline, der Contradiction-Einzelfall-Runner und
-das Contradiction-Assessment, die synthetische Contradiction-Fallbibliothek,
-die aggregierte Contradiction-Metrik, der Freshness-Fallvertrag, der
-Freshness-Einzelfall-Runner, das Freshness-Assessment, die synthetische
-Freshness-Fallbibliothek und die aggregierte Freshness-Metrik. Der naechste
-Produktionsbranch wird nach dem Merge erneut live bestimmt und hier nicht
-spekulativ vorweggenommen. Es gibt weiterhin keine API-, Docker- oder
-Cloud-Arbeit in diesem Branch.
+Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle naechste
+Abschnitt ist Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud
+ist AWS laut ADR-004. Der naechste Produktionsbranch wird nach dem Merge erneut
+live bestimmt und hier nicht spekulativ vorweggenommen. Konkrete AWS-Laufzeit-,
+IaC- oder Observability-Arbeit ist in diesem Dokumentationsstand nicht
+enthalten.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1206,3 +1197,19 @@ Cloud-Arbeit in diesem Branch.
   FastAPI-Demo, ohne Compose, Auth, Persistenz oder Aenderung stabiler
   CLI-/HTTP-Vertraege. Der naechste Produktionsbranch wird nach dem Merge
   erneut live bestimmt und hier nicht spekulativ vorweggenommen.
+
+### Aktualisierung vom 25. Juli 2026 (Referenz-Cloud AWS)
+
+- Datum: 25. Juli 2026
+- Aenderung: AWS ist als einzige Referenz-Cloud verbindlich ausgewaehlt und in
+  ADR-004 dokumentiert. Die Roadmap markiert die fruehere Azure-Praeferenz und
+  die Vergleichsfrist bis zum 31. August 2026 als abgeloest, Phase 4 als
+  abgeschlossen und Phase 5 als aktuellen naechsten Abschnitt.
+- Begruendung: Laufende AWS-Ausbildung des Projektinhabers, direkte Verbindung
+  von Ausbildung und Portfolio-Nachweis, konsistenter Kompetenzaufbau statt
+  paralleler Azure-Einarbeitung sowie Eignung fuer einen kleinen
+  containerisierten Deployment-Nachweis.
+- Auswirkung: Keine Produktionscode-, Dockerfile-, CI- oder Testaenderung.
+  Keine AWS-Ressourcen, Credentials, SDKs oder IaC. Die konkrete AWS-Laufzeit
+  (zum Beispiel App Runner versus ECS Fargate) bleibt dem spaeteren
+  Architekturbranch vorbehalten.
