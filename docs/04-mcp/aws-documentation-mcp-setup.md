@@ -4,53 +4,53 @@
 
 Der AWS-Dokumentations-MCP unter
 `https://aws-mcp.eu-central-1.api.aws/mcp` dient Entwicklungsagenten
-ausschliesslich zur read-only Recherche in oeffentlicher offizieller
-AWS-Dokumentation und oeffentlichen regionalen Serviceinformationen.
+ausschließlich zur read-only Recherche in öffentlicher offizieller
+AWS-Dokumentation und öffentlichen regionalen Serviceinformationen.
 
 Er ist keine Anwendungskomponente. Die vorliegende Freigabe umfasst
-ausschliesslich die unauthentifizierte read-only Dokumentationsnutzung. In
+ausschließlich die unauthentifizierte read-only Dokumentationsnutzung. In
 dieser freigegebenen Nutzung wird keine Verbindung zu einem AWS-Konto
 hergestellt. Authentifizierte AWS-API-, Skript- oder Kontofunktionen des
-Servers sind nicht freigegeben und duerfen nicht verwendet werden.
+Servers sind nicht freigegeben und dürfen nicht verwendet werden.
 Resource-Discovery, Infrastructure as Code und Schreiboperationen bleiben
 ebenfalls ausgeschlossen.
 
 Die verbindlichen Nutzungsgrenzen stehen in
 [agent-mcp-boundaries.md](agent-mcp-boundaries.md).
 
-## Persoenliche Clientkonfiguration
+## Persönliche Clientkonfiguration
 
-Der Endpoint wird als entfernter HTTP-MCP-Server ausschliesslich in der
-persoenlichen Benutzerkonfiguration des jeweiligen Clients eingetragen:
+Der Endpoint wird als entfernter HTTP-MCP-Server ausschließlich in der
+persönlichen Benutzerkonfiguration des jeweiligen Clients eingetragen:
 
-| Client oder Erweiterung | Persoenlicher Konfigurationsort |
+| Client oder Erweiterung | Persönlicher Konfigurationsort |
 | --- | --- |
 | VS Code mit GitHub Copilot Chat und DeepSeek-Copilot-Erweiterung | globale VS-Code-MCP-Benutzerkonfiguration |
-| Codex-VS-Code-Erweiterung | persoenliche Codex-Konfiguration; Codex-IDE und Codex-CLI teilen die benutzerbezogene `config.toml` |
-| Cursor-Terminalagent | persoenliche Cursor-MCP-Konfiguration |
+| Codex-VS-Code-Erweiterung | persönliche Codex-Konfiguration; Codex-IDE und Codex-CLI teilen die benutzerbezogene `config.toml` |
+| Cursor-Terminalagent | persönliche Cursor-MCP-Konfiguration |
 
-Fuer Codex beschreibt die
+Für Codex beschreibt die
 [offizielle MCP-Dokumentation](https://learn.chatgpt.com/docs/extend/mcp), dass
-IDE-Erweiterung und CLI dieselbe persoenliche Konfiguration verwenden.
+IDE-Erweiterung und CLI dieselbe persönliche Konfiguration verwenden.
 
-Fuer alle Clients gelten dieselben Einrichtungsgrenzen:
+Für alle Clients gelten dieselben Einrichtungsgrenzen:
 
 - keine AWS-Authentifizierung konfigurieren
 - keine AWS-Profile, Access Keys, Tokens oder OAuth-Anmeldung hinterlegen
 - keine automatischen Toolfreigaben aktivieren
-- nur die read-only Werkzeuge fuer Dokumentationssuche, Lesen und regionale
-  Serviceverfuegbarkeit verwenden
+- nur die read-only Werkzeuge für Dokumentationssuche, Lesen und regionale
+  Serviceverfügbarkeit verwenden
 - weitere angezeigte Werkzeuge weder freigeben noch verwenden
 
 Dieser Branch legt keine Workspace-Konfiguration an. Insbesondere werden keine
 `.vscode/mcp.json`, `.cursor/mcp.json`, Codex-Konfigurationsdateien,
-persoenlichen Home-Verzeichnisdateien oder Credentials in das Repository
+persönlichen Home-Verzeichnisdateien oder Credentials in das Repository
 aufgenommen.
 
 ## Codespaces
 
-Die Benutzerkonfigurationen liegen ausserhalb des Repositories. Nach einem
-Codespace-Rebuild oder in einem neuen Codespace koennen die persoenliche
+Die Benutzerkonfigurationen liegen außerhalb des Repositories. Nach einem
+Codespace-Rebuild oder in einem neuen Codespace können die persönliche
 Konfiguration und eine erneute manuelle Verifikation erforderlich sein.
 
 Eine fehlende oder verlorene Benutzerkonfiguration darf nicht durch eine
@@ -58,32 +58,32 @@ eingecheckte Workspace-Konfiguration ersetzt werden.
 
 ## Manuelle Verifikation
 
-Nach der persoenlichen Einrichtung wird fuer jeden verwendeten Agenten manuell
-geprueft:
+Nach der persönlichen Einrichtung wird für jeden verwendeten Agenten manuell
+geprüft:
 
 1. Der Endpoint ist erreichbar.
-2. Werkzeuge fuer Dokumentationssuche, Lesen und regionale Verfuegbarkeit
+2. Werkzeuge für Dokumentationssuche, Lesen und regionale Verfügbarkeit
    werden erkannt.
-3. Eine ausschliesslich oeffentliche AWS-Dokumentationsfrage liefert eine
+3. Eine ausschließlich öffentliche AWS-Dokumentationsfrage liefert eine
    offizielle AWS-Quelle.
-4. Die regionale Abfrage benoetigt weder AWS-Anmeldung noch AWS-API-Aufruf.
+4. Die regionale Abfrage benötigt weder AWS-Anmeldung noch AWS-API-Aufruf.
 5. Es wird kein nicht freigegebenes Werkzeug verwendet oder automatisch
    freigegeben.
 
 Diese Verifikation ist kein Standardtest, kein CI-Test und keine Zusicherung
-der dauerhaften Verfuegbarkeit des externen MCP-Servers.
+der dauerhaften Verfügbarkeit des externen MCP-Servers.
 
 ## Manueller Smoke-Test vom 25. Juli 2026
 
-Ergebnis des bereits manuell ausgefuehrten Entwicklungsnachweises:
+Ergebnis des bereits manuell ausgeführten Entwicklungsnachweises:
 
 - Alle drei verwendeten Entwicklungsagenten konnten den
   AWS-Dokumentationszugang nutzen.
-- Mindestens die Werkzeuge fuer Dokumentationssuche, Lesen und regionale
-  Serviceverfuegbarkeit wurden erkannt.
-- Amazon ECS Express Mode und seine Verfuegbarkeit in `eu-central-1` wurden
+- Mindestens die Werkzeuge für Dokumentationssuche, Lesen und regionale
+  Serviceverfügbarkeit wurden erkannt.
+- Amazon ECS Express Mode und seine Verfügbarkeit in `eu-central-1` wurden
   anhand offizieller AWS-Dokumentation und regionaler Serviceinformationen
-  geprueft.
+  geprüft.
 - Es wurden keine AWS-Credentials und keine AWS-API-Aufrufe verwendet.
 
 Verwendete offizielle AWS-Quellen:
@@ -94,11 +94,11 @@ Verwendete offizielle AWS-Quellen:
 - [AWS Services by Region](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/)
 
 Die ECS-Dokumentation beschreibt Express Mode als in den AWS-Regionen
-verfuegbar, in denen Amazon ECS und AWS Fargate unterstuetzt werden. Die
+verfügbar, in denen Amazon ECS und AWS Fargate unterstützt werden. Die
 regionale read-only Abfrage meldete Amazon ECS und AWS Fargate am Testdatum
-fuer `eu-central-1` als verfuegbar.
+für `eu-central-1` als verfügbar.
 
 Der Nachweis belegt nur das manuelle Ergebnis vom 25. Juli 2026. Er behauptet
-weder automatisierte noch dauerhafte Verfuegbarkeit des externen MCP-Servers
-und trifft keine Architekturentscheidung fuer ECS Express Mode, Fargate,
+weder automatisierte noch dauerhafte Verfügbarkeit des externen MCP-Servers
+und trifft keine Architekturentscheidung für ECS Express Mode, Fargate,
 CloudFormation oder einen anderen Deploymentdienst.
