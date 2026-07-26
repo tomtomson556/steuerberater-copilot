@@ -124,15 +124,16 @@ Default ohne Secret-Injection.
 ## 6. Optionaler Secret-Nachweis (erst nach externem PutSecretValue)
 
 Kein Secret-Wert gehört ins Repository, Template, Parameter, Output oder CI.
-Im Runbook steht deshalb **kein** `--secret-string`-Literal.
+Im Runbook steht deshalb **kein** `--secret-string`-Literal und kein Shell-
+Literal mit Secret-Inhalt.
 
 1. Stack mit `CreateManagedSecret=true` und weiterhin
    `InjectManagedSecret=false` aktualisieren.
 2. ARN aus Output `ManagedSecretArn` lesen.
-3. **Außerhalb des Repositorys** einen synthetischen Demo-Wert setzen und
-   danach sofort löschen bzw. unsetten.
-
-Interaktive Eingabe (Wert wird nicht ausgegeben):
+3. **Außerhalb des Repositorys** einen synthetischen Demo-Wert über eine
+   temporäre Datei setzen. Sofort bereinigt werden nur die **lokale Variable**
+   und die **temporäre Datei** - nicht der soeben in AWS Secrets Manager
+   gesetzte Secret-Wert (der bleibt für den späteren Injection-Test erhalten).
 
 ```bash
 REGION=eu-central-1
@@ -142,31 +143,33 @@ MANAGED_SECRET_ARN="$(aws cloudformation describe-stacks \
   --query "Stacks[0].Outputs[?OutputKey=='ManagedSecretArn'].OutputValue" \
   --output text)"
 
-read -r -s -p "Synthetischen Demo-Secret-Wert eingeben (Eingabe wird nicht angezeigt): " SECRET_VALUE
-printf '\n'
-aws secretsmanager put-secret-value \
-  --region "$REGION" \
-  --secret-id "$MANAGED_SECRET_ARN" \
-  --secret-string "$SECRET_VALUE"
-unset SECRET_VALUE
-```
-
-Alternativ temporäre Datei außerhalb des Repositorys:
-
-```bash
 SECRET_FILE="$(mktemp "${TMPDIR:-/tmp}/sbc-demo-secret.XXXXXX")"
 chmod 600 "$SECRET_FILE"
-read -r -s -p "Synthetischen Demo-Secret-Wert eingeben: " SECRET_VALUE
+
+cleanup_local_secret_material() {
+  rm -f "$SECRET_FILE"
+  unset SECRET_VALUE SECRET_FILE
+}
+trap cleanup_local_secret_material EXIT INT TERM
+
+read -r -s -p "Synthetischen Demo-Secret-Wert eingeben (Eingabe wird nicht angezeigt): " SECRET_VALUE
 printf '\n'
 printf '%s' "$SECRET_VALUE" > "$SECRET_FILE"
 unset SECRET_VALUE
+
 aws secretsmanager put-secret-value \
   --region "$REGION" \
   --secret-id "$MANAGED_SECRET_ARN" \
   --secret-string "file://${SECRET_FILE}"
-rm -f "$SECRET_FILE"
-unset SECRET_FILE
+
+cleanup_local_secret_material
+trap - EXIT INT TERM
 ```
+
+Der `trap` stellt sicher, dass temporäre Datei und lokale Variablen auch dann
+entfernt bzw. unset werden, wenn `put-secret-value` fehlschlägt. Nach
+erfolgreicher Bereinigung wird der Trap wieder aufgehoben. Der AWS-Secret-Wert
+selbst bleibt bis zum späteren Stack-Delete bzw. Secret-Lifecycle bestehen.
 
 4. Erst danach Stack mit `InjectManagedSecret=true` und
    `DeployService=true` aktualisieren (Digest-`ImageUri` beibehalten).
@@ -302,10 +305,23 @@ Bloßes Verringern der Task-Anzahl ist keine Abschaltung.
 ## 8. Prüfung auf verbliebene Ressourcen
 
 Nach `DELETE_COMPLETE` die zuvor gesicherten IDs in `eu-central-1` prüfen.
-Erwartetes Ergebnis: Express Service, stackeigenes ECR, stackeigene Log Group
-und Managed Secret existieren nicht mehr; die zuvor erfassten dedizierten
-Express-Ressourcen (ALB, Target Groups, Security Groups, Express-Log-Groups)
-sind entfernt.
+
+Harte Fehler (`exit 1`), wenn noch existieren:
+
+- Express Gateway Service
+- stackeigenes ECR
+- stackeigene Log Group
+- stackeigenes Managed Secret (falls zuvor angelegt)
+- eindeutig serviceeigene Target Groups oder Security Groups
+
+Nicht automatisch als harter Fehler behandeln:
+
+- ein geteilter Application Load Balancer
+- von Express Mode zurückbehaltene Log Groups
+
+Diese Fälle als `WARN` ausgeben und manuell attribuieren bzw. bereinigen.
+Nicht alle Einträge aus `ecsManagedResources` müssen nach jedem Delete
+verschwunden sein (geteilte oder bewusst zurückbehaltene Ressourcen).
 
 ```bash
 REGION=eu-central-1
@@ -323,7 +339,7 @@ EXPRESS_LOG_GROUPS="$(cat "$VERIFY_DIR/express-log-group-names.txt")"
 # Express Gateway Service darf nicht mehr existieren
 if aws ecs describe-express-gateway-service \
   --region "$REGION" \
-  --service-arn "$EXPRESS_SERVICE_ARN"; then
+  --service-arn "$EXPRESS_SERVICE_ARN" 2>/dev/null; then
   echo "FAIL: Express Gateway Service existiert noch" >&2
   exit 1
 fi
@@ -331,7 +347,7 @@ fi
 # Stackeigenes ECR
 if aws ecr describe-repositories \
   --region "$REGION" \
-  --repository-names "$ECR_REPO_NAME"; then
+  --repository-names "$ECR_REPO_NAME" 2>/dev/null; then
   echo "FAIL: ECR-Repository existiert noch" >&2
   exit 1
 fi
@@ -342,52 +358,59 @@ STACK_LOG_MATCHES="$(aws logs describe-log-groups \
   --log-group-name-prefix "$LOG_GROUP_NAME" \
   --query "logGroups[?logGroupName=='${LOG_GROUP_NAME}']" \
   --output text)"
-test -z "$STACK_LOG_MATCHES"
+if [ -n "$STACK_LOG_MATCHES" ]; then
+  echo "FAIL: stackeigene Log Group existiert noch: $LOG_GROUP_NAME" >&2
+  exit 1
+fi
 
 # Managed Secret (nur wenn zuvor angelegt; sonst steht None/leerer Wert in der Datei)
 if [ -n "$MANAGED_SECRET_ARN" ] && [ "$MANAGED_SECRET_ARN" != "None" ]; then
   if aws secretsmanager describe-secret \
     --region "$REGION" \
-    --secret-id "$MANAGED_SECRET_ARN"; then
+    --secret-id "$MANAGED_SECRET_ARN" 2>/dev/null; then
     echo "FAIL: Managed Secret existiert noch" >&2
     exit 1
   fi
 fi
 
-# Dedizierte Express-ALB-Ressource
-if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
-  if aws elbv2 describe-load-balancers \
-    --region "$REGION" \
-    --load-balancer-arns "$ALB_ARN"; then
-    echo "FAIL: Express ALB existiert noch (ggf. geteilter ALB; siehe Hinweis unten)" >&2
-    exit 1
-  fi
-fi
-
-# Target Groups
+# Eindeutig serviceeigene Target Groups
 for tg_arn in $TARGET_GROUP_ARNS; do
   [ -z "$tg_arn" ] || [ "$tg_arn" = "None" ] && continue
   if aws elbv2 describe-target-groups \
     --region "$REGION" \
-    --target-group-arns "$tg_arn"; then
-    echo "FAIL: Target Group existiert noch: $tg_arn" >&2
+    --target-group-arns "$tg_arn" 2>/dev/null; then
+    echo "FAIL: serviceeigene Target Group existiert noch: $tg_arn" >&2
     exit 1
   fi
 done
 
-# Security Groups (ALB- und Service-SG)
+# Eindeutig serviceeigene Security Groups (ALB- und Service-SG dieser Demo)
 for sg_arn in $ALB_SG_ARNS $SERVICE_SG_ARNS; do
   [ -z "$sg_arn" ] || [ "$sg_arn" = "None" ] && continue
   sg_id="${sg_arn##*/}"
-  SG_MATCHES="$(aws ec2 describe-security-groups \
+  if aws ec2 describe-security-groups \
     --region "$REGION" \
     --group-ids "$sg_id" \
-    --query 'SecurityGroups' \
-    --output text 2>/dev/null || true)"
-  test -z "$SG_MATCHES"
+    --query 'SecurityGroups[0].GroupId' \
+    --output text 2>/dev/null | grep -q .; then
+    echo "FAIL: serviceeigene Security Group existiert noch: $sg_arn" >&2
+    exit 1
+  fi
 done
 
-# Von Express verwaltete Log Groups
+# Geteilter ALB: WARN, kein automatisches exit 1
+if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+  if aws elbv2 describe-load-balancers \
+    --region "$REGION" \
+    --load-balancer-arns "$ALB_ARN" 2>/dev/null; then
+    echo "WARN: ALB existiert noch: $ALB_ARN" >&2
+    echo "WARN: Prüfe manuell, ob der ALB von anderen Express-Services geteilt wird." >&2
+    echo "WARN: Attribution: ELB-Tags (z. B. AmazonECSManaged), Listener-Regeln und" >&2
+    echo "WARN: verbleibende Target Groups anderer Services prüfen, bevor du löschst." >&2
+  fi
+fi
+
+# Von Express Mode zurückbehaltene Log Groups: WARN, kein automatisches exit 1
 for lg_name in $EXPRESS_LOG_GROUPS; do
   [ -z "$lg_name" ] || [ "$lg_name" = "None" ] && continue
   LG_MATCHES="$(aws logs describe-log-groups \
@@ -395,24 +418,31 @@ for lg_name in $EXPRESS_LOG_GROUPS; do
     --log-group-name-prefix "$lg_name" \
     --query "logGroups[?logGroupName=='${lg_name}']" \
     --output text)"
-  test -z "$LG_MATCHES"
+  if [ -n "$LG_MATCHES" ]; then
+    echo "WARN: Express-Log-Group existiert noch: $lg_name" >&2
+    echo "WARN: Attributiere manuell, ob sie ausschließlich dieser Demo gehört." >&2
+    echo "WARN: Bei bestätigter Demo-Zugehörigkeit manuell löschen:" >&2
+    echo "aws logs delete-log-group --region ${REGION} --log-group-name ${lg_name}" >&2
+  fi
 done
 
-echo "Post-delete checks passed for saved demo resource IDs."
+echo "Harte Post-delete-Checks für Service/ECR/stack-Log/Secret/TG/SG bestanden."
+echo "WARN-Fälle (geteilter ALB, zurückbehaltene Express-Log-Groups) ggf. manuell bereinigen."
 rm -rf "$VERIFY_DIR"
 unset VERIFY_DIR EXPRESS_SERVICE_ARN ECR_REPO_NAME LOG_GROUP_NAME \
   MANAGED_SECRET_ARN ALB_ARN TARGET_GROUP_ARNS ALB_SG_ARNS SERVICE_SG_ARNS \
-  EXPRESS_LOG_GROUPS
+  EXPRESS_LOG_GROUPS STACK_LOG_MATCHES LG_MATCHES
 ```
 
 Hinweise zum erwarteten Ergebnis:
 
-- Service, stackeigenes ECR, stackeigene Log Group und Managed Secret sind weg.
-- Dedizierte Express-Ressourcen aus `ecsManagedResources` sind entfernt.
-- Ein von mehreren Express-Services **geteilter** Application Load Balancer kann
-  laut AWS-Dokumentation beim Löschen eines einzelnen Express-Services erhalten
-  bleiben; in einer isolierten Portfolio-Demo mit nur diesem Stack soll der
-  erfasste ALB ebenfalls fehlen.
+- Express Gateway Service, stackeigenes ECR, stackeigene Log Group und
+  Managed Secret sind weg (`FAIL`, falls nicht).
+- Eindeutig serviceeigene Target Groups und Security Groups sind weg (`FAIL`,
+  falls nicht).
+- Ein geteilter Application Load Balancer oder von Express Mode
+  zurückbehaltene Log Groups sind möglich und werden als `WARN` behandelt;
+  Cleanup erst nach manueller Attribution.
 - Automatisch erzeugte **accountweite Service-Linked Roles** (z. B. für ECS
   Application Auto Scaling oder Elastic Load Balancing) sind **kein Fehler**
   dieses Stack-Deletes und müssen nicht entfernt werden.
