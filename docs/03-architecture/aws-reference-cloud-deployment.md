@@ -27,13 +27,15 @@ Leitentscheidungen bleiben ADR-003 und ADR-004:
 In Scope:
 
 - ein Containerdienst
-- Secret-Store-Pfad (optional, später)
+- ein Secret Store (AWS Secrets Manager) als verbindlicher IaC-Bestandteil mit
+  konditionalem Opt-in
 - Health Check
 - Logging-Senke
 - EU-Region sowie Kosten- und Abschaltkontrolle
 - Daten-, Secret-, Netzwerk- und Vertrauensgrenzen
 - Abgrenzung cloud-neutraler Kern versus AWS-Systemrand
-- konkrete CloudFormation-Vorgabe für den IaC-Branch
+- konkrete CloudFormation-Vorgabe inklusive zweistufigem Bootstrap für den
+  IaC-Branch
 
 Nicht in Scope (dieser und der unmittelbare Folge-Branch):
 
@@ -45,6 +47,7 @@ Nicht in Scope (dieser und der unmittelbare Folge-Branch):
 - Authentifizierung
 - eigene VPC- oder ALB-Architektur
 - erweitertes Monitoring oder Dashboards
+- echte Secret-Werte im Repository
 
 ## Bestehende lokale Baseline
 
@@ -54,7 +57,7 @@ Die Cloud-Referenz bildet die vorhandene lokale Demo ab, ändert sie aber nicht:
 | --- | --- |
 | Dockerfile, Port `8000` | Express-Mode-`containerPort` `8000` |
 | `GET /health` | ALB-Health-Check-Pfad `/health` |
-| `FakeModelProvider` als sicherer Standard | bleibt Default; kein Secret erforderlich |
+| `FakeModelProvider` als sicherer Standard | bleibt Default; keine Secret-Injection |
 | synthetische Fixtures | ausschließlich synthetische Daten |
 | kein Secret im Image | weiterhin keine Secrets im Image |
 
@@ -67,24 +70,25 @@ Region: `eu-central-1` (ADR-004).
 | Containerdienst | Amazon ECS Express Mode |
 | Image-Quelle | Amazon ECR (privat) |
 | Image-Referenz | unveränderlicher Digest; nicht `latest` |
-| Secret Store | AWS Secrets Manager nur als optionaler späterer Pfad |
+| Secret Store | AWS Secrets Manager als verbindlicher Template-Bestandteil; Default ohne Injection |
 | Health Check | ALB-Pfad `/health`, Container-Port `8000` |
-| Logging | Stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`, referenziert in `PrimaryContainer.AwsLogsConfiguration` |
+| Logging | Stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`, referenziert in `PrimaryContainer.AwsLogsConfiguration` inkl. `LogStreamPrefix` |
 | Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`) |
 | Netzwerk-Voraussetzung | Default-VPC mit mindestens zwei öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens acht freien IP-Adressen je Subnetz |
 | ECR-Löschung | `EmptyOnDelete: true` am stackverwalteten Repository (nur kurzlebige Portfolio-Demo) |
+| Bootstrap | Zweistufig im selben Stack: zuerst ECR/IAM/Log Group, danach Express Service mit Image-Digest |
 | IaC | AWS CloudFormation mit `AWS::ECS::ExpressGatewayService` |
 
 ### Warum ECS Express Mode
 
-AWS App Runner ist seit dem 31. März 2026 für Neukunden geschlossen. Bestehende
-App-Runner-Kunden können den Dienst weiter nutzen; für dieses Portfolio ist
-App Runner kein verfügbarer Neukundenpfad.
+AWS App Runner ist für Neukunden geschlossen. AWS empfiehlt Amazon ECS Express
+Mode als Nachfolger. Offizielle AWS-Seiten nennen unterschiedliche Stichtage;
+dieses Dokument hält deshalb keinen konkreten Schließungsstichtag fest.
 
-AWS empfiehlt als Nachfolger Amazon ECS Express Mode: Image plus zwei IAM-Rollen
-reichen für einen Fargate-basierten Web-/API-Dienst mit HTTPS-URL, Load
-Balancer, Scaling und Networking. Express Mode automatisiert die unterstützenden
-Ressourcen; sie entstehen im eigenen Account und bleiben einsehbar.
+ECS Express Mode: Image plus zwei IAM-Rollen reichen für einen
+Fargate-basierten Web-/API-Dienst mit HTTPS-URL, Load Balancer, Scaling und
+Networking. Express Mode automatisiert die unterstützenden Ressourcen; sie
+entstehen im eigenen Account und bleiben einsehbar.
 
 Quellen:
 
@@ -98,7 +102,7 @@ Quellen:
 
 | Alternative | Ablehnung |
 | --- | --- |
-| AWS App Runner | Seit 31. März 2026 für Neukunden geschlossen |
+| AWS App Runner | Für Neukunden geschlossen; AWS empfiehlt ECS Express Mode |
 | Handgerolltes ECS Fargate mit eigener VPC/ALB | Unnötig komplex; Express Mode deckt denselben Portfolio-Nachweis ab |
 | Kubernetes / EKS | Explizites Roadmap-Non-Goal |
 | Multi-Cloud | Explizites ADR-/Roadmap-Non-Goal |
@@ -107,15 +111,19 @@ Quellen:
 
 ```text
 HTTPS Client
-  -> ECS Express Mode (ALB/HTTPS, Default-URL)
-    -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider)
-      -> stdout/stderr
-        -> stackverwaltete CloudWatch Log Group (RetentionInDays: 14)
+  -> internet-facing ALB (Service Security Group ingress path)
+    -> ECS Express Mode / Fargate task (public IP in public default subnet)
+      -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider default)
+        -> stdout/stderr
+          -> stackverwaltete CloudWatch Log Group
+             (RetentionInDays: 14, LogStreamPrefix)
 
 ECR (Image by digest, EmptyOnDelete: true)
   -> Express Mode pull via Task Execution Role
-Secrets Manager ----optional later----> Env-Injection via Task Execution Role
-CloudFormation Stack owns Express Mode, ECR, Log Group, and IAM edge resources
+Secrets Manager (template-owned, conditional opt-in)
+  -> optional Env-Injection via Task Execution Role
+CloudFormation Stack owns Express Mode, ECR, Log Group,
+Secrets Manager wiring, and IAM edge resources
 ```
 
 ### Cloud-neutraler Anwendungskern
@@ -135,7 +143,8 @@ Am Systemrand liegen ausschließlich:
 - Amazon ECS Express Mode (darunter Fargate-Tasks und von Express Mode
   verwaltete ALB-/Netzwerkressourcen)
 - stackverwaltete Amazon CloudWatch Log Group
-- AWS Secrets Manager nur als optionaler späterer Pfad
+- AWS Secrets Manager als verbindlicher Template-Bestandteil mit
+  konditionalem Opt-in
 - IAM-Rollen für Express Mode
 - AWS CloudFormation
 
@@ -150,10 +159,15 @@ Am Systemrand liegen ausschließlich:
 ### Secrets
 
 - keine Secrets im Image, Repository, Log oder Prompt
-- Standardbetrieb: `FakeModelProvider` ohne Secret
-- der Standard-CloudFormation-Stack erzeugt kein Platzhalter-Secret
-- Secrets Manager ist nur ein optionaler späterer Pfad für expliziten
-  Opt-in eines echten ModelProviders mit synthetischen Smoke-Daten
+- keine echten Secret-Werte im Repository
+- Standardbetrieb: `FakeModelProvider` ohne Secret-Injection
+- AWS Secrets Manager ist verbindlicher Bestandteil des IaC-Templates und der
+  Roadmap-Vorgabe "ein Secret Store"
+- derselbe Stack enthält einen expliziten, konditionalen Opt-in-Pfad für:
+  - eine Secrets-Manager-Ressource und/oder
+  - eine vorhandene Secret-ARN
+  - sowie die zugehörige Container-Injection
+- Default-Parameter lassen Secret-Ressource und Injection deaktiviert
 - Secret-Injection in den Container benötigt Berechtigungen in der
   **Task Execution Role**
 - eine **Task Role** ist nur erforderlich, wenn die Anwendung selbst
@@ -164,15 +178,19 @@ Am Systemrand liegen ausschließlich:
 - bewusste Voraussetzung: Default-VPC in `eu-central-1` mit mindestens zwei
   öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens
   acht freien IP-Adressen je Subnetz
-- Express Mode stellt HTTPS-Erreichbarkeit und zugehörige
-  Lastverteilung bereit
+- bei öffentlichen Default-Subnetzen aktiviert Express Mode öffentliche IPs
+  für die Fargate-Tasks
+- die automatisch erzeugte Service Security Group erlaubt standardmäßig
+  Internet-Egress
+- eingehender Anwendungsverkehr bleibt über den internet-facing ALB und dessen
+  Security-Group-Pfad begrenzt
 - in diesem Architektur- und dem unmittelbaren IaC-Branch wird keine eigene
   VPC- oder ALB-Architektur entworfen oder als Hand-Template gepflegt
 
 ### Vertrauen
 
 - Task Execution Role: Image-Pull aus ECR, Schreibrechte für CloudWatch Logs;
-  später optional Leserechte für Secrets-Manager-Injection
+  bei aktiviertem Opt-in zusätzlich Leserechte für Secrets-Manager-Injection
 - Infrastructure Role für Express Mode (`ecsInfrastructureRoleForExpressServices`)
 - keine AWS-Credentials in Image oder Anwendungskern
 - Modellprovider-Wahl und Laufzeit-Cloud bleiben getrennte Entscheidungen
@@ -211,32 +229,57 @@ Zusätzliche Betriebsregeln für den IaC-Branch:
 Der nächste Produktionsbranch setzt einen minimalen CloudFormation-Stack um.
 Vorgabe:
 
+### Zweistufiger Bootstrap im selben Stack
+
+Kein Express Service darf vor einem verfügbaren Image-Digest erstellt werden.
+Der Ablauf ist verbindlich zweistufig im selben Template:
+
+1. Stack mit ECR, IAM, Log Group und Secrets-Manager-Verdrahtung erstellen,
+   jedoch **ohne** Express Service (`DeployService=false`).
+2. Image in ECR pushen, unveränderlichen Digest bestimmen und den Stack mit
+   aktiviertem Express Service aktualisieren
+   (`DeployService=true`, `ImageUri=<repo>@<digest>`).
+
+Dafür sind klare Conditions und Parameter vorzusehen, mindestens:
+
+- Parameter `DeployService` (Boolean; Default `false`)
+- Parameter `ImageUri` (Digest-URI; nur bei Service-Deploy erforderlich)
+- Condition, die `AWS::ECS::ExpressGatewayService` nur bei
+  `DeployService=true` und gesetztem Digest-`ImageUri` erzeugt
+
+### Ressourcen und Konfiguration
+
 1. Amazon ECR Repository in `eu-central-1` mit `EmptyOnDelete: true`
-2. Image-Push der lokalen Demo; Service-Referenz über unveränderlichen Digest
-3. IAM: Task Execution Role und Express-Mode Infrastructure Role
-4. stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
-5. `AWS::ECS::ExpressGatewayService` mit:
-   - Container-Image per Digest
+2. IAM: Task Execution Role und Express-Mode Infrastructure Role
+3. stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
+4. AWS Secrets Manager als Template-Bestandteil mit konditionalem Opt-in:
+   - Default: keine Secret-Injection; `FakeModelProvider` bleibt aktiv
+   - Opt-in: Secret-Ressource und/oder vorhandene Secret-ARN plus
+     Container-Injection über die Task Execution Role
+   - keine echten Secret-Werte im Repository oder Template
+5. konditional `AWS::ECS::ExpressGatewayService` mit:
+   - `ImageUri` per unveränderlichem Digest
    - `containerPort: 8000`
    - Health-Check-Pfad `/health`
    - `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`)
    - `PrimaryContainer.AwsLogsConfiguration` auf die stackverwaltete Log Group
+     inkl. `LogStreamPrefix`
 6. Default-VPC als Voraussetzung mit mindestens zwei öffentlichen Subnetzen
    in mindestens zwei Availability Zones und mindestens acht freien
    IP-Adressen je Subnetz; kein eigenes VPC-/Subnet-/ALB-Template
-7. kein Secrets-Manager-Secret und keine Secret-Injection im Standard-Stack
-8. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren,
+7. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren,
    einschließlich Löschung von Log Group und geleertem ECR-Repository
 
 Nicht Teil des Standard-Stacks:
 
-- Platzhalter-Secrets
+- echte Secret-Werte
 - Datenbank
 - Authentifizierung
 - Custom-Domain-Pflicht
 - Multi-Region
 - erweiterte Dashboards oder Alarmflut
 - Verlass auf die automatisch von Express Mode erzeugte Log Group
+- Express Service vor verfügbarem Image-Digest
 
 ## Spätere Observability-Branches
 

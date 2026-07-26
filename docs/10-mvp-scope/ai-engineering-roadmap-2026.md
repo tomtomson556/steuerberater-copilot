@@ -331,8 +331,8 @@ Referenzarchitektur dokumentiert:
 docs/03-architecture/aws-reference-cloud-deployment.md
 ```
 
-Gewaehlt ist Amazon ECS Express Mode in `eu-central-1`. AWS App Runner ist seit
-dem 31. Maerz 2026 fuer Neukunden geschlossen und damit kein Referenzpfad.
+Gewaehlt ist Amazon ECS Express Mode in `eu-central-1`. AWS App Runner ist fuer
+Neukunden geschlossen; AWS empfiehlt ECS Express Mode als Nachfolger.
 
 ## Zeitlich verbindliche Roadmap
 
@@ -969,7 +969,9 @@ Architekturentscheidungen.
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
 ADR-004. Die AWS-Referenzarchitektur ist dokumentiert. Der naechste
-Produktionsbranch ist `feat/add-reference-cloud-infrastructure`. Strukturierte
+Produktionsbranch ist `feat/add-reference-cloud-infrastructure` und setzt den
+minimalen CloudFormation-Stack inklusive Secrets Manager, zweistufigem
+Bootstrap (`DeployService` / `ImageUri`) und Express Mode um. Strukturierte
 Runtime-Logs und Basis-Metriken bleiben nachgelagerte Phase-5-Branches und
 werden hier nicht vorgezogen.
 
@@ -1229,13 +1231,16 @@ werden hier nicht vorgezogen.
   FastAPI-/Docker-Demo ist in
   `docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert.
   Gewaehlt ist Amazon ECS Express Mode in `eu-central-1` mit ECR (Digest),
-  CloudWatch Logs (14 Tage), Default-VPC-Voraussetzung und CloudFormation als
-  IaC-Grundlage. AWS App Runner ist seit dem 31. Maerz 2026 fuer Neukunden
-  geschlossen und kein Referenzpfad. Secrets Manager bleibt optionaler
-  spaeterer Pfad; der Standard-Stack erzeugt kein Secret.
+  stackverwalteter CloudWatch Log Group (14 Tage), Default-VPC-Voraussetzung,
+  Secrets Manager als verbindlichem Template-Bestandteil mit konditionalem
+  Opt-in und CloudFormation als IaC-Grundlage inklusive zweistufigem Bootstrap
+  (`DeployService` / `ImageUri`). AWS App Runner ist fuer Neukunden geschlossen;
+  AWS empfiehlt ECS Express Mode. `FakeModelProvider` bleibt der sichere Default
+  ohne Secret-Injection; echte Secret-Werte gehoeren nicht ins Repository.
 - Begruendung: App Runner ist fuer Neukunden nicht verfuegbar. ECS Express Mode
   ist die einfachste aktuelle Alternative fuer eine stateless Container-Demo,
   ohne handgerollte VPC-/ALB-Architektur und ohne AWS-SDK im Anwendungskern.
+  Der Secret Store bleibt Roadmap-Pflicht und wird im selben Template verdrahtet.
 - Auswirkung: Keine Produktionscode-, Dockerfile-, CI-, Test- oder
   IaC-Aenderung. Naechster Produktionsbranch ist
   `feat/add-reference-cloud-infrastructure`.
