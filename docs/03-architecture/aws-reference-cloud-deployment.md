@@ -82,8 +82,7 @@ Region: `eu-central-1` (ADR-004).
 ### Warum ECS Express Mode
 
 AWS App Runner ist für Neukunden geschlossen. AWS empfiehlt Amazon ECS Express
-Mode als Nachfolger. Offizielle AWS-Seiten nennen unterschiedliche Stichtage;
-dieses Dokument hält deshalb keinen konkreten Schließungsstichtag fest.
+Mode als Nachfolger.
 
 ECS Express Mode: Image plus zwei IAM-Rollen reichen für einen
 Fargate-basierten Web-/API-Dienst mit HTTPS-URL, Load Balancer, Scaling und
@@ -97,6 +96,14 @@ Quellen:
 - [Resources created by Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)
 - [Delete Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-delete-task.html)
 - [Express Mode best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-best-practices.html)
+- [CloudFormation Parameters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html)
+- [CloudFormation Conditions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html)
+- [AWS::ECS::ExpressGatewayService](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-expressgatewayservice.html)
+- [PrimaryContainer.AwsLogsConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-expressgatewayservice-expressgatewayserviceawslogsconfiguration.html)
+- [AWS::Logs::LogGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-logs-loggroup.html)
+- [AWS::ECR::Repository](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecr-repository.html) (`EmptyOnDelete`)
+- [AWS::SecretsManager::Secret](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-secretsmanager-secret.html)
+- [Updating stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks.html)
 
 ### Warum nicht die Alternativen
 
@@ -235,17 +242,45 @@ Kein Express Service darf vor einem verfügbaren Image-Digest erstellt werden.
 Der Ablauf ist verbindlich zweistufig im selben Template:
 
 1. Stack mit ECR, IAM, Log Group und Secrets-Manager-Verdrahtung erstellen,
-   jedoch **ohne** Express Service (`DeployService=false`).
+   jedoch **ohne** Express Service (`DeployService="false"`).
 2. Image in ECR pushen, unveränderlichen Digest bestimmen und den Stack mit
    aktiviertem Express Service aktualisieren
-   (`DeployService=true`, `ImageUri=<repo>@<digest>`).
+   (`DeployService="true"`, `ImageUri=<repo>@<digest>`).
 
-Dafür sind klare Conditions und Parameter vorzusehen, mindestens:
+Parameter (CloudFormation kennt keinen `Boolean`-Parametertyp; Strings mit
+`AllowedValues` verwenden):
 
-- Parameter `DeployService` (Boolean; Default `false`)
-- Parameter `ImageUri` (Digest-URI; nur bei Service-Deploy erforderlich)
-- Condition, die `AWS::ECS::ExpressGatewayService` nur bei
-  `DeployService=true` und gesetztem Digest-`ImageUri` erzeugt
+```yaml
+DeployService:
+  Type: String
+  Default: "false"
+  AllowedValues:
+    - "true"
+    - "false"
+
+ImageUri:
+  Type: String
+  Default: ""
+```
+
+Conditions so definieren, dass `AWS::ECS::ExpressGatewayService` nur erstellt
+wird, wenn `DeployService` gleich `"true"` ist und `ImageUri` nicht leer ist,
+beispielsweise:
+
+```yaml
+Conditions:
+  DeployExpressService:
+    Fn::And:
+      - Fn::Equals:
+          - Ref: DeployService
+          - "true"
+      - Fn::Not:
+          - Fn::Equals:
+              - Ref: ImageUri
+              - ""
+```
+
+Die Express-Service-Ressource trägt `Condition: DeployExpressService`.
 
 ### Ressourcen und Konfiguration
 
