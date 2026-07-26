@@ -1,0 +1,209 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Minimal AWS reference-cloud stack for the local FastAPI/Docker demo.
+  Synthetic-data portfolio demo only. Default DeployService=false for
+  two-stage bootstrap (ECR/IAM/LogGroup first, Express service after digest push).
+  No secret values in this template. Region expectation: eu-central-1.
+
+Parameters:
+  DeployService:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      When true, create AWS::ECS::ExpressGatewayService. Requires a non-empty
+      ImageUri with an immutable digest (@sha256:...).
+
+  ImageUri:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^.+@sha256:[A-Fa-f0-9]{64}$"
+    ConstraintDescription: >
+      Leave empty for stage-1 bootstrap, or supply a digest URI
+      (repository@sha256:<64 hex>) when DeployService=true.
+    Description: Container image URI by digest only (never :latest or mutable tags).
+
+  CreateManagedSecret:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      When true, create an empty AWS::SecretsManager::Secret (no SecretString,
+      no GenerateSecretString). Set a value outside this repository before
+      enabling injection.
+
+  InjectManagedSecret:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      When true with CreateManagedSecret=true and DeployService=true, inject the
+      managed secret into the Express container and grant ARN-scoped
+      secretsmanager:GetSecretValue on the task execution role.
+
+Conditions:
+  DeployExpressService:
+    Fn::And:
+      - Fn::Equals:
+          - Ref: DeployService
+          - "true"
+      - Fn::Not:
+          - Fn::Equals:
+              - Ref: ImageUri
+              - ""
+  CreateManagedSecretEnabled:
+    Fn::Equals:
+      - Ref: CreateManagedSecret
+      - "true"
+  InjectManagedSecretEnabled:
+    Fn::And:
+      - Fn::Equals:
+          - Ref: CreateManagedSecret
+          - "true"
+      - Fn::Equals:
+          - Ref: InjectManagedSecret
+          - "true"
+
+Rules:
+  DeployServiceRequiresDigestImageUri:
+    RuleCondition: !Equals
+      - !Ref DeployService
+      - "true"
+    Assertions:
+      - Assert: !Not
+          - !Equals
+              - !Ref ImageUri
+              - ""
+        AssertDescription: >
+          DeployService=true requires a non-empty ImageUri. AllowedPattern
+          enforces digest form repository@sha256:<64 hex>.
+
+  InjectRequiresCreateManagedSecret:
+    RuleCondition: !Equals
+      - !Ref InjectManagedSecret
+      - "true"
+    Assertions:
+      - Assert: !Equals
+          - !Ref CreateManagedSecret
+          - "true"
+        AssertDescription: >
+          InjectManagedSecret=true requires CreateManagedSecret=true.
+          External secret ARNs are not supported in this stack.
+
+  InjectRequiresDeployService:
+    RuleCondition: !Equals
+      - !Ref InjectManagedSecret
+      - "true"
+    Assertions:
+      - Assert: !Equals
+          - !Ref DeployService
+          - "true"
+        AssertDescription: >
+          InjectManagedSecret=true requires DeployService=true so the secret
+          can be wired into PrimaryContainer.Secrets.
+
+Resources:
+  ReferenceDemoRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      EmptyOnDelete: true
+      ImageTagMutability: MUTABLE
+
+  ApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies: !If
+        - InjectManagedSecretEnabled
+        - - PolicyName: ManagedSecretGetSecretValue
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource: !Ref ManagedSecret
+        - !Ref AWS::NoValue
+
+  ExpressInfrastructureRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices
+
+  ManagedSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: CreateManagedSecretEnabled
+    Properties:
+      Description: >
+        Empty stack-managed secret for the reference-demo opt-in path.
+        Set the value outside the repository with PutSecretValue before
+        enabling InjectManagedSecret. No SecretString and no
+        GenerateSecretString in this template.
+
+  ExpressGatewayService:
+    Type: AWS::ECS::ExpressGatewayService
+    Condition: DeployExpressService
+    Properties:
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      InfrastructureRoleArn: !GetAtt ExpressInfrastructureRole.Arn
+      HealthCheckPath: /health
+      PrimaryContainer:
+        Image: !Ref ImageUri
+        ContainerPort: 8000
+        AwsLogsConfiguration:
+          LogGroup: !Ref ApplicationLogGroup
+          LogStreamPrefix: ecs
+        Secrets: !If
+          - InjectManagedSecretEnabled
+          - - Name: REFERENCE_DEMO_SECRET
+              ValueFrom: !Ref ManagedSecret
+          - !Ref AWS::NoValue
+      ScalingTarget:
+        MinTaskCount: 1
+        MaxTaskCount: 1
+
+Outputs:
+  EcrRepositoryUri:
+    Description: URI of the private ECR repository for digest image pushes.
+    Value: !GetAtt ReferenceDemoRepository.RepositoryUri
+
+  LogGroupName:
+    Description: Stack-managed CloudWatch log group name (14-day retention).
+    Value: !Ref ApplicationLogGroup
+
+  ServiceEndpoint:
+    Condition: DeployExpressService
+    Description: HTTPS endpoint of the Express Gateway service.
+    Value: !GetAtt ExpressGatewayService.Endpoint
+
+  ManagedSecretArn:
+    Condition: CreateManagedSecretEnabled
+    Description: ARN of the empty stack-managed Secrets Manager secret.
+    Value: !Ref ManagedSecret

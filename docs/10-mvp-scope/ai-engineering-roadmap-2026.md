@@ -647,8 +647,10 @@ Zeitraum: 9. bis 30. November 2026
 
 Status: Aktueller Abschnitt. Referenz-Cloud ist AWS laut ADR-004. Die konkrete
 AWS-Laufzeit ist als Amazon ECS Express Mode in
-`docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert.
-Observability-Implementierung und Infrastructure as Code stehen noch aus.
+`docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert. Der
+minimale CloudFormation-Referenz-Stack liegt unter
+`infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Strukturierte
+Runtime-Logs und Basis-Metriken stehen noch aus.
 
 Minimaler Cloud-Scope:
 
@@ -968,12 +970,11 @@ Architekturentscheidungen.
 
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
-ADR-004. Die AWS-Referenzarchitektur ist dokumentiert. Der naechste
-Produktionsbranch ist `feat/add-reference-cloud-infrastructure` und setzt den
-minimalen CloudFormation-Stack inklusive Secrets Manager, zweistufigem
-Bootstrap (`DeployService` / `ImageUri`) und Express Mode um. Strukturierte
-Runtime-Logs und Basis-Metriken bleiben nachgelagerte Phase-5-Branches und
-werden hier nicht vorgezogen.
+ADR-004. Die AWS-Referenzarchitektur ist dokumentiert. Der minimale
+CloudFormation-Referenz-Stack wird in `feat/add-reference-cloud-infrastructure`
+ergaenzt. Nach dem Merge dieses Infra-Branches ist der naechste sinnvolle
+Produktionsbranch `feat/add-structured-runtime-logging`. Basis-Metriken bleiben
+danach `feat/add-basic-runtime-metrics`.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1244,3 +1245,24 @@ werden hier nicht vorgezogen.
 - Auswirkung: Keine Produktionscode-, Dockerfile-, CI-, Test- oder
   IaC-Aenderung. Naechster Produktionsbranch ist
   `feat/add-reference-cloud-infrastructure`.
+
+### Aktualisierung vom 26. Juli 2026 (Referenz-Cloud-Infrastructure)
+
+- Datum: 26. Juli 2026
+- Aenderung: Der kleinste reproduzierbare AWS-Referenz-Stack ist als
+  CloudFormation-Template
+  `infra/cloudformation/reference-demo.yaml` ergaenzt, zusammen mit
+  `docs/09-operations/aws-reference-demo-runbook.md` und statischen
+  Offline-YAML-Strukturtests. Enthalten sind privates ECR mit
+  `EmptyOnDelete`, stackverwaltete Log Group (14 Tage), Task Execution Role,
+  Express Infrastructure Role, konditionales leeres Secrets-Manager-Secret,
+  ARN-begrenzte `GetSecretValue`-Policy sowie konditionaler ECS Express
+  Gateway Service mit zweistufigem Bootstrap (`DeployService` / Digest-
+  `ImageUri`).
+- Begruendung: Phase-5-Nachweis fuer kontrolliertes AWS-Deployment an der
+  Systemgrenze ohne App-, Dockerfile- oder Provider-Aenderung und ohne
+  Secret-Werte im Repository.
+- Auswirkung: Keine Aenderung an FastAPI-App, Dockerfile oder ModelProvider.
+  Standardtests bleiben offline und netzwerkfrei. Manuelle AWS-Verifikation
+  im Account bleibt ausstehend. Naechster Produktionsbranch nach Merge ist
+  `feat/add-structured-runtime-logging`.

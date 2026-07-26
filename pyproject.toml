@@ -24,7 +24,7 @@ steuerberater-copilot-offline-mvp = "steuerberater_copilot.offline_mvp.__main__:
 steuerberater-copilot-evaluate = "steuerberater_copilot.evaluation.__main__:main"
 
 [project.optional-dependencies]
-dev = ["httpx2==2.7.0", "pytest", "ruff"]
+dev = ["httpx2==2.7.0", "pytest", "ruff", "PyYAML"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
