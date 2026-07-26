@@ -1,0 +1,236 @@
+# AWS Reference Cloud Deployment Architecture
+
+## Zweck und Status
+
+Dieses Dokument legt die kleinstmögliche konkrete AWS-Referenzarchitektur für
+die bestehende stateless FastAPI-/Docker-Demo fest. Es ist die verbindliche
+Grundlage für den nächsten Produktionsbranch
+`feat/add-reference-cloud-infrastructure`.
+
+Dieser Branch enthält ausschließlich Dokumentation. Er erzeugt keine
+AWS-Ressourcen, kein Infrastructure as Code, keine SDK-Integration und keine
+Anwendungscode-Änderung.
+
+```text
+KI bereitet vor.
+Die Kanzlei prüft.
+Der Steuerberater entscheidet.
+```
+
+Leitentscheidungen bleiben ADR-003 und ADR-004:
+
+- [adr-003-local-first-cloud-neutral-single-reference-cloud.md](../15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md)
+- [adr-004-select-reference-cloud.md](../15-decisions/adr/adr-004-select-reference-cloud.md)
+
+## Scope und Non-Goals
+
+In Scope:
+
+- ein Containerdienst
+- Secret-Store-Pfad (optional, später)
+- Health Check
+- Logging-Senke
+- EU-Region sowie Kosten- und Abschaltkontrolle
+- Daten-, Secret-, Netzwerk- und Vertrauensgrenzen
+- Abgrenzung cloud-neutraler Kern versus AWS-Systemrand
+- konkrete CloudFormation-Vorgabe für den IaC-Branch
+
+Nicht in Scope (dieser und der unmittelbare Folge-Branch):
+
+- Infrastructure as Code oder AWS-Ressourcen in diesem Dokumentationsbranch
+- AWS-SDK im Anwendungskern
+- Multi-Cloud
+- Kubernetes
+- Datenbank oder Persistenz
+- Authentifizierung
+- eigene VPC- oder ALB-Architektur
+- erweitertes Monitoring oder Dashboards
+
+## Bestehende lokale Baseline
+
+Die Cloud-Referenz bildet die vorhandene lokale Demo ab, ändert sie aber nicht:
+
+| Lokal | Cloud-Mapping |
+| --- | --- |
+| Dockerfile, Port `8000` | Express-Mode-`containerPort` `8000` |
+| `GET /health` | ALB-Health-Check-Pfad `/health` |
+| `FakeModelProvider` als sicherer Standard | bleibt Default; kein Secret erforderlich |
+| synthetische Fixtures | ausschließlich synthetische Daten |
+| kein Secret im Image | weiterhin keine Secrets im Image |
+
+## Festgelegte Architektur
+
+Region: `eu-central-1` (ADR-004).
+
+| Baustein | Entscheidung |
+| --- | --- |
+| Containerdienst | Amazon ECS Express Mode |
+| Image-Quelle | Amazon ECR (privat) |
+| Image-Referenz | unveränderlicher Digest; nicht `latest` |
+| Secret Store | AWS Secrets Manager nur als optionaler späterer Pfad |
+| Health Check | ALB-Pfad `/health`, Container-Port `8000` |
+| Logging | Amazon CloudWatch Logs, Aufbewahrung 14 Tage |
+| Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`) |
+| Netzwerk-Voraussetzung | Default-VPC des Accounts |
+| IaC | AWS CloudFormation mit `AWS::ECS::ExpressGatewayService` |
+
+### Warum ECS Express Mode
+
+AWS App Runner ist seit dem 31. März 2026 für Neukunden geschlossen. Bestehende
+App-Runner-Kunden können den Dienst weiter nutzen; für dieses Portfolio ist
+App Runner kein verfügbarer Neukundenpfad.
+
+AWS empfiehlt als Nachfolger Amazon ECS Express Mode: Image plus zwei IAM-Rollen
+reichen für einen Fargate-basierten Web-/API-Dienst mit HTTPS-URL, Load
+Balancer, Scaling und Networking. Express Mode automatisiert die unterstützenden
+Ressourcen; sie entstehen im eigenen Account und bleiben einsehbar.
+
+Quellen:
+
+- [AWS App Runner availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
+- [Amazon ECS Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)
+- [Resources created by Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)
+- [Delete Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-delete-task.html)
+- [Express Mode best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-best-practices.html)
+
+### Warum nicht die Alternativen
+
+| Alternative | Ablehnung |
+| --- | --- |
+| AWS App Runner | Seit 31. März 2026 für Neukunden geschlossen |
+| Handgerolltes ECS Fargate mit eigener VPC/ALB | Unnötig komplex; Express Mode deckt denselben Portfolio-Nachweis ab |
+| Kubernetes / EKS | Explizites Roadmap-Non-Goal |
+| Multi-Cloud | Explizites ADR-/Roadmap-Non-Goal |
+
+## Systemgrenzen
+
+```text
+HTTPS Client
+  -> ECS Express Mode (ALB/HTTPS, Default-URL)
+    -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider)
+      -> stdout/stderr
+        -> CloudWatch Logs (14 Tage)
+
+ECR (Image by digest) -> Express Mode pull via Task Execution Role
+Secrets Manager ----optional later----> Env-Injection via Task Execution Role
+CloudFormation Stack owns the deployable edge resources
+```
+
+### Cloud-neutraler Anwendungskern
+
+Im Kern bleiben:
+
+- FastAPI-Demo und Offline-MVP-Workflow
+- Gateway, Human Review und Risk-Grenzen
+- `FakeModelProvider` als sicherer Standard
+- keine AWS-SDKs und keine Cloud-API-Aufrufe der Anwendung
+
+### AWS-Systemrand
+
+Am Systemrand liegen ausschließlich:
+
+- Amazon ECR
+- Amazon ECS Express Mode (darunter Fargate-Tasks und von Express Mode
+  verwaltete ALB-/Netzwerkressourcen)
+- Amazon CloudWatch Logs
+- AWS Secrets Manager nur als optionaler späterer Pfad
+- IAM-Rollen für Express Mode
+- AWS CloudFormation
+
+## Daten-, Secret-, Netzwerk- und Vertrauensgrenzen
+
+### Daten
+
+- ausschließlich synthetische Daten und Fixtures
+- keine echten Mandanten-, Kanzlei-, Beleg- oder Steuerdaten
+- keine produktiven Schnittstellen
+
+### Secrets
+
+- keine Secrets im Image, Repository, Log oder Prompt
+- Standardbetrieb: `FakeModelProvider` ohne Secret
+- der Standard-CloudFormation-Stack erzeugt kein Platzhalter-Secret
+- Secrets Manager ist nur ein optionaler späterer Pfad für expliziten
+  Opt-in eines echten ModelProviders mit synthetischen Smoke-Daten
+- Secret-Injection in den Container benötigt Berechtigungen in der
+  **Task Execution Role**
+- eine **Task Role** ist nur erforderlich, wenn die Anwendung selbst
+  AWS-APIs aufruft; die Standard-Demo tut das nicht
+
+### Netzwerk
+
+- bewusste Voraussetzung: Default-VPC in `eu-central-1`
+- Express Mode stellt HTTPS-Erreichbarkeit und zugehörige
+  Lastverteilung bereit
+- in diesem Architektur- und dem unmittelbaren IaC-Branch wird keine eigene
+  VPC- oder ALB-Architektur entworfen oder als Hand-Template gepflegt
+
+### Vertrauen
+
+- Task Execution Role: Image-Pull aus ECR, Schreibrechte für CloudWatch Logs;
+  später optional Leserechte für Secrets-Manager-Injection
+- Infrastructure Role für Express Mode (`ecsInfrastructureRoleForExpressServices`)
+- keine AWS-Credentials in Image oder Anwendungskern
+- Modellprovider-Wahl und Laufzeit-Cloud bleiben getrennte Entscheidungen
+
+## Kosten- und Abschaltkontrolle
+
+Verbindliche vollständige Kostenabschaltung ist das Löschen des
+CloudFormation-Stacks. Dadurch werden die vom Stack verwalteten Express-Mode-
+und Randressourcen entfernt.
+
+Bloßes Verringern der Task-Anzahl entfernt Application Load Balancer und
+weitere Express-Mode-Randressourcen nicht und gilt nicht als vollständige
+Abschaltung.
+
+Zusätzliche Betriebsregeln für den IaC-Branch:
+
+- kleine Skalierungsgrenze: `MinTaskCount: 1`, `MaxTaskCount: 1`
+  (höchstens `2`)
+- CloudWatch-Logs-Aufbewahrung 14 Tage
+- Billing-Budget oder Kostenalarm im Account als organisatorische Kontrolle
+- Demo nur bei Bedarf deployen; nach dem Nachweis Stack löschen
+
+## IaC-Vorgabe für `feat/add-reference-cloud-infrastructure`
+
+Der nächste Produktionsbranch setzt einen minimalen CloudFormation-Stack um.
+Vorgabe:
+
+1. Amazon ECR Repository in `eu-central-1`
+2. Image-Push der lokalen Demo; Service-Referenz über unveränderlichen Digest
+3. IAM: Task Execution Role und Express-Mode Infrastructure Role
+4. `AWS::ECS::ExpressGatewayService` mit:
+   - Container-Image per Digest
+   - `containerPort: 8000`
+   - Health-Check-Pfad `/health`
+   - `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`)
+   - CloudWatch-Logs-Konfiguration mit 14 Tagen Retention
+5. Default-VPC als Voraussetzung; kein eigenes VPC-/Subnet-/ALB-Template
+6. kein Secrets-Manager-Secret und keine Secret-Injection im Standard-Stack
+7. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren
+
+Nicht Teil des Standard-Stacks:
+
+- Platzhalter-Secrets
+- Datenbank
+- Authentifizierung
+- Custom-Domain-Pflicht
+- Multi-Region
+- erweiterte Dashboards oder Alarmflut
+
+## Spätere Observability-Branches
+
+Dieses Dokument legt nur die Log-Senke und die Aufbewahrung fest.
+Strukturierte Log-Metadaten folgen in
+`feat/add-structured-runtime-logging`. Basis-Metriken folgen in
+`feat/add-basic-runtime-metrics`.
+
+## Revisit
+
+Diese Architektur wird neu bewertet bei:
+
+- Wegfall oder regionaler Nichtverfügbarkeit von ECS Express Mode in
+  `eu-central-1`
+- verbindlicher Anforderung an eine eigene VPC
+- Einführung echter Daten oder produktiver Integrationen
+- wesentlicher Änderung des Portfolioziels

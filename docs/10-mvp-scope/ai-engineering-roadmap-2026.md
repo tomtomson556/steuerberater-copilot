@@ -324,9 +324,15 @@ Verbindliche Leitplanken:
   sichere Standard
 
 Azure bleibt technisch tragfaehig, wurde fuer den Portfolio-Release 2026 aber
-bewusst nicht gewaehlt. Die konkrete AWS-Laufzeit (zum Beispiel App Runner
-versus ECS Fargate) ist noch nicht entschieden und gehoert in den spaeteren
-Architekturbranch.
+bewusst nicht gewaehlt. Die konkrete AWS-Laufzeit ist in der
+Referenzarchitektur dokumentiert:
+
+```text
+docs/03-architecture/aws-reference-cloud-deployment.md
+```
+
+Gewaehlt ist Amazon ECS Express Mode in `eu-central-1`. AWS App Runner ist seit
+dem 31. Maerz 2026 fuer Neukunden geschlossen und damit kein Referenzpfad.
 
 ## Zeitlich verbindliche Roadmap
 
@@ -639,8 +645,10 @@ Evaluation-Command:
 
 Zeitraum: 9. bis 30. November 2026
 
-Status: Aktueller naechster Abschnitt. Referenz-Cloud ist AWS laut ADR-004.
-Konkrete AWS-Laufzeitdienste und Observability-Implementierung stehen noch aus.
+Status: Aktueller Abschnitt. Referenz-Cloud ist AWS laut ADR-004. Die konkrete
+AWS-Laufzeit ist als Amazon ECS Express Mode in
+`docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert.
+Observability-Implementierung und Infrastructure as Code stehen noch aus.
 
 Minimaler Cloud-Scope:
 
@@ -958,12 +966,12 @@ Architekturentscheidungen.
 
 ## Unmittelbar naechster Produktionsbranch
 
-Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle naechste
-Abschnitt ist Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud
-ist AWS laut ADR-004. Der naechste Produktionsbranch wird nach dem Merge erneut
-live bestimmt und hier nicht spekulativ vorweggenommen. Konkrete AWS-Laufzeit-,
-IaC- oder Observability-Arbeit ist in diesem Dokumentationsstand nicht
-enthalten.
+Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
+Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
+ADR-004. Die AWS-Referenzarchitektur ist dokumentiert. Der naechste
+Produktionsbranch ist `feat/add-reference-cloud-infrastructure`. Strukturierte
+Runtime-Logs und Basis-Metriken bleiben nachgelagerte Phase-5-Branches und
+werden hier nicht vorgezogen.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1213,3 +1221,21 @@ enthalten.
   Keine AWS-Ressourcen, Credentials, SDKs oder IaC. Die konkrete AWS-Laufzeit
   (zum Beispiel App Runner versus ECS Fargate) bleibt dem spaeteren
   Architekturbranch vorbehalten.
+
+### Aktualisierung vom 26. Juli 2026 (AWS-Referenzarchitektur)
+
+- Datum: 26. Juli 2026
+- Aenderung: Die minimale AWS-Referenzarchitektur fuer die bestehende
+  FastAPI-/Docker-Demo ist in
+  `docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert.
+  Gewaehlt ist Amazon ECS Express Mode in `eu-central-1` mit ECR (Digest),
+  CloudWatch Logs (14 Tage), Default-VPC-Voraussetzung und CloudFormation als
+  IaC-Grundlage. AWS App Runner ist seit dem 31. Maerz 2026 fuer Neukunden
+  geschlossen und kein Referenzpfad. Secrets Manager bleibt optionaler
+  spaeterer Pfad; der Standard-Stack erzeugt kein Secret.
+- Begruendung: App Runner ist fuer Neukunden nicht verfuegbar. ECS Express Mode
+  ist die einfachste aktuelle Alternative fuer eine stateless Container-Demo,
+  ohne handgerollte VPC-/ALB-Architektur und ohne AWS-SDK im Anwendungskern.
+- Auswirkung: Keine Produktionscode-, Dockerfile-, CI-, Test- oder
+  IaC-Aenderung. Naechster Produktionsbranch ist
+  `feat/add-reference-cloud-infrastructure`.
