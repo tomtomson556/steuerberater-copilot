@@ -107,7 +107,10 @@ Der Steuerberater entscheidet.
 Operational handling is documented in
 [offline-mvp-operations.md](../09-operations/offline-mvp-operations.md). Current
 test and quality gates are documented in
-[testing-strategy.md](../10-testing-quality/testing-strategy.md).
+[testing-strategy.md](../10-testing-quality/testing-strategy.md). The planned
+AWS reference-cloud deployment for the FastAPI/Docker demo is documented in
+[aws-reference-cloud-deployment.md](aws-reference-cloud-deployment.md); it does
+not change the offline MVP scope of this overview.
 
 ## Current Non-Goals
 
