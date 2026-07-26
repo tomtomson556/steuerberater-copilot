@@ -69,9 +69,10 @@ Region: `eu-central-1` (ADR-004).
 | Image-Referenz | unveränderlicher Digest; nicht `latest` |
 | Secret Store | AWS Secrets Manager nur als optionaler späterer Pfad |
 | Health Check | ALB-Pfad `/health`, Container-Port `8000` |
-| Logging | Amazon CloudWatch Logs, Aufbewahrung 14 Tage |
+| Logging | Stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`, referenziert in `PrimaryContainer.AwsLogsConfiguration` |
 | Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`) |
-| Netzwerk-Voraussetzung | Default-VPC des Accounts |
+| Netzwerk-Voraussetzung | Default-VPC mit mindestens zwei öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens acht freien IP-Adressen je Subnetz |
+| ECR-Löschung | `EmptyOnDelete: true` am stackverwalteten Repository (nur kurzlebige Portfolio-Demo) |
 | IaC | AWS CloudFormation mit `AWS::ECS::ExpressGatewayService` |
 
 ### Warum ECS Express Mode
@@ -109,11 +110,12 @@ HTTPS Client
   -> ECS Express Mode (ALB/HTTPS, Default-URL)
     -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider)
       -> stdout/stderr
-        -> CloudWatch Logs (14 Tage)
+        -> stackverwaltete CloudWatch Log Group (RetentionInDays: 14)
 
-ECR (Image by digest) -> Express Mode pull via Task Execution Role
+ECR (Image by digest, EmptyOnDelete: true)
+  -> Express Mode pull via Task Execution Role
 Secrets Manager ----optional later----> Env-Injection via Task Execution Role
-CloudFormation Stack owns the deployable edge resources
+CloudFormation Stack owns Express Mode, ECR, Log Group, and IAM edge resources
 ```
 
 ### Cloud-neutraler Anwendungskern
@@ -129,10 +131,10 @@ Im Kern bleiben:
 
 Am Systemrand liegen ausschließlich:
 
-- Amazon ECR
+- Amazon ECR (stackverwaltet, inkl. `EmptyOnDelete: true`)
 - Amazon ECS Express Mode (darunter Fargate-Tasks und von Express Mode
   verwaltete ALB-/Netzwerkressourcen)
-- Amazon CloudWatch Logs
+- stackverwaltete Amazon CloudWatch Log Group
 - AWS Secrets Manager nur als optionaler späterer Pfad
 - IAM-Rollen für Express Mode
 - AWS CloudFormation
@@ -159,7 +161,9 @@ Am Systemrand liegen ausschließlich:
 
 ### Netzwerk
 
-- bewusste Voraussetzung: Default-VPC in `eu-central-1`
+- bewusste Voraussetzung: Default-VPC in `eu-central-1` mit mindestens zwei
+  öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens
+  acht freien IP-Adressen je Subnetz
 - Express Mode stellt HTTPS-Erreichbarkeit und zugehörige
   Lastverteilung bereit
 - in diesem Architektur- und dem unmittelbaren IaC-Branch wird keine eigene
@@ -175,19 +179,30 @@ Am Systemrand liegen ausschließlich:
 
 ## Kosten- und Abschaltkontrolle
 
-Verbindliche vollständige Kostenabschaltung ist das Löschen des
-CloudFormation-Stacks. Dadurch werden die vom Stack verwalteten Express-Mode-
-und Randressourcen entfernt.
+Stack-Delete ist der verlässliche vollständige Abschaltpfad nur dann, wenn
+auch die Log Group und das befüllte ECR-Repository tatsächlich
+stackverwaltet und löschbar sind. Dafür muss der IaC-Branch:
+
+- eine stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
+  erzeugen und in `PrimaryContainer.AwsLogsConfiguration` referenzieren
+- am ECR-Repository `EmptyOnDelete: true` setzen, damit ein befülltes
+  Repository den Stack-Delete nicht blockiert
+
+Die von Express Mode automatisch erzeugte Log Group läuft standardmäßig nicht
+ab und kann nach dem Löschen des Services erhalten bleiben. Deshalb ist sie
+kein ausreichender Abschalt- oder Retention-Pfad für diese Demo.
 
 Bloßes Verringern der Task-Anzahl entfernt Application Load Balancer und
 weitere Express-Mode-Randressourcen nicht und gilt nicht als vollständige
 Abschaltung.
 
+`EmptyOnDelete: true` ist destruktiv und nur für die kurzlebige synthetische
+Portfolio-Demo zulässig.
+
 Zusätzliche Betriebsregeln für den IaC-Branch:
 
 - kleine Skalierungsgrenze: `MinTaskCount: 1`, `MaxTaskCount: 1`
   (höchstens `2`)
-- CloudWatch-Logs-Aufbewahrung 14 Tage
 - Billing-Budget oder Kostenalarm im Account als organisatorische Kontrolle
 - Demo nur bei Bedarf deployen; nach dem Nachweis Stack löschen
 
@@ -196,18 +211,22 @@ Zusätzliche Betriebsregeln für den IaC-Branch:
 Der nächste Produktionsbranch setzt einen minimalen CloudFormation-Stack um.
 Vorgabe:
 
-1. Amazon ECR Repository in `eu-central-1`
+1. Amazon ECR Repository in `eu-central-1` mit `EmptyOnDelete: true`
 2. Image-Push der lokalen Demo; Service-Referenz über unveränderlichen Digest
 3. IAM: Task Execution Role und Express-Mode Infrastructure Role
-4. `AWS::ECS::ExpressGatewayService` mit:
+4. stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
+5. `AWS::ECS::ExpressGatewayService` mit:
    - Container-Image per Digest
    - `containerPort: 8000`
    - Health-Check-Pfad `/health`
    - `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`)
-   - CloudWatch-Logs-Konfiguration mit 14 Tagen Retention
-5. Default-VPC als Voraussetzung; kein eigenes VPC-/Subnet-/ALB-Template
-6. kein Secrets-Manager-Secret und keine Secret-Injection im Standard-Stack
-7. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren
+   - `PrimaryContainer.AwsLogsConfiguration` auf die stackverwaltete Log Group
+6. Default-VPC als Voraussetzung mit mindestens zwei öffentlichen Subnetzen
+   in mindestens zwei Availability Zones und mindestens acht freien
+   IP-Adressen je Subnetz; kein eigenes VPC-/Subnet-/ALB-Template
+7. kein Secrets-Manager-Secret und keine Secret-Injection im Standard-Stack
+8. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren,
+   einschließlich Löschung von Log Group und geleertem ECR-Repository
 
 Nicht Teil des Standard-Stacks:
 
@@ -217,6 +236,7 @@ Nicht Teil des Standard-Stacks:
 - Custom-Domain-Pflicht
 - Multi-Region
 - erweiterte Dashboards oder Alarmflut
+- Verlass auf die automatisch von Express Mode erzeugte Log Group
 
 ## Spätere Observability-Branches
 
