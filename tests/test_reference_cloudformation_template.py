@@ -343,7 +343,7 @@ def test_stack_owned_public_vpc_routing_and_network_configuration() -> None:
     assert network["Subnets"] == [{"Ref": "PublicSubnetA"}, {"Ref": "PublicSubnetB"}]
 
     raw = TEMPLATE_PATH.read_text(encoding="utf-8")
-    assert "default VPC" not in raw.lower()
+    assert "default vpc" not in raw.lower()
     assert "DefaultVpc" not in raw
     assert "AWS::EC2::NatGateway" not in raw
     assert "AWS::EC2::EIP" not in raw
