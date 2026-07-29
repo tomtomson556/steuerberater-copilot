@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Minimal AWS reference-cloud stack for the local FastAPI/Docker demo.
   Synthetic-data portfolio demo only. Default DeployService=false for
-  two-stage bootstrap (ECR/IAM/LogGroup first, Express service after digest push).
+  two-stage bootstrap (ECR/IAM/LogGroup/VPC first, Express service after
+  digest push). Stack-owned public IPv4 VPC (no default-VPC dependency).
   No secret values in this template. Region expectation: eu-central-1.
 
 Parameters:
@@ -120,6 +121,67 @@ Resources:
     Properties:
       RetentionInDays: 14
 
+  DemoVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DemoVpc
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ""
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref DemoVpc
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ""
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref DemoVpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref DemoVpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -170,10 +232,18 @@ Resources:
   ExpressGatewayService:
     Type: AWS::ECS::ExpressGatewayService
     Condition: DeployExpressService
+    DependsOn:
+      - PublicRoute
+      - PublicSubnetARouteTableAssociation
+      - PublicSubnetBRouteTableAssociation
     Properties:
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
       InfrastructureRoleArn: !GetAtt ExpressInfrastructureRole.Arn
       HealthCheckPath: /health
+      NetworkConfiguration:
+        Subnets:
+          - !Ref PublicSubnetA
+          - !Ref PublicSubnetB
       PrimaryContainer:
         Image: !Ref ImageUri
         ContainerPort: 8000

@@ -12,9 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "infra" / "cloudformation" / "reference-demo.yaml"
 
 FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
-    "AWS::EC2::VPC",
-    "AWS::EC2::Subnet",
     "AWS::EC2::SecurityGroup",
+    "AWS::EC2::NatGateway",
+    "AWS::EC2::EIP",
+    "AWS::EC2::VPCEndpoint",
     "AWS::ElasticLoadBalancingV2::",
     "AWS::RDS::",
     "AWS::Cognito::",
@@ -24,6 +25,25 @@ FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
     "AWS::Azure",
     "Google::",
     "Azure::",
+)
+
+FORBIDDEN_EXACT_RESOURCE_TYPES = (
+    "AWS::EC2::NatGateway",
+    "AWS::EC2::EIP",
+    "AWS::EC2::VPCEndpoint",
+    "AWS::EC2::SecurityGroup",
+    "AWS::EC2::SecurityGroupIngress",
+    "AWS::EC2::SecurityGroupEgress",
+)
+
+ALLOWED_NETWORK_RESOURCE_TYPES = (
+    "AWS::EC2::VPC",
+    "AWS::EC2::Subnet",
+    "AWS::EC2::InternetGateway",
+    "AWS::EC2::VPCGatewayAttachment",
+    "AWS::EC2::RouteTable",
+    "AWS::EC2::Route",
+    "AWS::EC2::SubnetRouteTableAssociation",
 )
 
 SUSPICIOUS_CREDENTIAL_PATTERNS = (
@@ -242,13 +262,117 @@ def test_no_task_role_and_no_forbidden_resources() -> None:
     assert "AWS::ECR::Repository" in raw_types
     assert "AWS::Logs::LogGroup" in raw_types
     assert "AWS::SecretsManager::Secret" in raw_types
+    for allowed in ALLOWED_NETWORK_RESOURCE_TYPES:
+        assert allowed in raw_types
 
     for type_name in raw_types:
         assert not type_name.startswith(FORBIDDEN_RESOURCE_TYPE_PREFIXES)
+        assert type_name not in FORBIDDEN_EXACT_RESOURCE_TYPES
 
     assert not _find_keys(template, "TaskRoleArn")
-    network_keys = _find_keys(template, "NetworkConfiguration")
-    assert network_keys == []
+    assert "AWS::ElasticLoadBalancingV2::LoadBalancer" not in raw_types
+    assert "AWS::ElasticLoadBalancingV2::TargetGroup" not in raw_types
+
+
+def test_stack_owned_public_vpc_routing_and_network_configuration() -> None:
+    template = load_template()
+    resources = template["Resources"]
+
+    vpc = resources["DemoVpc"]
+    assert vpc["Type"] == "AWS::EC2::VPC"
+    assert "Condition" not in vpc
+    vpc_props = vpc["Properties"]
+    assert vpc_props["CidrBlock"] == "10.0.0.0/16"
+    assert vpc_props["EnableDnsHostnames"] is True
+    assert vpc_props["EnableDnsSupport"] is True
+
+    subnet_a = resources["PublicSubnetA"]
+    subnet_b = resources["PublicSubnetB"]
+    assert subnet_a["Type"] == "AWS::EC2::Subnet"
+    assert subnet_b["Type"] == "AWS::EC2::Subnet"
+    assert "Condition" not in subnet_a
+    assert "Condition" not in subnet_b
+    assert subnet_a["Properties"]["VpcId"] == {"Ref": "DemoVpc"}
+    assert subnet_b["Properties"]["VpcId"] == {"Ref": "DemoVpc"}
+    assert subnet_a["Properties"]["CidrBlock"] == "10.0.0.0/24"
+    assert subnet_b["Properties"]["CidrBlock"] == "10.0.1.0/24"
+    assert subnet_a["Properties"]["CidrBlock"] != subnet_b["Properties"]["CidrBlock"]
+    assert subnet_a["Properties"]["MapPublicIpOnLaunch"] is True
+    assert subnet_b["Properties"]["MapPublicIpOnLaunch"] is True
+    assert subnet_a["Properties"]["AvailabilityZone"] == {"Select": [0, {"GetAZs": ""}]}
+    assert subnet_b["Properties"]["AvailabilityZone"] == {"Select": [1, {"GetAZs": ""}]}
+
+    igw = resources["InternetGateway"]
+    assert igw["Type"] == "AWS::EC2::InternetGateway"
+    assert "Condition" not in igw
+
+    attachment = resources["AttachGateway"]
+    assert attachment["Type"] == "AWS::EC2::VPCGatewayAttachment"
+    assert attachment["Properties"]["VpcId"] == {"Ref": "DemoVpc"}
+    assert attachment["Properties"]["InternetGatewayId"] == {"Ref": "InternetGateway"}
+
+    route_table = resources["PublicRouteTable"]
+    assert route_table["Type"] == "AWS::EC2::RouteTable"
+    assert route_table["Properties"]["VpcId"] == {"Ref": "DemoVpc"}
+
+    route = resources["PublicRoute"]
+    assert route["Type"] == "AWS::EC2::Route"
+    assert route["DependsOn"] == "AttachGateway"
+    assert route["Properties"]["RouteTableId"] == {"Ref": "PublicRouteTable"}
+    assert route["Properties"]["DestinationCidrBlock"] == "0.0.0.0/0"
+    assert route["Properties"]["GatewayId"] == {"Ref": "InternetGateway"}
+
+    assoc_a = resources["PublicSubnetARouteTableAssociation"]
+    assoc_b = resources["PublicSubnetBRouteTableAssociation"]
+    assert assoc_a["Type"] == "AWS::EC2::SubnetRouteTableAssociation"
+    assert assoc_b["Type"] == "AWS::EC2::SubnetRouteTableAssociation"
+    assert assoc_a["Properties"]["SubnetId"] == {"Ref": "PublicSubnetA"}
+    assert assoc_b["Properties"]["SubnetId"] == {"Ref": "PublicSubnetB"}
+    assert assoc_a["Properties"]["RouteTableId"] == {"Ref": "PublicRouteTable"}
+    assert assoc_b["Properties"]["RouteTableId"] == {"Ref": "PublicRouteTable"}
+
+    _, service = _resource_by_type(template, "AWS::ECS::ExpressGatewayService")[0]
+    assert service["DependsOn"] == [
+        "PublicRoute",
+        "PublicSubnetARouteTableAssociation",
+        "PublicSubnetBRouteTableAssociation",
+    ]
+    network = service["Properties"]["NetworkConfiguration"]
+    assert set(network) == {"Subnets"}
+    assert "SecurityGroups" not in network
+    assert network["Subnets"] == [{"Ref": "PublicSubnetA"}, {"Ref": "PublicSubnetB"}]
+
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    assert "default VPC" not in raw.lower()
+    assert "DefaultVpc" not in raw
+    assert "AWS::EC2::NatGateway" not in raw
+    assert "AWS::EC2::EIP" not in raw
+    assert "AWS::EC2::VPCEndpoint" not in raw
+    assert "AWS::EC2::SecurityGroup" not in raw
+    assert "PrivateSubnet" not in raw
+    assert "MapPublicIpOnLaunch: false" not in raw
+
+
+def test_no_nat_eip_private_subnets_or_custom_security_groups() -> None:
+    template = load_template()
+    resources = template["Resources"]
+    types = {logical_id: resource["Type"] for logical_id, resource in resources.items()}
+
+    assert "AWS::EC2::NatGateway" not in types.values()
+    assert "AWS::EC2::EIP" not in types.values()
+    assert "AWS::EC2::VPCEndpoint" not in types.values()
+    assert "AWS::EC2::SecurityGroup" not in types.values()
+    assert not any(name.startswith("Private") for name in types)
+    assert not any(t.startswith("AWS::ElasticLoadBalancingV2::") for t in types.values())
+
+    subnet_ids = [
+        logical_id
+        for logical_id, type_name in types.items()
+        if type_name == "AWS::EC2::Subnet"
+    ]
+    assert set(subnet_ids) == {"PublicSubnetA", "PublicSubnetB"}
+    for logical_id in subnet_ids:
+        assert resources[logical_id]["Properties"]["MapPublicIpOnLaunch"] is True
 
 
 def test_no_secret_values_or_suspicious_credential_literals() -> None:
