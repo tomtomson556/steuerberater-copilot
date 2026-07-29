@@ -45,7 +45,9 @@ Nicht in Scope (dieser und der unmittelbare Folge-Branch):
 - Kubernetes
 - Datenbank oder Persistenz
 - Authentifizierung
-- eigene VPC- oder ALB-Architektur
+- private VPC mit NAT, VPC Endpoints oder privaten Subnetzen
+- eigene ALB- oder Target-Group-Ressource im Template
+- eigene Security Groups im Template
 - erweitertes Monitoring oder Dashboards
 - echte Secret-Werte im Repository
 
@@ -74,9 +76,9 @@ Region: `eu-central-1` (ADR-004).
 | Health Check | ALB-Pfad `/health`, Container-Port `8000` |
 | Logging | Stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`, referenziert in `PrimaryContainer.AwsLogsConfiguration` inkl. `LogStreamPrefix` |
 | Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`) |
-| Netzwerk-Voraussetzung | Default-VPC mit mindestens zwei öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens acht freien IP-Adressen je Subnetz |
+| Netzwerk | Stackeigene IPv4-VPC mit zwei öffentlichen Subnetzen in zwei AZs, Internet Gateway und öffentlicher Route `0.0.0.0/0`; Subnets explizit in `NetworkConfiguration`; keine Default-VPC-Abhängigkeit |
 | ECR-Löschung | `EmptyOnDelete: true` am stackverwalteten Repository (nur kurzlebige Portfolio-Demo) |
-| Bootstrap | Zweistufig im selben Stack: zuerst ECR/IAM/Log Group, danach Express Service mit Image-Digest |
+| Bootstrap | Zweistufig im selben Stack: zuerst ECR/IAM/Log Group/VPC, danach Express Service mit Image-Digest |
 | IaC | AWS CloudFormation mit `AWS::ECS::ExpressGatewayService` |
 
 ### Warum ECS Express Mode
@@ -99,6 +101,7 @@ Quellen:
 - [CloudFormation Parameters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html)
 - [CloudFormation Conditions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html)
 - [AWS::ECS::ExpressGatewayService](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-expressgatewayservice.html)
+- [ExpressGatewayService NetworkConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-expressgatewayservice-expressgatewayservicenetworkconfiguration.html)
 - [PrimaryContainer.AwsLogsConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-expressgatewayservice-expressgatewayserviceawslogsconfiguration.html)
 - [AWS::Logs::LogGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-logs-loggroup.html)
 - [AWS::ECR::Repository](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecr-repository.html) (`EmptyOnDelete`)
@@ -110,7 +113,7 @@ Quellen:
 | Alternative | Ablehnung |
 | --- | --- |
 | AWS App Runner | Für Neukunden geschlossen; AWS empfiehlt ECS Express Mode |
-| Handgerolltes ECS Fargate mit eigener VPC/ALB | Unnötig komplex; Express Mode deckt denselben Portfolio-Nachweis ab |
+| Handgerolltes ECS Fargate mit privater VPC/NAT/eigener ALB | Unnötig komplex; Express Mode plus minimale öffentliche stackeigene VPC deckt denselben Portfolio-Nachweis ab |
 | Kubernetes / EKS | Explizites Roadmap-Non-Goal |
 | Multi-Cloud | Explizites ADR-/Roadmap-Non-Goal |
 
@@ -118,19 +121,22 @@ Quellen:
 
 ```text
 HTTPS Client
-  -> internet-facing ALB (Service Security Group ingress path)
-    -> ECS Express Mode / Fargate task (public IP in public default subnet)
+  -> internet-facing ALB (Express-managed Service Security Group ingress path)
+    -> ECS Express Mode / Fargate task
+       (public IP in stack-owned public subnet, MapPublicIpOnLaunch)
       -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider default)
         -> stdout/stderr
           -> stackverwaltete CloudWatch Log Group
              (RetentionInDays: 14, LogStreamPrefix)
 
+Stack-owned VPC (IPv4) + 2 public subnets + IGW + public route
+  -> ExpressGatewayService.NetworkConfiguration.Subnets
 ECR (Image by digest, EmptyOnDelete: true)
   -> Express Mode pull via Task Execution Role
 Secrets Manager (template-owned, conditional opt-in)
   -> optional Env-Injection via Task Execution Role
 CloudFormation Stack owns Express Mode, ECR, Log Group,
-Secrets Manager wiring, and IAM edge resources
+stack VPC networking, Secrets Manager wiring, and IAM edge resources
 ```
 
 ### Cloud-neutraler Anwendungskern
@@ -148,7 +154,9 @@ Am Systemrand liegen ausschließlich:
 
 - Amazon ECR (stackverwaltet, inkl. `EmptyOnDelete: true`)
 - Amazon ECS Express Mode (darunter Fargate-Tasks und von Express Mode
-  verwaltete ALB-/Netzwerkressourcen)
+  verwaltete ALB-/Security-Group-Ressourcen)
+- stackeigene öffentliche IPv4-VPC mit zwei öffentlichen Subnetzen,
+  Internet Gateway und öffentlicher Route Table
 - stackverwaltete Amazon CloudWatch Log Group
 - AWS Secrets Manager als verbindlicher Template-Bestandteil mit
   konditionalem Opt-in
@@ -182,17 +190,22 @@ Am Systemrand liegen ausschließlich:
 
 ### Netzwerk
 
-- bewusste Voraussetzung: Default-VPC in `eu-central-1` mit mindestens zwei
-  öffentlichen Subnetzen in mindestens zwei Availability Zones und mindestens
-  acht freien IP-Adressen je Subnetz
-- bei öffentlichen Default-Subnetzen aktiviert Express Mode öffentliche IPs
-  für die Fargate-Tasks
-- die automatisch erzeugte Service Security Group erlaubt standardmäßig
-  Internet-Egress
-- eingehender Anwendungsverkehr bleibt über den internet-facing ALB und dessen
-  Security-Group-Pfad begrenzt
-- in diesem Architektur- und dem unmittelbaren IaC-Branch wird keine eigene
-  VPC- oder ALB-Architektur entworfen oder als Hand-Template gepflegt
+- keine Abhängigkeit von einer accountweiten Default-VPC
+- der Stack stellt in `eu-central-1` eine eigene IPv4-VPC mit DNS-Support und
+  DNS-Hostnames sowie zwei öffentlichen Subnetzen in zwei Availability Zones
+  bereit (`MapPublicIpOnLaunch: true`, nicht überlappende CIDRs)
+- Internet Gateway, VPC-Attachment, öffentliche Route Table mit Route
+  `0.0.0.0/0` und Subnetz-Assoziationen sind stackverwaltet und beim
+  Stack-Delete vollständig entfernbar
+- `ExpressGatewayService.NetworkConfiguration.Subnets` übergibt beide
+  öffentlichen Subnetze ausdrücklich; ohne eigene Security Groups im Template,
+  damit Express Mode Service- und Load-Balancer-Security-Groups weiter selbst
+  verwaltet
+- laut AWS Express-Mode-Defaults: öffentliche Custom-Subnetze führen zu einem
+  internet-facing ALB und `assignPublicIp` für die Tasks; fehlende eigene
+  Security Groups lassen Express Mode die erforderlichen Gruppen erzeugen
+- kein NAT Gateway, keine Elastic IP, keine privaten Subnetze, keine VPC
+  Endpoints und keine eigene ALB-/Target-Group-Ressource im Template
 
 ### Vertrauen
 
@@ -241,8 +254,9 @@ Vorgabe:
 Kein Express Service darf vor einem verfügbaren Image-Digest erstellt werden.
 Der Ablauf ist verbindlich zweistufig im selben Template:
 
-1. Stack mit ECR, IAM, Log Group und Secrets-Manager-Verdrahtung erstellen,
-   jedoch **ohne** Express Service (`DeployService="false"`).
+1. Stack mit ECR, IAM, Log Group, stackeigener öffentlicher VPC-Netzwerkbasis
+   und Secrets-Manager-Verdrahtung erstellen, jedoch **ohne** Express Service
+   (`DeployService="false"`).
 2. Image in ECR pushen, unveränderlichen Digest bestimmen und den Stack mit
    aktiviertem Express Service aktualisieren
    (`DeployService="true"`, `ImageUri=<repo>@<digest>`).
@@ -292,18 +306,24 @@ Die Express-Service-Ressource trägt `Condition: DeployExpressService`.
    - Opt-in: Secret-Ressource und/oder vorhandene Secret-ARN plus
      Container-Injection über die Task Execution Role
    - keine echten Secret-Werte im Repository oder Template
-5. konditional `AWS::ECS::ExpressGatewayService` mit:
+5. stackeigene öffentliche Netzwerkbasis (immer im Stack, auch ohne Service):
+   - eine IPv4-VPC mit `EnableDnsSupport` und `EnableDnsHostnames`
+   - zwei öffentliche Subnetze mit nicht überlappenden CIDRs in zwei AZs und
+     `MapPublicIpOnLaunch: true`
+   - Internet Gateway, VPC-Attachment, öffentliche Route Table, Route
+     `0.0.0.0/0` und beide Subnetz-Assoziationen
+6. konditional `AWS::ECS::ExpressGatewayService` mit:
    - `ImageUri` per unveränderlichem Digest
    - `containerPort: 8000`
    - Health-Check-Pfad `/health`
    - `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`)
    - `PrimaryContainer.AwsLogsConfiguration` auf die stackverwaltete Log Group
      inkl. `LogStreamPrefix`
-6. Default-VPC als Voraussetzung mit mindestens zwei öffentlichen Subnetzen
-   in mindestens zwei Availability Zones und mindestens acht freien
-   IP-Adressen je Subnetz; kein eigenes VPC-/Subnet-/ALB-Template
+   - `NetworkConfiguration.Subnets` auf beide stackeigenen öffentlichen
+     Subnetze; ohne `NetworkConfiguration.SecurityGroups`
 7. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren,
-   einschließlich Löschung von Log Group und geleertem ECR-Repository
+   einschließlich Löschung von Log Group, geleertem ECR-Repository und der
+   stackeigenen VPC-Netzwerkbasis
 
 Nicht Teil des Standard-Stacks:
 
@@ -313,6 +333,9 @@ Nicht Teil des Standard-Stacks:
 - Custom-Domain-Pflicht
 - Multi-Region
 - erweiterte Dashboards oder Alarmflut
+- Default-VPC-Abhängigkeit
+- NAT Gateway, Elastic IP, private Subnetze oder VPC Endpoints
+- eigene ALB-, Target-Group- oder Security-Group-Ressourcen
 - Verlass auf die automatisch von Express Mode erzeugte Log Group
 - Express Service vor verfügbarem Image-Digest
 
@@ -329,6 +352,6 @@ Diese Architektur wird neu bewertet bei:
 
 - Wegfall oder regionaler Nichtverfügbarkeit von ECS Express Mode in
   `eu-central-1`
-- verbindlicher Anforderung an eine eigene VPC
+- verbindlicher Anforderung an private Subnetze, NAT oder VPC Endpoints
 - Einführung echter Daten oder produktiver Integrationen
 - wesentlicher Änderung des Portfolioziels

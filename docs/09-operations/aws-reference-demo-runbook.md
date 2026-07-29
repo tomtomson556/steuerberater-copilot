@@ -12,10 +12,10 @@ Der Steuerberater entscheidet.
 
 ## Voraussetzungen
 
-- AWS-Konto mit Default-VPC in `eu-central-1` (mindestens zwei öffentliche
-  Subnetze in zwei AZs, mindestens acht freie IPs je Subnetz)
+- AWS-Konto und Zielregion `eu-central-1` (keine Default-VPC erforderlich; der
+  Stack erzeugt seine eigene öffentliche IPv4-VPC mit zwei Subnetzen)
 - lokale Docker-Build-Fähigkeit und AWS-CLI mit Rechten für CloudFormation,
-  ECR, ECS, IAM, Logs und Secrets Manager
+  ECR, ECS, EC2 (VPC), IAM, Logs und Secrets Manager
 - Billing-Budget oder Kostenalarm im Account
 - keine Credentials, Secret-Werte oder Access Keys im Repository
 
@@ -46,6 +46,8 @@ aws cloudformation describe-stacks \
 ```
 
 Erwartete Outputs: `EcrRepositoryUri`, `LogGroupName`. Kein Service-Endpoint.
+Stage 1 legt bereits die stackeigene öffentliche VPC-Netzwerkbasis an
+(VPC, zwei öffentliche Subnetze, Internet Gateway, öffentliche Route).
 
 ## 2. Docker-Build und ECR-Push
 
@@ -185,8 +187,8 @@ Deploy ohne Digest-URI) lehnt CloudFormation per Rules bzw. AllowedPattern ab.
 ## 7. Stack-Delete
 
 Vor dem Delete Resource-IDs **außerhalb des Repositorys** sichern. Sonst sind
-Express-ALB-, Target-Group- und Security-Group-Prüfungen nach dem Löschen nicht
-reproduzierbar.
+Express-ALB-, Target-Group-, Security-Group- und stackeigene VPC-Prüfungen nach
+dem Löschen nicht reproduzierbar.
 
 ```bash
 REGION=eu-central-1
@@ -222,6 +224,38 @@ printf '%s\n' "$LOG_GROUP_NAME" > "$VERIFY_DIR/log-group-name.txt"
 printf '%s\n' "$MANAGED_SECRET_ARN" > "$VERIFY_DIR/managed-secret-arn.txt"
 ECR_REPO_NAME="$(basename "$ECR_URI")"
 printf '%s\n' "$ECR_REPO_NAME" > "$VERIFY_DIR/ecr-repository-name.txt"
+
+# Stackeigene VPC-Netzwerkbasis (Physical Resource IDs)
+VPC_ID="$(aws cloudformation describe-stack-resource \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --logical-resource-id DemoVpc \
+  --query 'StackResourceDetail.PhysicalResourceId' \
+  --output text)"
+printf '%s\n' "$VPC_ID" > "$VERIFY_DIR/vpc-id.txt"
+
+PUBLIC_SUBNET_A_ID="$(aws cloudformation describe-stack-resource \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --logical-resource-id PublicSubnetA \
+  --query 'StackResourceDetail.PhysicalResourceId' \
+  --output text)"
+PUBLIC_SUBNET_B_ID="$(aws cloudformation describe-stack-resource \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --logical-resource-id PublicSubnetB \
+  --query 'StackResourceDetail.PhysicalResourceId' \
+  --output text)"
+printf '%s\n' "$PUBLIC_SUBNET_A_ID" > "$VERIFY_DIR/public-subnet-a-id.txt"
+printf '%s\n' "$PUBLIC_SUBNET_B_ID" > "$VERIFY_DIR/public-subnet-b-id.txt"
+
+IGW_ID="$(aws cloudformation describe-stack-resource \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --logical-resource-id InternetGateway \
+  --query 'StackResourceDetail.PhysicalResourceId' \
+  --output text)"
+printf '%s\n' "$IGW_ID" > "$VERIFY_DIR/internet-gateway-id.txt"
 
 # Express Gateway Service Physical Resource ID (= Service-ARN)
 EXPRESS_SERVICE_ARN="$(aws cloudformation describe-stack-resource \
@@ -314,6 +348,8 @@ Harte Fehler (`FAIL`, Non-zero), wenn noch existieren:
 - stackeigenes ECR
 - stackeigene Log Group
 - stackeigenes Managed Secret (falls zuvor angelegt)
+- stackeigene VPC, öffentliche Subnetze, Internet Gateway und öffentliche
+  Route Table
 - eindeutig serviceeigene Target Groups
 - `serviceSecurityGroups` dieser Demo
 
@@ -339,6 +375,10 @@ EXPRESS_SERVICE_ARN="$(cat "$VERIFY_DIR/express-service-arn.txt")"
 ECR_REPO_NAME="$(cat "$VERIFY_DIR/ecr-repository-name.txt")"
 LOG_GROUP_NAME="$(cat "$VERIFY_DIR/log-group-name.txt")"
 MANAGED_SECRET_ARN="$(cat "$VERIFY_DIR/managed-secret-arn.txt")"
+VPC_ID="$(cat "$VERIFY_DIR/vpc-id.txt")"
+PUBLIC_SUBNET_A_ID="$(cat "$VERIFY_DIR/public-subnet-a-id.txt")"
+PUBLIC_SUBNET_B_ID="$(cat "$VERIFY_DIR/public-subnet-b-id.txt")"
+IGW_ID="$(cat "$VERIFY_DIR/internet-gateway-id.txt")"
 ALB_ARN="$(cat "$VERIFY_DIR/alb-arn.txt")"
 TARGET_GROUP_ARNS="$(cat "$VERIFY_DIR/target-group-arns.txt")"
 ALB_SG_ARNS="$(cat "$VERIFY_DIR/alb-security-group-arns.txt")"
@@ -444,6 +484,34 @@ if [ -n "$MANAGED_SECRET_ARN" ] && [ "$MANAGED_SECRET_ARN" != "None" ]; then
       --secret-id "$MANAGED_SECRET_ARN"
 fi
 
+assert_aws_absent \
+  "stackeigene VPC ${VPC_ID}" \
+  'InvalidVpcID\.NotFound' \
+  aws ec2 describe-vpcs \
+    --region "$REGION" \
+    --vpc-ids "$VPC_ID"
+
+assert_aws_absent \
+  "PublicSubnetA ${PUBLIC_SUBNET_A_ID}" \
+  'InvalidSubnetID\.NotFound' \
+  aws ec2 describe-subnets \
+    --region "$REGION" \
+    --subnet-ids "$PUBLIC_SUBNET_A_ID"
+
+assert_aws_absent \
+  "PublicSubnetB ${PUBLIC_SUBNET_B_ID}" \
+  'InvalidSubnetID\.NotFound' \
+  aws ec2 describe-subnets \
+    --region "$REGION" \
+    --subnet-ids "$PUBLIC_SUBNET_B_ID"
+
+assert_aws_absent \
+  "Internet Gateway ${IGW_ID}" \
+  'InvalidInternetGatewayID\.NotFound' \
+  aws ec2 describe-internet-gateways \
+    --region "$REGION" \
+    --internet-gateway-ids "$IGW_ID"
+
 for tg_arn in $TARGET_GROUP_ARNS; do
   [ -z "$tg_arn" ] || [ "$tg_arn" = "None" ] && continue
   assert_aws_absent \
@@ -509,19 +577,20 @@ for lg_name in $EXPRESS_LOG_GROUPS; do
   fi
 done
 
-echo "Harte Post-delete-Checks für Service/ECR/stack-Log/Secret/TG/serviceSecurityGroups bestanden."
+echo "Harte Post-delete-Checks für Service/ECR/stack-Log/Secret/VPC/TG/serviceSecurityGroups bestanden."
 echo "WARN-Fälle (geteilter ALB, ALB-Security-Groups, zurückbehaltene Express-Log-Groups) ggf. manuell bereinigen."
 rm -rf "$VERIFY_DIR"
 unset VERIFY_DIR EXPRESS_SERVICE_ARN ECR_REPO_NAME LOG_GROUP_NAME \
-  MANAGED_SECRET_ARN ALB_ARN TARGET_GROUP_ARNS ALB_SG_ARNS SERVICE_SG_ARNS \
+  MANAGED_SECRET_ARN VPC_ID PUBLIC_SUBNET_A_ID PUBLIC_SUBNET_B_ID IGW_ID \
+  ALB_ARN TARGET_GROUP_ARNS ALB_SG_ARNS SERVICE_SG_ARNS \
   EXPRESS_LOG_GROUPS AWS_PRESENCE AWS_PRESENCE_OUTPUT
 ```
 
 Hinweise zum erwarteten Ergebnis:
 
-- Express Gateway Service, stackeigenes ECR, stackeigene Log Group und
-  Managed Secret sind weg (`FAIL`, falls nicht oder bei AWS-Fehlern jenseits
-  Not-found).
+- Express Gateway Service, stackeigenes ECR, stackeigene Log Group,
+  Managed Secret und die stackeigene VPC-Netzwerkbasis sind weg (`FAIL`, falls
+  nicht oder bei AWS-Fehlern jenseits Not-found).
 - Eindeutig serviceeigene Target Groups und `serviceSecurityGroups` sind weg
   (`FAIL`, falls nicht).
 - Ein geteilter Application Load Balancer, zugehörige
@@ -541,7 +610,9 @@ Hinweise zum erwarteten Ergebnis:
 
 ## Bekannte Grenzen
 
-- keine Authentifizierung, Custom Domain, WAF, private VPC, DB oder Multi-Cloud
+- keine Authentifizierung, Custom Domain, WAF, private Subnetze/NAT, DB oder
+  Multi-Cloud
+- keine Default-VPC-Abhängigkeit; Netzwerkbasis ist stackeigen und öffentlich
 - keine Unterstützung einer vorhandenen externen Secret-ARN in diesem Stack
 - manuelle AWS-Verifikation bleibt ausstehend, bis ein Operator den Stack
   bewusst im eigenen Account durchspielt
