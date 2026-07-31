@@ -23,6 +23,7 @@ FIXED_TAGS = {
 EXPECTED_FILES = {
     "cloudformation-service-role-boundary.json",
     "cloudformation-service-role-foundation-policy.json",
+    "cloudformation-service-role-iam-lifecycle-policy.json",
     "cloudformation-service-role-policy.json",
     "cloudformation-service-role-trust-policy.json",
     "express-infrastructure-boundary.json",
@@ -275,7 +276,7 @@ def test_express_boundary_freezes_v6_service_names_and_reference_region() -> Non
 
 
 def test_service_role_create_role_is_split_by_exact_role_and_boundary() -> None:
-    filename = "cloudformation-service-role-policy.json"
+    filename = "cloudformation-service-role-iam-lifecycle-policy.json"
     create_statements = [
         statement
         for statement in statements(filename)
@@ -306,17 +307,44 @@ def test_service_role_create_role_is_split_by_exact_role_and_boundary() -> None:
     assert actual == expected
 
 
+def test_service_role_create_and_tag_role_enforce_all_fixed_request_tags() -> None:
+    filename = "cloudformation-service-role-iam-lifecycle-policy.json"
+    checked = [
+        statement
+        for statement in statements(filename)
+        if actions(statement) in ({"iam:CreateRole"}, {"iam:TagRole"})
+    ]
+    assert len(checked) == 3
+    expected_tag_keys = list(FIXED_TAGS)
+    for statement in checked:
+        string_equals = statement["Condition"]["StringEquals"]
+        request_tags = {
+            key.removeprefix("aws:RequestTag/"): value
+            for key, value in string_equals.items()
+            if key.startswith("aws:RequestTag/")
+        }
+        assert request_tags == FIXED_TAGS
+        assert set(string_equals) >= {
+            f"aws:RequestTag/{key}" for key in FIXED_TAGS
+        }
+        assert statement["Condition"]["ForAllValues:StringEquals"][
+            "aws:TagKeys"
+        ] == expected_tag_keys
+
+
 def test_service_role_permission_modules_match_the_single_boundary_action_ceiling() -> None:
-    permission_actions = all_actions(
-        "cloudformation-service-role-foundation-policy.json"
-    ) | all_actions("cloudformation-service-role-policy.json")
+    permission_actions = (
+        all_actions("cloudformation-service-role-foundation-policy.json")
+        | all_actions("cloudformation-service-role-iam-lifecycle-policy.json")
+        | all_actions("cloudformation-service-role-policy.json")
+    )
     assert permission_actions == all_actions(
         "cloudformation-service-role-boundary.json"
     )
 
 
 def test_service_role_has_exact_pass_role_statements_and_no_role_updates() -> None:
-    filename = "cloudformation-service-role-policy.json"
+    filename = "cloudformation-service-role-iam-lifecycle-policy.json"
     pass_statements = [
         statement
         for statement in statements(filename)

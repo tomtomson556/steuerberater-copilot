@@ -30,6 +30,7 @@ OPERATOR_POLICY_KEYS = (
 )
 SERVICE_ROLE_POLICY_KEYS = (
     "cloudformation-service-foundation-policy",
+    "cloudformation-service-iam-lifecycle-policy",
     "cloudformation-service-policy",
 )
 FIXED_TAGS = {
@@ -41,6 +42,9 @@ FIXED_TAGS = {
 }
 ACCOUNT_ID_RE = re.compile(r"^[0-9]{12}$")
 IDENTITY_NAME_RE = re.compile(r"^[A-Za-z0-9+=,.@_-]{1,64}$")
+ASSUMED_ROLE_SESSION_ARN_RE = re.compile(
+    r"^arn:aws:sts::([0-9]{12}):assumed-role/([^/]+)/([^/]+)$"
+)
 
 
 class ControlPlaneError(RuntimeError):
@@ -90,6 +94,12 @@ POLICIES = (
         "cloudformation-service-foundation-policy",
         "cloudformation-service-role-foundation-policy.json",
         "reference-demo-cfn-foundation-policy",
+        SERVICE_ROLE_PATH,
+    ),
+    PolicyArtifact(
+        "cloudformation-service-iam-lifecycle-policy",
+        "cloudformation-service-role-iam-lifecycle-policy.json",
+        "reference-demo-cfn-iam-lifecycle-policy",
         SERVICE_ROLE_PATH,
     ),
     PolicyArtifact(
@@ -143,6 +153,7 @@ class Config:
     account_id: str
     operator_type: str
     operator_name: str
+    bootstrap_role_name: str | None = None
 
     @property
     def service_role_arn(self) -> str:
@@ -370,6 +381,10 @@ def _operator_boundary_arn(identity: dict[str, Any]) -> str | None:
 
 
 def _verify_apply_caller(config: Config, client: IamClient) -> None:
+    if config.bootstrap_role_name is None:
+        raise ControlPlaneError(
+            "--apply requires an explicit separate --bootstrap-role-name."
+        )
     response = client.call_sts("get-caller-identity")
     account = response.get("Account")
     arn = response.get("Arn")
@@ -379,6 +394,18 @@ def _verify_apply_caller(config: Config, client: IamClient) -> None:
         raise ControlPlaneError("AWS STS returned an invalid caller ARN.")
     if arn == f"arn:aws:iam::{config.account_id}:root":
         raise ControlPlaneError("Root credentials are forbidden for this tool.")
+    match = ASSUMED_ROLE_SESSION_ARN_RE.fullmatch(arn)
+    if match is None:
+        raise ControlPlaneError(
+            "Apply requires an assumed-role session of the explicit bootstrap role."
+        )
+    arn_account_id, assumed_role_name, _session_name = match.groups()
+    if arn_account_id != config.account_id:
+        raise ControlPlaneError("Caller account does not match --account-id.")
+    if assumed_role_name != config.bootstrap_role_name:
+        raise ControlPlaneError(
+            "Caller assumed role does not match --bootstrap-role-name."
+        )
 
 
 def _assert_stack_absent(client: IamClient) -> None:
@@ -741,6 +768,7 @@ def bootstrap(config: Config, client: IamClient) -> None:
         "task-execution-boundary",
         "express-infrastructure-boundary",
         "cloudformation-service-foundation-policy",
+        "cloudformation-service-iam-lifecycle-policy",
         "cloudformation-service-policy",
         "cloudformation-service-boundary",
     )
@@ -881,6 +909,7 @@ def teardown(config: Config, client: IamClient) -> None:
 
     teardown_policy_order = (
         "cloudformation-service-foundation-policy",
+        "cloudformation-service-iam-lifecycle-policy",
         "cloudformation-service-policy",
         "cloudformation-service-boundary",
         "task-execution-boundary",
@@ -903,6 +932,7 @@ def _plan_steps(operation: str, config: Config) -> list[dict[str, Any]]:
             "task-execution-boundary",
             "express-infrastructure-boundary",
             "cloudformation-service-foundation-policy",
+            "cloudformation-service-iam-lifecycle-policy",
             "cloudformation-service-policy",
             "cloudformation-service-boundary",
         )
@@ -991,6 +1021,7 @@ def _plan_steps(operation: str, config: Config) -> list[dict[str, Any]]:
     )
     teardown_policy_order = (
         "cloudformation-service-foundation-policy",
+        "cloudformation-service-iam-lifecycle-policy",
         "cloudformation-service-policy",
         "cloudformation-service-boundary",
         "task-execution-boundary",
@@ -1062,11 +1093,32 @@ def _validated_config(args: argparse.Namespace) -> Config:
             "--apply requires explicit MFA-authenticated and temporary-session "
             "confirmations."
         )
+    if args.apply and args.bootstrap_role_name is None:
+        raise ControlPlaneError(
+            "--apply requires an explicit separate --bootstrap-role-name."
+        )
+    if args.bootstrap_role_name is not None:
+        if not IDENTITY_NAME_RE.fullmatch(args.bootstrap_role_name):
+            raise ControlPlaneError(
+                "Bootstrap role name must be an explicit IAM role name without a path."
+            )
+        if args.bootstrap_role_name == SERVICE_ROLE_NAME:
+            raise ControlPlaneError(
+                "Bootstrap role must be separate from the CloudFormation service role."
+            )
+        if (
+            args.operator_type == "role"
+            and args.bootstrap_role_name == args.operator_name
+        ):
+            raise ControlPlaneError(
+                "Bootstrap role must be separate from the explicit operator role."
+            )
     if not args.apply and any(
         (
             args.confirm_aws_write_account is not None,
             args.confirm_mfa_authenticated_session,
             args.confirm_temporary_session,
+            args.bootstrap_role_name is not None,
         )
     ):
         raise ControlPlaneError(
@@ -1076,6 +1128,7 @@ def _validated_config(args: argparse.Namespace) -> Config:
         account_id=args.account_id,
         operator_type=args.operator_type,
         operator_name=args.operator_name,
+        bootstrap_role_name=args.bootstrap_role_name,
     )
 
 
@@ -1083,7 +1136,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Plan the frozen AWS reference-demo IAM control plane. "
-            "AWS writes require both --apply and an exact account confirmation."
+            "AWS writes require --apply, an exact account confirmation, and a "
+            "separate assumed bootstrap-role session."
         )
     )
     parser.add_argument("operation", choices=("bootstrap", "teardown"))
@@ -1096,13 +1150,24 @@ def _parser() -> argparse.ArgumentParser:
         help="Enable AWS IAM reads and writes after fail-closed preflight.",
     )
     parser.add_argument(
+        "--bootstrap-role-name",
+        help=(
+            "Required with --apply; explicit separate IAM role whose assumed-role "
+            "session must be the only accepted caller. Must not be the operator "
+            f"role or {SERVICE_ROLE_NAME}."
+        ),
+    )
+    parser.add_argument(
         "--confirm-aws-write-account",
         help="Required with --apply; must exactly match --account-id.",
     )
     parser.add_argument(
         "--confirm-mfa-authenticated-session",
         action="store_true",
-        help="Required with --apply; confirms the current session used MFA.",
+        help=(
+            "Required with --apply; explicit attestation that the current "
+            "session used MFA. The tool does not detect MFA technically."
+        ),
     )
     parser.add_argument(
         "--confirm-temporary-session",

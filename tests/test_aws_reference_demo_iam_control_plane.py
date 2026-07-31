@@ -27,14 +27,27 @@ SPEC.loader.exec_module(control_plane)
 
 ACCOUNT_ID = "123456789012"
 OPERATOR_NAME = "reference-demo-operator"
+BOOTSTRAP_ROLE_NAME = "reference-demo-iam-bootstrap"
 
 
-def config():
-    return control_plane.Config(
-        account_id=ACCOUNT_ID,
-        operator_type="user",
-        operator_name=OPERATOR_NAME,
-    )
+def config(**overrides):
+    values = {
+        "account_id": ACCOUNT_ID,
+        "operator_type": "user",
+        "operator_name": OPERATOR_NAME,
+        "bootstrap_role_name": None,
+    }
+    values.update(overrides)
+    return control_plane.Config(**values)
+
+
+def apply_config(**overrides):
+    values = {
+        "operator_type": "role",
+        "bootstrap_role_name": BOOTSTRAP_ROLE_NAME,
+    }
+    values.update(overrides)
+    return config(**values)
 
 
 class FreshIam:
@@ -159,6 +172,43 @@ class RootCaller:
         }
 
 
+class AssumedBootstrapCaller:
+    def __init__(
+        self,
+        *,
+        account_id: str = ACCOUNT_ID,
+        role_name: str = BOOTSTRAP_ROLE_NAME,
+        session_name: str = "manual-session",
+        response_account: str | None = None,
+    ):
+        self.account_id = account_id
+        self.role_name = role_name
+        self.session_name = session_name
+        self.response_account = (
+            account_id if response_account is None else response_account
+        )
+
+    def call_sts(self, *arguments):
+        assert arguments == ("get-caller-identity",)
+        return {
+            "Account": self.response_account,
+            "Arn": (
+                f"arn:aws:sts::{self.account_id}:assumed-role/"
+                f"{self.role_name}/{self.session_name}"
+            ),
+        }
+
+
+class FixedArnCaller:
+    def __init__(self, arn: str, *, account_id: str = ACCOUNT_ID):
+        self.arn = arn
+        self.account_id = account_id
+
+    def call_sts(self, *arguments):
+        assert arguments == ("get-caller-identity",)
+        return {"Account": self.account_id, "Arn": self.arn}
+
+
 def mutation_names(client):
     prefixes = (
         "attach-",
@@ -246,7 +296,103 @@ def test_apply_requires_mfa_and_temporary_session_confirmations(capsys) -> None:
 
 def test_apply_rejects_root_caller() -> None:
     with pytest.raises(control_plane.ControlPlaneError, match="Root"):
-        control_plane._verify_apply_caller(config(), RootCaller())
+        control_plane._verify_apply_caller(apply_config(), RootCaller())
+
+
+def test_apply_accepts_exact_bootstrap_assumed_role_session() -> None:
+    control_plane._verify_apply_caller(apply_config(), AssumedBootstrapCaller())
+
+
+def test_apply_rejects_caller_account_mismatch() -> None:
+    with pytest.raises(control_plane.ControlPlaneError, match="Caller account"):
+        control_plane._verify_apply_caller(
+            apply_config(),
+            AssumedBootstrapCaller(
+                account_id="999999999999",
+                response_account="999999999999",
+            ),
+        )
+
+
+def test_apply_rejects_wrong_bootstrap_role_name() -> None:
+    with pytest.raises(
+        control_plane.ControlPlaneError,
+        match="does not match --bootstrap-role-name",
+    ):
+        control_plane._verify_apply_caller(
+            apply_config(),
+            AssumedBootstrapCaller(role_name="other-bootstrap-role"),
+        )
+
+
+def test_apply_rejects_bootstrap_role_equal_to_operator_role(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "bootstrap",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "role",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                OPERATOR_NAME,
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert "separate from the explicit operator role" in capsys.readouterr().err
+
+
+def test_apply_rejects_bootstrap_role_equal_to_service_role(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "bootstrap",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "role",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                control_plane.SERVICE_ROLE_NAME,
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert "CloudFormation service role" in capsys.readouterr().err
+
+
+def test_apply_rejects_iam_user_caller() -> None:
+    with pytest.raises(control_plane.ControlPlaneError, match="assumed-role session"):
+        control_plane._verify_apply_caller(
+            apply_config(),
+            FixedArnCaller(f"arn:aws:iam::{ACCOUNT_ID}:user/{OPERATOR_NAME}"),
+        )
+
+
+def test_apply_rejects_federated_user_caller() -> None:
+    with pytest.raises(control_plane.ControlPlaneError, match="assumed-role session"):
+        control_plane._verify_apply_caller(
+            apply_config(),
+            FixedArnCaller(
+                f"arn:aws:sts::{ACCOUNT_ID}:federated-user/{OPERATOR_NAME}"
+            ),
+        )
 
 
 def test_bootstrap_plan_matches_v23_phase_order() -> None:
@@ -260,7 +406,9 @@ def test_bootstrap_plan_matches_v23_phase_order() -> None:
         "create-or-verify-policy",
         "create-or-verify-policy",
         "create-or-verify-policy",
+        "create-or-verify-policy",
         "create-or-verify-service-role",
+        "attach-service-role-policy",
         "attach-service-role-policy",
         "attach-service-role-policy",
         "create-or-verify-policy",
@@ -283,6 +431,7 @@ def test_bootstrap_plan_matches_v23_phase_order() -> None:
         "task-execution-boundary.json",
         "express-infrastructure-boundary.json",
         "cloudformation-service-role-foundation-policy.json",
+        "cloudformation-service-role-iam-lifecycle-policy.json",
         "cloudformation-service-role-policy.json",
         "cloudformation-service-role-boundary.json",
         "operator-cloudformation-policy.json",
@@ -304,7 +453,9 @@ def test_fresh_bootstrap_writes_only_the_fixed_control_plane_in_order() -> None:
         "create-policy",
         "create-policy",
         "create-policy",
+        "create-policy",
         "create-role",
+        "attach-role-policy",
         "attach-role-policy",
         "attach-role-policy",
         "create-policy",
@@ -380,8 +531,9 @@ def test_teardown_plan_reflects_exact_reverse_dependency_order() -> None:
         "detach-operator-policy",
         "detach-operator-policy",
     ]
-    assert [step["action"] for step in steps[5:9]] == [
+    assert [step["action"] for step in steps[5:10]] == [
         "remove-operator-boundary",
+        "detach-service-role-policy",
         "detach-service-role-policy",
         "detach-service-role-policy",
         "delete-service-role",
@@ -391,6 +543,7 @@ def test_teardown_plan_reflects_exact_reverse_dependency_order() -> None:
     ]
     assert deleted_artifacts == [
         "cloudformation-service-role-foundation-policy.json",
+        "cloudformation-service-role-iam-lifecycle-policy.json",
         "cloudformation-service-role-policy.json",
         "cloudformation-service-role-boundary.json",
         "task-execution-boundary.json",

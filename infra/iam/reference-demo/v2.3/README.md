@@ -12,7 +12,8 @@ Deployment-Runbook werden in diesem Stand nicht verändert.
 | `task-execution-boundary.json` | Permissions Boundary | `task-execution-boundary` | `/steuerberater-copilot/reference-demo/` |
 | `express-infrastructure-boundary.json` | Permissions Boundary | `express-infrastructure-boundary` | `/steuerberater-copilot/reference-demo/` |
 | `cloudformation-service-role-foundation-policy.json` | Berechtigungs-Policy (ECR, Logs, EC2) | `reference-demo-cfn-foundation-policy` | `/steuerberater-copilot/control-plane/` |
-| `cloudformation-service-role-policy.json` | Berechtigungs-Policy | `reference-demo-cfn-service-policy` | `/steuerberater-copilot/control-plane/` |
+| `cloudformation-service-role-iam-lifecycle-policy.json` | Berechtigungs-Policy (IAM-Rollenlebenszyklus) | `reference-demo-cfn-iam-lifecycle-policy` | `/steuerberater-copilot/control-plane/` |
+| `cloudformation-service-role-policy.json` | Berechtigungs-Policy (Secrets Manager, ECS) | `reference-demo-cfn-service-policy` | `/steuerberater-copilot/control-plane/` |
 | `cloudformation-service-role-boundary.json` | Permissions Boundary | `reference-demo-cfn-service-boundary` | `/steuerberater-copilot/control-plane/` |
 | `operator-boundary.json` | Permissions Boundary | `reference-demo-operator-boundary` | `/steuerberater-copilot/control-plane/` |
 | `operator-cloudformation-policy.json` | Berechtigungs-Policy | `reference-demo-operator-cloudformation` | `/steuerberater-copilot/control-plane/` |
@@ -37,11 +38,15 @@ automatisch.
 Die in Version 2.3 als ein Artefakt geplante CloudFormation-Service-Role-Policy
 überschreitet mit ihrer vollständigen Aktions- und Condition-Matrix die
 nicht erhöhbare AWS-Grenze von 6.144 Nicht-Whitespace-Zeichen pro
-kundenverwalteter Policy. Sie ist deshalb in zwei gemeinsam erforderliche,
+kundenverwalteter Policy. Sie ist deshalb in drei gemeinsam erforderliche,
 getrennt gehashte Berechtigungs-Policies aufgeteilt: Foundation (ECR, Logs,
-EC2) und Service (IAM, Secrets Manager, ECS). Die weiterhin einzelne
-Service-Role-Boundary begrenzt die Vereinigungsmenge beider Policies. Tests
-prüfen die Zeichengrenze für jedes kundenverwaltete Policy-Artefakt.
+EC2), IAM-Lifecycle (CreateRole/TagRole und übrige IAM-Rollenaktionen) und
+Service (Secrets Manager, ECS). Die weiterhin einzelne Service-Role-Boundary
+begrenzt die Vereinigungsmenge aller drei Policies. Die beiden
+`iam:CreateRole`-Statements und das `iam:TagRole`-Statement erzwingen alle
+fünf festen Rollen-Tag-Werte über `aws:RequestTag/<Key>` und begrenzen
+`aws:TagKeys` zusätzlich auf genau diese fünf Schlüssel. Tests prüfen die
+Zeichengrenze für jedes kundenverwaltete Policy-Artefakt.
 
 ## Lokale Plan-Ausgabe
 
@@ -63,6 +68,7 @@ AWS-Zugriff ist nur mit allen ausdrücklichen Bestätigungen möglich:
 
 ```text
 --apply
+--bootstrap-role-name <explizite separate Bootstrap-Rollenname>
 --confirm-aws-write-account <dieselbe zwölfstellige Account-ID>
 --confirm-mfa-authenticated-session
 --confirm-temporary-session
@@ -71,9 +77,21 @@ AWS-Zugriff ist nur mit allen ausdrücklichen Bestätigungen möglich:
 Diese Option ist für einen späteren, separat freigegebenen manuellen Test
 bestimmt. Sie wurde beim Erstellen dieser Artefakte nicht ausgeführt.
 Ein Apply darf ausschließlich aus einer bereits vorhandenen kurzlebigen,
-MFA-geschützten Bootstrap-Session erfolgen. Das Werkzeug erzeugt oder
-verlängert keine Session und kann deren organisatorische Freigabe nicht
-ersetzen.
+MFA-geschützten Session der ausdrücklich benannten Bootstrap-Rolle erfolgen.
+Zulässig ist nur der Caller-ARN
+
+```text
+arn:aws:sts::<ACCOUNT_ID>:assumed-role/<BOOTSTRAP_ROLE_NAME>/<SESSION_NAME>
+```
+
+Account-ID und Bootstrap-Rollenname müssen exakt passen. Die Bootstrap-Rolle
+darf weder die ausdrücklich angegebene Operatorrolle noch
+`reference-demo-cfn-service-role` sein. IAM User, Root, Federated User,
+direkte IAM-Role-ARNs und andere Assumed Roles werden abgelehnt. MFA bleibt
+eine ausdrückliche Attestation; das Werkzeug erkennt MFA nicht technisch. Das
+Werkzeug erzeugt oder verlängert keine Session und kann deren organisatorische
+Freigabe nicht ersetzen. Dry-Run bleibt vollständig lokal und benötigt keine
+Bootstrap-Rolle.
 
 ## Fail-closed-Verhalten
 
