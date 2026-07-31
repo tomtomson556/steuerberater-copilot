@@ -377,6 +377,129 @@ def test_apply_rejects_bootstrap_role_equal_to_service_role(capsys) -> None:
     assert "CloudFormation service role" in capsys.readouterr().err
 
 
+def test_teardown_apply_rejects_without_post_delete_attestation(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "teardown",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "role",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                BOOTSTRAP_ROLE_NAME,
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert "--confirm-post-delete-verification" in capsys.readouterr().err
+
+
+def test_post_delete_attestation_rejected_for_bootstrap_apply(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "bootstrap",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "role",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                BOOTSTRAP_ROLE_NAME,
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+                "--confirm-post-delete-verification",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert (
+        "--confirm-post-delete-verification is only valid with teardown --apply."
+        in capsys.readouterr().err
+    )
+
+
+def test_post_delete_attestation_rejected_for_dry_run(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "teardown",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "user",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--confirm-post-delete-verification",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert (
+        "--confirm-post-delete-verification is only valid with teardown --apply."
+        in capsys.readouterr().err
+    )
+
+
+def test_teardown_apply_accepts_post_delete_attestation_before_aws_calls(
+    capsys,
+) -> None:
+    client = AbsentTeardownIam()
+    with (
+        patch.object(
+            control_plane,
+            "AwsCli",
+            return_value=client,
+        ),
+        patch.object(
+            control_plane,
+            "_verify_apply_caller",
+        ) as verify_caller,
+    ):
+        result = control_plane.main(
+            [
+                "teardown",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "user",
+                "--operator-name",
+                OPERATOR_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                BOOTSTRAP_ROLE_NAME,
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+                "--confirm-post-delete-verification",
+            ]
+        )
+
+    assert result == 0
+    verify_caller.assert_called_once()
+    assert mutation_names(client) == []
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "completed"
+    assert output["operation"] == "teardown"
+    assert output["mode"] == "apply"
+
+
 def test_apply_rejects_iam_user_caller() -> None:
     with pytest.raises(control_plane.ControlPlaneError, match="assumed-role session"):
         control_plane._verify_apply_caller(

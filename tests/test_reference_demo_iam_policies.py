@@ -92,6 +92,98 @@ def statement_for_action(filename: str, action: str) -> dict[str, Any]:
     return matches[0]
 
 
+def statements_for_action(filename: str, action: str) -> list[dict[str, Any]]:
+    matches = [
+        statement
+        for statement in statements(filename)
+        if action in actions(statement)
+    ]
+    assert matches, (filename, action)
+    return matches
+
+
+def resources(statement: dict[str, Any]) -> set[str]:
+    value = statement["Resource"]
+    if isinstance(value, str):
+        return {value}
+    assert isinstance(value, list)
+    assert all(isinstance(resource, str) for resource in value)
+    return set(value)
+
+
+def statements_for_action_and_resource(
+    filename: str,
+    action: str,
+    resource: str,
+) -> list[dict[str, Any]]:
+    matches = [
+        statement
+        for statement in statements_for_action(filename, action)
+        if resource in resources(statement)
+    ]
+    assert matches, (filename, action, resource)
+    return matches
+
+
+TASK_DEFINITION_ARN = (
+    f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/*"
+)
+TASK_EXECUTION_ROLE_ARN = (
+    f"arn:aws:iam::{ACCOUNT}:role/steuerberater-copilot/"
+    "reference-demo/task-execution"
+)
+EXPRESS_INFRASTRUCTURE_ROLE_ARN = (
+    f"arn:aws:iam::{ACCOUNT}:role/steuerberater-copilot/"
+    "reference-demo/express-infrastructure"
+)
+CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS = {
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-cfn-foundation-policy"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-cfn-iam-lifecycle-policy"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-cfn-service-boundary"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-cfn-service-policy"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-operator-boundary"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-operator-cloudformation"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-operator-ecr-publisher"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-operator-secret-initializer"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-operator-verifier"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/reference-demo/"
+        "express-infrastructure-boundary"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/reference-demo/"
+        "task-execution-boundary"
+    ),
+}
+
+
 def test_exact_versioned_artifact_set_parses_as_json() -> None:
     actual = {path.name for path in POLICY_DIR.glob("*.json")}
     assert actual == EXPECTED_FILES
@@ -506,6 +598,161 @@ def test_verifier_can_read_both_required_aws_managed_policy_versions() -> None:
             "AmazonECSInfrastructureRoleforExpressGatewayServices"
         ),
     } <= set(statement["Resource"])
+
+
+def test_service_role_allows_register_and_tag_on_task_definition() -> None:
+    filename = "cloudformation-service-role-policy.json"
+    register = statements_for_action_and_resource(
+        filename,
+        "ecs:RegisterTaskDefinition",
+        TASK_DEFINITION_ARN,
+    )
+    assert len(register) == 1
+    assert actions(register[0]) == {"ecs:RegisterTaskDefinition"}
+    assert resources(register[0]) == {TASK_DEFINITION_ARN}
+    assert "Condition" not in register[0]
+
+    tag = statements_for_action_and_resource(
+        filename,
+        "ecs:TagResource",
+        TASK_DEFINITION_ARN,
+    )
+    assert len(tag) == 1
+    assert actions(tag[0]) == {"ecs:TagResource"}
+    assert resources(tag[0]) == {TASK_DEFINITION_ARN}
+    assert "Condition" not in tag[0]
+
+    service_tag_resources = {
+        resource
+        for statement in statements_for_action(filename, "ecs:TagResource")
+        for resource in resources(statement)
+    }
+    assert TASK_DEFINITION_ARN in service_tag_resources
+    assert (
+        f"arn:aws:ecs:{REGION}:{ACCOUNT}:service/default/"
+        "steuerberater-copilot-reference-demo"
+    ) in service_tag_resources
+
+
+def test_verifier_includes_iam_lifecycle_policy_and_all_control_plane_reads() -> None:
+    filename = "operator-verifier-policy.json"
+    get_policy = statement_for_action(filename, "iam:GetPolicy")
+    get_version = statement_for_action(filename, "iam:GetPolicyVersion")
+    assert actions(get_policy) == {"iam:GetPolicy", "iam:GetPolicyVersion"}
+    assert actions(get_version) == {"iam:GetPolicy", "iam:GetPolicyVersion"}
+    assert resources(get_policy) == resources(get_version)
+    read_resources = resources(get_policy)
+    lifecycle_arn = (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+        "reference-demo-cfn-iam-lifecycle-policy"
+    )
+    assert lifecycle_arn in read_resources
+    assert CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS <= read_resources
+    assert not {
+        action
+        for action in all_actions(filename)
+        if action.startswith("iam:")
+        and not action.split(":", maxsplit=1)[1].startswith(("Get", "List"))
+    }
+
+
+def test_inline_role_policy_writes_are_limited_to_task_execution_role() -> None:
+    permission_file = "cloudformation-service-role-iam-lifecycle-policy.json"
+    boundary_file = "cloudformation-service-role-boundary.json"
+    for filename in (permission_file, boundary_file):
+        for action in ("iam:PutRolePolicy", "iam:DeleteRolePolicy"):
+            matches = statements_for_action(filename, action)
+            assert len(matches) == 1, (filename, action)
+            statement = matches[0]
+            assert actions(statement) == {
+                "iam:DeleteRolePolicy",
+                "iam:PutRolePolicy",
+            }
+            assert resources(statement) == {TASK_EXECUTION_ROLE_ARN}
+            assert EXPRESS_INFRASTRUCTURE_ROLE_ARN not in resources(statement)
+            assert "Condition" not in statement
+
+    for action in (
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags",
+        "iam:TagRole",
+        "iam:UntagRole",
+    ):
+        for filename in (permission_file, boundary_file):
+            role_resources = {
+                resource
+                for statement in statements_for_action(filename, action)
+                for resource in resources(statement)
+            }
+            assert {
+                TASK_EXECUTION_ROLE_ARN,
+                EXPRESS_INFRASTRUCTURE_ROLE_ARN,
+            } <= role_resources
+
+
+def test_critical_service_role_statements_match_action_resource_and_conditions() -> None:
+    lifecycle = "cloudformation-service-role-iam-lifecycle-policy.json"
+    service = "cloudformation-service-role-policy.json"
+    boundary = "cloudformation-service-role-boundary.json"
+
+    pass_task = statements_for_action_and_resource(
+        lifecycle,
+        "iam:PassRole",
+        TASK_EXECUTION_ROLE_ARN,
+    )[0]
+    assert actions(pass_task) == {"iam:PassRole"}
+    assert pass_task["Condition"]["StringEquals"]["iam:PassedToService"] == (
+        "ecs-tasks.amazonaws.com"
+    )
+
+    pass_express = statements_for_action_and_resource(
+        lifecycle,
+        "iam:PassRole",
+        EXPRESS_INFRASTRUCTURE_ROLE_ARN,
+    )[0]
+    assert actions(pass_express) == {"iam:PassRole"}
+    assert pass_express["Condition"]["StringEquals"]["iam:PassedToService"] == (
+        "ecs.amazonaws.com"
+    )
+
+    delete_secret = statements_for_action_and_resource(
+        service,
+        "secretsmanager:DeleteSecret",
+        (
+            f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:"
+            "steuerberater-copilot/reference-demo/synthetic-*"
+        ),
+    )[0]
+    assert delete_secret["Condition"]["Bool"] == {
+        "secretsmanager:ForceDeleteWithoutRecovery": "true"
+    }
+
+    for filename in (lifecycle, boundary):
+        put_inline = statements_for_action_and_resource(
+            filename,
+            "iam:PutRolePolicy",
+            TASK_EXECUTION_ROLE_ARN,
+        )[0]
+        assert resources(put_inline) == {TASK_EXECUTION_ROLE_ARN}
+        assert EXPRESS_INFRASTRUCTURE_ROLE_ARN not in resources(put_inline)
+
+    for filename in (service, boundary):
+        register = statements_for_action_and_resource(
+            filename,
+            "ecs:RegisterTaskDefinition",
+            TASK_DEFINITION_ARN,
+        )[0]
+        tag = statements_for_action_and_resource(
+            filename,
+            "ecs:TagResource",
+            TASK_DEFINITION_ARN,
+        )[0]
+        assert TASK_DEFINITION_ARN in resources(register)
+        assert TASK_DEFINITION_ARN in resources(tag)
 
 
 def test_cloudformation_service_role_trusts_only_cloudformation() -> None:

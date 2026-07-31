@@ -116,13 +116,11 @@
       "Effect": "Allow",
       "Action": [
         "iam:DeleteRole",
-        "iam:DeleteRolePolicy",
         "iam:GetRole",
         "iam:GetRolePolicy",
         "iam:ListAttachedRolePolicies",
         "iam:ListRolePolicies",
         "iam:ListRoleTags",
-        "iam:PutRolePolicy",
         "iam:TagRole",
         "iam:UntagRole"
       ],
@@ -130,6 +128,14 @@
         "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
         "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
     },
     {
       "Effect": "Allow",

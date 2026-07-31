@@ -1113,6 +1113,21 @@ def _validated_config(args: argparse.Namespace) -> Config:
             raise ControlPlaneError(
                 "Bootstrap role must be separate from the explicit operator role."
             )
+    if (
+        args.apply
+        and args.operation == "teardown"
+        and not args.confirm_post_delete_verification
+    ):
+        raise ControlPlaneError(
+            "teardown --apply requires --confirm-post-delete-verification after "
+            "successful stack delete and complete post-delete verification."
+        )
+    if args.confirm_post_delete_verification and not (
+        args.apply and args.operation == "teardown"
+    ):
+        raise ControlPlaneError(
+            "--confirm-post-delete-verification is only valid with teardown --apply."
+        )
     if not args.apply and any(
         (
             args.confirm_aws_write_account is not None,
@@ -1173,6 +1188,16 @@ def _parser() -> argparse.ArgumentParser:
         "--confirm-temporary-session",
         action="store_true",
         help="Required with --apply; confirms credentials are temporary.",
+    )
+    parser.add_argument(
+        "--confirm-post-delete-verification",
+        action="store_true",
+        help=(
+            "Required with teardown --apply only; attestation that stack delete "
+            "and the complete post-delete verification from the hardened runbook "
+            "succeeded. Does not replace the tool's stack-absence check and "
+            "performs no additional AWS resource queries."
+        ),
     )
     return parser
 

@@ -74,8 +74,21 @@ AWS-Zugriff ist nur mit allen ausdrücklichen Bestätigungen möglich:
 --confirm-temporary-session
 ```
 
-Diese Option ist für einen späteren, separat freigegebenen manuellen Test
-bestimmt. Sie wurde beim Erstellen dieser Artefakte nicht ausgeführt.
+Für `teardown --apply` ist zusätzlich erforderlich:
+
+```text
+--confirm-post-delete-verification
+```
+
+Diese Attestation bestätigt, dass Stack-Delete und die vollständige
+Post-Delete-Verifikation aus dem später gehärteten Runbook erfolgreich
+abgeschlossen wurden. Sie ersetzt nicht die technische
+Stack-Abwesenheitsprüfung des Werkzeugs und führt keine zusätzlichen
+AWS-Account- oder Ressourcenabfragen aus. Die Option ist nur für
+`teardown --apply` zulässig; Bootstrap-Apply und Dry-Run lehnen sie ab.
+
+Diese Optionen sind für einen späteren, separat freigegebenen manuellen Test
+bestimmt. Sie wurden beim Erstellen dieser Artefakte nicht ausgeführt.
 Ein Apply darf ausschließlich aus einer bereits vorhandenen kurzlebigen,
 MFA-geschützten Session der ausdrücklich benannten Bootstrap-Rolle erfolgen.
 Zulässig ist nur der Caller-ARN
@@ -120,7 +133,8 @@ Das Werkzeug:
   Anhänge und Artefakte, ohne unerwartete Abhängigkeiten zu tolerieren.
 
 Der IAM-Abbau ist erst nach erfolgreichem Stack-Delete und
-Post-Delete-Verifikation vorgesehen. Service-Linked Roles und die explizit
+Post-Delete-Verifikation vorgesehen und verlangt dafür die ausdrückliche
+`--confirm-post-delete-verification`. Service-Linked Roles und die explizit
 übergebene Operatoridentität werden nicht gelöscht.
 
 ## Lokale Validierung

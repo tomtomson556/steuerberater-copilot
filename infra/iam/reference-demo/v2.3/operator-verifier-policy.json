@@ -170,6 +170,7 @@
         "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
         "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-foundation-policy",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-iam-lifecycle-policy",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-boundary",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-policy",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-boundary",
