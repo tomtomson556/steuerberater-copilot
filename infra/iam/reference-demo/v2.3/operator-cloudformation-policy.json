@@ -1,0 +1,162 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateOnlyFixedReferenceChangeSets",
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "ArnEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+        },
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "aws:RequestedRegion": "eu-central-1"
+        },
+        "StringLike": {
+          "cloudformation:ChangeSetName": "steuerberater-copilot-reference-demo-*"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "OperateOnlyFixedReferenceChangeSets",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        },
+        "StringLike": {
+          "cloudformation:ChangeSetName": "steuerberater-copilot-reference-demo-*"
+        }
+      }
+    },
+    {
+      "Sid": "TagOnlyDuringFixedChangeSetCreation",
+      "Effect": "Allow",
+      "Action": "cloudformation:TagResource",
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "aws:RequestedRegion": "eu-central-1",
+          "cloudformation:CreateAction": "CreateChangeSet"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DeleteAndRecoverStackOnlyWithFixedServiceRole",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ContinueUpdateRollback",
+        "cloudformation:DeleteStack",
+        "cloudformation:RollbackStack"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "ArnEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "CancelOnlyReferenceStackUpdate",
+      "Effect": "Allow",
+      "Action": "cloudformation:CancelUpdateStack",
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadOnlyReferenceStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResourceDrifts",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DetectStackDrift",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListChangeSets",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadDriftStatusAndValidateTemplates",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStackDriftDetectionStatus",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:ValidateTemplate"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "ReadFixedCloudFormationServiceRole",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+    },
+    {
+      "Sid": "PassOnlyFixedCloudFormationServiceRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    }
+  ]
+}

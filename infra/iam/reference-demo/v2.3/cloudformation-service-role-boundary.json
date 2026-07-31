@@ -1,0 +1,242 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVpcs",
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateInternetGateway",
+        "ec2:CreateRouteTable",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "ec2:CreateVpc"
+      ],
+      "Resource": [
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:internet-gateway/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:route-table/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:subnet/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:vpc/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AssociateRouteTable",
+        "ec2:AttachInternetGateway",
+        "ec2:CreateRoute",
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteRoute",
+        "ec2:DeleteRouteTable",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
+        "ec2:DeleteVpc",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateRouteTable",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ModifyVpcAttribute",
+        "ec2:ReplaceRoute",
+        "ec2:ReplaceRouteTableAssociation"
+      ],
+      "Resource": [
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:internet-gateway/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:route-table/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:subnet/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:vpc/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "ec2:ResourceTag/Project": "steuerberater-copilot"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:ListTagsForResource",
+        "ecr:PutImageTagMutability",
+        "ecr:TagResource",
+        "ecr:UntagResource",
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DeleteRetentionPolicy",
+        "logs:ListTagsForResource",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource"
+      ],
+      "Resource": [
+        "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo",
+        "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/task-execution-boundary"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:TagResource",
+        "secretsmanager:UntagResource",
+        "secretsmanager:UpdateSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "secretsmanager:DeleteSecret",
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*",
+      "Condition": {
+        "Bool": {
+          "secretsmanager:ForceDeleteWithoutRecovery": "true"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:CreateCluster",
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateExpressGatewayService",
+        "ecs:DeleteExpressGatewayService",
+        "ecs:DescribeExpressGatewayService",
+        "ecs:DescribeServiceDeployments",
+        "ecs:DescribeServiceRevisions",
+        "ecs:DescribeServices",
+        "ecs:ListServiceDeployments",
+        "ecs:ListTagsForResource",
+        "ecs:TagResource",
+        "ecs:UpdateExpressGatewayService"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-deployment/default/steuerberater-copilot-reference-demo/*",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-revision/default/steuerberater-copilot-reference-demo/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition",
+        "ecs:TagResource"
+      ],
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:task-definition/*"
+    }
+  ]
+}

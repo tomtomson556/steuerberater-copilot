@@ -1,0 +1,248 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "ArnEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+        },
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot"
+        },
+        "StringLike": {
+          "cloudformation:ChangeSetName": "steuerberater-copilot-reference-demo-*"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringLike": {
+          "cloudformation:ChangeSetName": "steuerberater-copilot-reference-demo-*"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cloudformation:TagResource",
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "cloudformation:CreateAction": "CreateChangeSet"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ContinueUpdateRollback",
+        "cloudformation:DeleteStack",
+        "cloudformation:RollbackStack"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*",
+      "Condition": {
+        "ArnEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CancelUpdateStack",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResourceDrifts",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DetectStackDrift",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListChangeSets",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStackDriftDetectionStatus",
+        "cloudformation:GetTemplateSummary",
+        "cloudformation:ValidateTemplate"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:InitiateLayerUpload",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:PutSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeExpressGatewayService",
+        "ecs:DescribeServices",
+        "ecs:ListServiceDeployments",
+        "ecs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListTagsForCertificate",
+        "application-autoscaling:DescribeScalableTargets",
+        "application-autoscaling:DescribeScalingPolicies",
+        "cloudtrail:LookupEvents",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVpcs",
+        "ecs:DescribeClusters",
+        "ecs:DescribeServiceDeployments",
+        "ecs:DescribeServiceRevisions",
+        "ecs:DescribeTaskDefinition",
+        "ecs:DescribeTasks",
+        "ecs:ListTaskDefinitions",
+        "ecs:ListTasks",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents",
+        "logs:ListTagsForResource",
+        "servicequotas:GetAWSDefaultServiceQuota",
+        "servicequotas:GetServiceQuota",
+        "servicequotas:ListAWSDefaultServiceQuotas",
+        "servicequotas:ListServiceQuotas"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags"
+      ],
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

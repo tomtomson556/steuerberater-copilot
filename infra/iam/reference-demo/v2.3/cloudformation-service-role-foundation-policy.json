@@ -1,0 +1,150 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVpcs",
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateInternetGateway",
+        "ec2:CreateRouteTable",
+        "ec2:CreateSubnet",
+        "ec2:CreateVpc",
+        "ecr:CreateRepository",
+        "ecr:TagResource",
+        "logs:CreateLogGroup",
+        "logs:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:internet-gateway/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:route-table/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:subnet/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:vpc/*",
+        "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo",
+        "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "aws:RequestedRegion": "eu-central-1"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:ListTagsForResource",
+        "ecr:PutImageTagMutability",
+        "ecr:UntagResource",
+        "logs:DeleteLogGroup",
+        "logs:DeleteRetentionPolicy",
+        "logs:ListTagsForResource",
+        "logs:PutRetentionPolicy",
+        "logs:UntagResource"
+      ],
+      "Resource": [
+        "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo",
+        "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": [
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:internet-gateway/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:route-table/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:subnet/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:vpc/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "ec2:CreateAction": [
+            "CreateInternetGateway",
+            "CreateRouteTable",
+            "CreateSubnet",
+            "CreateVpc"
+          ]
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AssociateRouteTable",
+        "ec2:AttachInternetGateway",
+        "ec2:CreateRoute",
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteRoute",
+        "ec2:DeleteRouteTable",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
+        "ec2:DeleteVpc",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateRouteTable",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ModifyVpcAttribute",
+        "ec2:ReplaceRoute",
+        "ec2:ReplaceRouteTableAssociation"
+      ],
+      "Resource": [
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:internet-gateway/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:route-table/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:subnet/*",
+        "arn:aws:ec2:eu-central-1:<ACCOUNT_ID>:vpc/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "ec2:ResourceTag/Project": "steuerberater-copilot"
+        }
+      }
+    }
+  ]
+}

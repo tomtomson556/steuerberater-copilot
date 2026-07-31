@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GetAuthorizationTokenInReferenceRegion",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Sid": "PublishAndInspectOnlyReferenceRepository",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:InitiateLayerUpload",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    }
+  ]
+}
