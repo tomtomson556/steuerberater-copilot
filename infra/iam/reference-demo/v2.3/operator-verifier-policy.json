@@ -1,0 +1,185 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResourceDrifts",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DetectStackDrift",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListTagsForCertificate",
+        "application-autoscaling:DescribeScalableTargets",
+        "application-autoscaling:DescribeScalingPolicies",
+        "cloudformation:DescribeStackDriftDetectionStatus",
+        "cloudtrail:LookupEvents",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:ListMetrics",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVpcs",
+        "ecs:DescribeTaskDefinition",
+        "ecs:ListTaskDefinitions",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeRules",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "servicequotas:GetAWSDefaultServiceQuota",
+        "servicequotas:GetServiceQuota",
+        "servicequotas:ListAWSDefaultServiceQuotas",
+        "servicequotas:ListServiceQuotas"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:DescribeClusters",
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeExpressGatewayService",
+        "ecs:DescribeServices",
+        "ecs:ListServiceDeployments",
+        "ecs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServiceDeployments",
+        "ecs:DescribeServiceRevisions"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-deployment/default/steuerberater-copilot-reference-demo/*",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-revision/default/steuerberater-copilot-reference-demo/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:DescribeTasks",
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:task/default/*",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:ListTasks",
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default"
+        },
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application",
+        "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application:log-stream:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds"
+      ],
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags"
+      ],
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
+        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+        "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-foundation-policy",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-boundary",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-policy",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-boundary",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-cloudformation",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-ecr-publisher",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-secret-initializer",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-verifier",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/task-execution-boundary"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,258 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateExpressGatewayService",
+        "ecs:TagResource",
+        "secretsmanager:CreateSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
+        "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot",
+          "aws:RequestedRegion": "eu-central-1"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:UntagResource",
+        "secretsmanager:UpdateSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "secretsmanager:DeleteSecret",
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*",
+      "Condition": {
+        "Bool": {
+          "secretsmanager:ForceDeleteWithoutRecovery": "true"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/task-execution-boundary"
+        },
+        "StringEquals": {
+          "aws:RequestTag/Project": "steuerberater-copilot"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:CreateRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary"
+        },
+        "StringEquals": {
+          "aws:RequestTag/Project": "steuerberater-copilot"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags"
+      ],
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:TagRole",
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "steuerberater-copilot"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:UntagRole",
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:ResourceTag/Project": "steuerberater-copilot"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs-tasks.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "ecs.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:CreateCluster",
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecs:RegisterTaskDefinition",
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:task-definition/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeExpressGatewayService",
+        "ecs:DescribeServiceDeployments",
+        "ecs:DescribeServiceRevisions",
+        "ecs:DescribeServices",
+        "ecs:ListServiceDeployments",
+        "ecs:ListTagsForResource"
+      ],
+      "Resource": [
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-deployment/default/steuerberater-copilot-reference-demo/*",
+        "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service-revision/default/steuerberater-copilot-reference-demo/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DeleteExpressGatewayService",
+        "ecs:UpdateExpressGatewayService"
+      ],
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
+      "Condition": {
+        "StringEquals": {
+          "ecs:ResourceTag/Project": "steuerberater-copilot"
+        }
+      }
+    }
+  ]
+}
