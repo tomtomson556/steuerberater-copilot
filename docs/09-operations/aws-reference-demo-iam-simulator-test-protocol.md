@@ -2,14 +2,14 @@
 
 Stand: 3. August 2026  
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Referenzstand: `d615f335b0bf1063e3f7129b71eee168f1115db2`  
+Geprüfter Ausgangsstand: `d615f335b0bf1063e3f7129b71eee168f1115db2`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
 
 ## Zweck und Status
 
-Dieses Protokoll hält die einzeln bestätigten Ergebnisse der vorbereitenden
+Dieses Protokoll hält die bestätigten Ergebnisse der vorbereitenden
 IAM-Policy-Simulator-Prüfung für die AWS-Referenzdemo fest. Es ist die
 Fortsetzungsgrundlage für spätere Sitzungen und verhindert doppelte oder
 vergessene Tests.
@@ -23,18 +23,15 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte atomare Simulatorentscheidungen: **30**
+- Bestätigte nummerierte Simulatorfälle: **46**
 - Ergänzende bestätigte Gruppenmarker: **2**
-- Bestätigte Nachweise insgesamt: **32**
-- Noch offene Simulatorfälle nach dem zuletzt bestandenen Test: **19**
-  (manueller Arbeitsstand; V2.3 definiert Kategorien, aber keine atomar
-  nummerierte Gesamtmatrix)
+- SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
 Nur vom Nutzer ausdrücklich gemeldete Entscheidungen oder bestandene
 Gruppenmarker werden als bestätigt geführt. Erwartete Ergebnisse allein zählen
 nicht.
 
-## Bestätigte atomare Entscheidungen
+## Bestätigte Simulatorfälle
 
 | ID | Identität / Bereich | Aktion und Gegenstand | Kontext / Gegenfall | Entscheidung | Status |
 |---|---|---|---|---|---|
@@ -68,17 +65,98 @@ nicht.
 | SIM-028 | Operator | `cloudformation:DescribeStacks` | unzulässiger Stackname | `implicitDeny` | bestanden |
 | SIM-029 | Operator | `cloudformation:ValidateTemplate` | richtige Region; globale Ressource `*` | `allowed` | bestanden |
 | SIM-030 | Operator | `cloudformation:ValidateTemplate` | falsche Region `eu-west-1`; globale Ressource `*` | `implicitDeny` | bestanden |
+| SIM-031 | Operator / ECR-Publisher | neun freigegebene ECR-Push- und Leseberechtigungen | genehmigtes Referenz-Repository, richtige Region | `allowed` × 9 | bestanden |
+| SIM-032 | Operator / ECR-Publisher | neun ECR-Push- und Leseberechtigungen | fremdes Repository, richtige Region | `implicitDeny` × 9 | bestanden |
+| SIM-033 | Operator / ECR-Publisher | neun ECR-Push- und Leseberechtigungen | genehmigtes Referenz-Repository, falsche Region | `implicitDeny` × 9 | bestanden |
+| SIM-034 | Operator / ECR-Publisher | `ecr:GetAuthorizationToken` | richtige Region | `allowed` | bestanden |
+| SIM-035 | Operator / ECR-Publisher | `ecr:GetAuthorizationToken` | falsche Region | `implicitDeny` | bestanden |
+| SIM-036 | Operator / ECR-Publisher | nicht freigegebene Aktion `ecr:DeleteRepository` | genehmigtes Referenz-Repository, richtige Region | `implicitDeny` | bestanden |
+| SIM-037 | Operator / Secret-Initializer | drei freigegebene Aktionen zum Setzen und Lesen von Secret-Metadaten | synthetisches Referenz-Secret, richtige Region | `allowed` × 3 | bestanden |
+| SIM-038 | Operator / Secret-Initializer | `secretsmanager:GetSecretValue` | synthetisches Referenz-Secret, richtige Region | `implicitDeny` | bestanden |
+| SIM-039 | Operator / Secret-Initializer | drei freigegebene Secret-Aktionen | fremdes Secret, richtige Region | `implicitDeny` × 3 | bestanden |
+| SIM-040 | Operator / Secret-Initializer | drei freigegebene Secret-Aktionen | synthetisches Referenz-Secret, falsche Region | `implicitDeny` × 3 | bestanden |
+| SIM-041 | Operator / Secret-Initializer | nicht freigegebene Aktionen `CreateSecret`, `DeleteSecret` und `UpdateSecret` | synthetisches Referenz-Secret, richtige Region | `implicitDeny` × 3 | bestanden |
+| SIM-042 | Operator / Permissions Boundary | hypothetisch zu breite Identity-Policy erlaubt `secretsmanager:GetSecretValue` | synthetisches Referenz-Secret, richtige Region | `implicitDeny` | bestanden |
+| SIM-043 | Operator / Verifier | `DescribeSecret` und `ListSecretVersionIds` | synthetisches Referenz-Secret, richtige Region | `allowed` × 2 | bestanden |
+| SIM-044 | Operator / Verifier | `secretsmanager:GetSecretValue` | synthetisches Referenz-Secret, richtige Region | `implicitDeny` | bestanden |
+| SIM-045 | Operator / Verifier | `DescribeSecret` und `ListSecretVersionIds` | fremdes Secret, richtige Region | `implicitDeny` × 2 | bestanden |
+| SIM-046 | Operator / Verifier | `DescribeSecret` und `ListSecretVersionIds` | synthetisches Referenz-Secret, falsche Region | Erstlauf: `allowed` × 2; Wiederholung nach Policy-Korrektur: `implicitDeny` × 2 | bestanden nach Korrektur |
+
+## Befund und Korrektur zu SIM-046
+
+Der erste Lauf von SIM-046 schlug fehl:
+
+```text
+OPERATOR_VERIFIER_SECRET_WRONG_REGION=allowed allowed
+VERIFIER_SECRET_WRONG_REGION_NEGATIVE=failed
+```
+
+Die Untersuchung bestätigte eine fehlende Regionsbedingung in den
+Secrets-Manager-Statements beider Dateien:
+
+- `infra/iam/reference-demo/v2.3/operator-verifier-policy.json`
+- `infra/iam/reference-demo/v2.3/operator-boundary.json`
+
+In beiden Statements wurde die Bedingung
+`aws:RequestedRegion = eu-central-1` ergänzt. Die Wiederholung war erfolgreich:
+
+```text
+OPERATOR_VERIFIER_SECRET_WRONG_REGION=implicitDeny implicitDeny
+VERIFIER_SECRET_WRONG_REGION_NEGATIVE=passed
+```
+
+Damit ist die im Erstlauf entdeckte Regionslücke geschlossen und SIM-046
+bestanden.
 
 ## Ergänzende bestätigte Gruppenmarker
 
 Diese Marker stammen aus bestandenen Sammelprüfungen. Weil die einzelnen
 `EvalDecision`-Zeilen nicht vollständig erhalten sind, werden sie nicht als
-zusätzliche atomare Entscheidungen gezählt.
+zusätzliche nummerierte Simulatorfälle gezählt.
 
 | ID | Bestätigter Marker | Bedeutung | Status |
 |---|---|---|---|
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
+
+## Ausführungsnachweise SIM-031 bis SIM-046
+
+```text
+SIM-031  OPERATOR_ECR_PUSH=allowed × 9
+         ECR_PUSH_POSITIVE=passed
+SIM-032  OPERATOR_ECR_WRONG_REPOSITORY=implicitDeny × 9
+         ECR_WRONG_REPOSITORY_NEGATIVE=passed
+SIM-033  OPERATOR_ECR_WRONG_REGION=implicitDeny × 9
+         ECR_WRONG_REGION_NEGATIVE=passed
+SIM-034  OPERATOR_ECR_AUTH_TOKEN=allowed
+         ECR_AUTH_TOKEN_POSITIVE=passed
+SIM-035  OPERATOR_ECR_AUTH_TOKEN_WRONG_REGION=implicitDeny
+         ECR_AUTH_TOKEN_WRONG_REGION_NEGATIVE=passed
+SIM-036  OPERATOR_ECR_DELETE_REPOSITORY=implicitDeny
+         ECR_DELETE_REPOSITORY_NEGATIVE=passed
+SIM-037  OPERATOR_SECRET_INITIALIZER=allowed × 3
+         SECRET_INITIALIZER_POSITIVE=passed
+SIM-038  OPERATOR_SECRET_VALUE_READ=implicitDeny
+         SECRET_VALUE_READ_NEGATIVE=passed
+SIM-039  OPERATOR_SECRET_WRONG_RESOURCE=implicitDeny × 3
+         SECRET_WRONG_RESOURCE_NEGATIVE=passed
+SIM-040  OPERATOR_SECRET_WRONG_REGION=implicitDeny × 3
+         SECRET_WRONG_REGION_NEGATIVE=passed
+SIM-041  OPERATOR_SECRET_UNAPPROVED_ACTIONS=implicitDeny × 3
+         SECRET_UNAPPROVED_ACTIONS_NEGATIVE=passed
+SIM-042  OPERATOR_BOUNDARY_SECRET_VALUE_READ=implicitDeny
+         BOUNDARY_SECRET_VALUE_READ_NEGATIVE=passed
+SIM-043  OPERATOR_VERIFIER_SECRET_METADATA=allowed × 2
+         VERIFIER_SECRET_METADATA_POSITIVE=passed
+SIM-044  OPERATOR_VERIFIER_SECRET_VALUE_READ=implicitDeny
+         VERIFIER_SECRET_VALUE_READ_NEGATIVE=passed
+SIM-045  OPERATOR_VERIFIER_WRONG_SECRET=implicitDeny × 2
+         VERIFIER_WRONG_SECRET_NEGATIVE=passed
+SIM-046  Erstlauf: OPERATOR_VERIFIER_SECRET_WRONG_REGION=allowed × 2
+         Erstlauf: VERIFIER_SECRET_WRONG_REGION_NEGATIVE=failed
+         Wiederholung: OPERATOR_VERIFIER_SECRET_WRONG_REGION=implicitDeny × 2
+         Wiederholung: VERIFIER_SECRET_WRONG_REGION_NEGATIVE=passed
+```
 
 ## Nicht gewertete Versuche
 
@@ -92,9 +170,8 @@ zusätzliche atomare Entscheidungen gezählt.
 
 ## Nächster offener Einzelfall
 
-| ID | Identität / Bereich | Aktion und Gegenstand | Gegenfall | Soll | Status |
-|---|---|---|---|---|---|
-| SIM-031 | Operator | ECR-Push-Berechtigungen | genehmigtes Repository und richtige Region | `allowed` | offen |
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-047`. Sein genauer
+Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
 
@@ -119,3 +196,11 @@ Dieses Dokument ersetzt nicht:
 - unabhängige Reviews
 - kontrollierte Live-Lifecycle-Tests
 - Post-Delete-Restressourcenprüfung
+
+Quelle für SIM-001 bis SIM-030: Repository-Datei aus Draft-PR #138,
+Branch `agent/add-iam-simulator-test-protocol`, Blob
+`d4a4dd753356154fde7d0e4d1ff1e0b2a1582667`.
+
+Quelle für SIM-031 bis SIM-046: vollständiger exportierter Chatverlauf in
+`Eingefügter Text(46).txt`. Es wurden ausschließlich darin belegte
+Testergebnisse übernommen.
