@@ -23,10 +23,10 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte atomare Simulatorentscheidungen: **29**
+- Bestätigte atomare Simulatorentscheidungen: **30**
 - Ergänzende bestätigte Gruppenmarker: **2**
-- Bestätigte Nachweise insgesamt: **31**
-- Noch offene Simulatorfälle nach dem zuletzt bestandenen Test: **20**
+- Bestätigte Nachweise insgesamt: **32**
+- Noch offene Simulatorfälle nach dem zuletzt bestandenen Test: **19**
   (manueller Arbeitsstand; V2.3 definiert Kategorien, aber keine atomar
   nummerierte Gesamtmatrix)
 
@@ -67,6 +67,7 @@ nicht.
 | SIM-027 | Operator | `cloudformation:DescribeStacks` | genehmigter Stack und richtige Region | `allowed` | bestanden |
 | SIM-028 | Operator | `cloudformation:DescribeStacks` | unzulässiger Stackname | `implicitDeny` | bestanden |
 | SIM-029 | Operator | `cloudformation:ValidateTemplate` | richtige Region; globale Ressource `*` | `allowed` | bestanden |
+| SIM-030 | Operator | `cloudformation:ValidateTemplate` | falsche Region `eu-west-1`; globale Ressource `*` | `implicitDeny` | bestanden |
 
 ## Ergänzende bestätigte Gruppenmarker
 
@@ -93,7 +94,7 @@ zusätzliche atomare Entscheidungen gezählt.
 
 | ID | Identität / Bereich | Aktion und Gegenstand | Gegenfall | Soll | Status |
 |---|---|---|---|---|---|
-| SIM-030 | Operator | `cloudformation:ValidateTemplate` | falsche Region `eu-west-1` | `implicitDeny` | offen |
+| SIM-031 | Operator | ECR-Push-Berechtigungen | genehmigtes Repository und richtige Region | `allowed` | offen |
 
 ## Fortsetzungsregel
 
