@@ -568,6 +568,41 @@ def test_operator_never_receives_secret_read_or_direct_infrastructure_writes() -
     } & operator_actions
 
 
+def test_operator_secrets_manager_statements_are_region_bound() -> None:
+    expected_resource = (
+        f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:"
+        "steuerberater-copilot/reference-demo/synthetic-*"
+    )
+    expected_condition = {
+        "StringEquals": {
+            "aws:RequestedRegion": REGION,
+        },
+    }
+
+    verifier = statement_for_action(
+        "operator-verifier-policy.json",
+        "secretsmanager:DescribeSecret",
+    )
+    assert actions(verifier) == {
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+    }
+    assert resources(verifier) == {expected_resource}
+    assert verifier["Condition"] == expected_condition
+
+    boundary = statement_for_action(
+        "operator-boundary.json",
+        "secretsmanager:PutSecretValue",
+    )
+    assert actions(boundary) == {
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:PutSecretValue",
+    }
+    assert resources(boundary) == {expected_resource}
+    assert boundary["Condition"] == expected_condition
+
+
 def test_verifier_is_read_only_and_exactly_scopes_express_description() -> None:
     filename = "operator-verifier-policy.json"
     verifier_actions = all_actions(filename)
