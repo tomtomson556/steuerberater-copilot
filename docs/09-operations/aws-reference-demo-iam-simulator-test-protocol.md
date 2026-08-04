@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **50**
+- Bestätigte nummerierte Simulatorfälle: **52**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -85,6 +85,8 @@ nicht.
 | SIM-048 | Operator / Verifier | `ecs:DescribeExpressGatewayService` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 | SIM-049 | Operator / Verifier | `ecs:DescribeServices` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
 | SIM-050 | Operator / Verifier | `ecs:DescribeServices` | fremder Service, richtige Region | `implicitDeny` | bestanden |
+| SIM-051 | Operator / Verifier | `ecs:ListServiceDeployments` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
+| SIM-052 | Operator / Verifier | `ecs:ListServiceDeployments` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -123,7 +125,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-050
+## Ausführungsnachweise SIM-031 bis SIM-052
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -168,6 +170,10 @@ SIM-049  OPERATOR_VERIFIER_DESCRIBE_SERVICES=allowed
          VERIFIER_DESCRIBE_SERVICES_POSITIVE=passed
 SIM-050  OPERATOR_VERIFIER_DESCRIBE_SERVICES_WRONG_SERVICE=implicitDeny
          VERIFIER_DESCRIBE_SERVICES_WRONG_SERVICE_NEGATIVE=passed
+SIM-051  OPERATOR_VERIFIER_LIST_SERVICE_DEPLOYMENTS=allowed
+         VERIFIER_LIST_SERVICE_DEPLOYMENTS_POSITIVE=passed
+SIM-052  OPERATOR_VERIFIER_LIST_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDeny
+         VERIFIER_LIST_SERVICE_DEPLOYMENTS_WRONG_SERVICE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -182,7 +188,7 @@ SIM-050  OPERATOR_VERIFIER_DESCRIBE_SERVICES_WRONG_SERVICE=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-051`. Sein genauer
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-053`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
@@ -222,5 +228,9 @@ gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
 
 Quelle für SIM-049 und SIM-050: vom Nutzer am 4. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
+Ausgangsstand.
+
+Quelle für SIM-051 und SIM-052: vom Nutzer am 4. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
