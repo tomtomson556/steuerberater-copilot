@@ -2,7 +2,7 @@
 
 Stand: 4. August 2026  
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `82f04c468b88bb68964761009167442cd7571995`
+Geprüfter Ausgangsstand: `203c955e13734b456a5e6964341d8e96c21882fd`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **52**
+- Bestätigte nummerierte Simulatorfälle: **54**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -87,6 +87,8 @@ nicht.
 | SIM-050 | Operator / Verifier | `ecs:DescribeServices` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 | SIM-051 | Operator / Verifier | `ecs:ListServiceDeployments` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
 | SIM-052 | Operator / Verifier | `ecs:ListServiceDeployments` | fremder Service, richtige Region | `implicitDeny` | bestanden |
+| SIM-053 | Operator / Verifier | `ecs:DescribeServiceDeployments` | synthetische Deployment-ARN des exakten Referenzservices, richtige Region | `allowed` | bestanden |
+| SIM-054 | Operator / Verifier | `ecs:DescribeServiceDeployments` | synthetische Deployment-ARN eines fremden Services, richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -125,7 +127,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-052
+## Ausführungsnachweise SIM-031 bis SIM-054
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -174,6 +176,10 @@ SIM-051  OPERATOR_VERIFIER_LIST_SERVICE_DEPLOYMENTS=allowed
          VERIFIER_LIST_SERVICE_DEPLOYMENTS_POSITIVE=passed
 SIM-052  OPERATOR_VERIFIER_LIST_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDeny
          VERIFIER_LIST_SERVICE_DEPLOYMENTS_WRONG_SERVICE_NEGATIVE=passed
+SIM-053  OPERATOR_VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS=allowed
+         VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_POSITIVE=passed
+SIM-054  OPERATOR_VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDeny
+         VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_WRONG_SERVICE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -188,7 +194,7 @@ SIM-052  OPERATOR_VERIFIER_LIST_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-053`. Sein genauer
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-055`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
@@ -232,5 +238,9 @@ gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
 
 Quelle für SIM-051 und SIM-052: vom Nutzer am 4. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
+Ausgangsstand.
+
+Quelle für SIM-053 und SIM-054: vom Nutzer am 4. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
