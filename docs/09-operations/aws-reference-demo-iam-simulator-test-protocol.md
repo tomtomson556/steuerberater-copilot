@@ -2,7 +2,7 @@
 
 Stand: 4. August 2026  
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `203c955e13734b456a5e6964341d8e96c21882fd`
+Geprüfter Ausgangsstand: `641087941dc5821daf65640db0519b5b1cdc967c`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **54**
+- Bestätigte nummerierte Simulatorfälle: **56**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -89,6 +89,8 @@ nicht.
 | SIM-052 | Operator / Verifier | `ecs:ListServiceDeployments` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 | SIM-053 | Operator / Verifier | `ecs:DescribeServiceDeployments` | synthetische Deployment-ARN des exakten Referenzservices, richtige Region | `allowed` | bestanden |
 | SIM-054 | Operator / Verifier | `ecs:DescribeServiceDeployments` | synthetische Deployment-ARN eines fremden Services, richtige Region | `implicitDeny` | bestanden |
+| SIM-055 | Operator / Verifier | `ecs:DescribeServiceRevisions` | synthetische Revisions-ARN des exakten Referenzservices, richtige Region | `allowed` | bestanden |
+| SIM-056 | Operator / Verifier | `ecs:DescribeServiceRevisions` | synthetische Revisions-ARN eines fremden Services, richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -127,7 +129,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-054
+## Ausführungsnachweise SIM-031 bis SIM-056
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -180,6 +182,10 @@ SIM-053  OPERATOR_VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS=allowed
          VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_POSITIVE=passed
 SIM-054  OPERATOR_VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDeny
          VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_WRONG_SERVICE_NEGATIVE=passed
+SIM-055  OPERATOR_VERIFIER_DESCRIBE_SERVICE_REVISIONS=allowed
+         VERIFIER_DESCRIBE_SERVICE_REVISIONS_POSITIVE=passed
+SIM-056  OPERATOR_VERIFIER_DESCRIBE_SERVICE_REVISIONS_WRONG_SERVICE=implicitDeny
+         VERIFIER_DESCRIBE_SERVICE_REVISIONS_WRONG_SERVICE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -194,7 +200,7 @@ SIM-054  OPERATOR_VERIFIER_DESCRIBE_SERVICE_DEPLOYMENTS_WRONG_SERVICE=implicitDe
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-055`. Sein genauer
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-057`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
@@ -202,8 +208,9 @@ Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgele
 1. Immer genau einen Simulatorfall ausführen.
 2. Das tatsächliche Terminalergebnis prüfen.
 3. Nur bei Übereinstimmung mit dem Soll den Fall als `bestanden` markieren.
-4. Entscheidung und ausgegebenen Pass-Marker unmittelbar in diesem Dokument
-   ergänzen.
+4. Spätestens nach jeweils zwei fachlich zusammengehörigen Fällen (Positiv- und
+   Negativfall) beide Entscheidungen und Pass-Marker gemeinsam in diesem
+   Dokument ergänzen.
 5. Den nächsten offenen Fall eindeutig benennen.
 6. Bei jeder Abweichung stoppen; während eines späteren Deployments niemals
    Berechtigungen reaktiv ergänzen.
@@ -242,5 +249,9 @@ gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
 
 Quelle für SIM-053 und SIM-054: vom Nutzer am 4. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
+Ausgangsstand.
+
+Quelle für SIM-055 und SIM-056: vom Nutzer am 4. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
