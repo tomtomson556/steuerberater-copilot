@@ -2,7 +2,7 @@
 
 Stand: 4. August 2026  
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `b7bf23d7b2e4a21603050c02c94bac2e4a99cd66`
+Geprüfter Ausgangsstand: `82f04c468b88bb68964761009167442cd7571995`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **48**
+- Bestätigte nummerierte Simulatorfälle: **50**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -83,6 +83,8 @@ nicht.
 | SIM-046 | Operator / Verifier | `DescribeSecret` und `ListSecretVersionIds` | synthetisches Referenz-Secret, falsche Region | Erstlauf: `allowed` × 2; Wiederholung nach Policy-Korrektur: `implicitDeny` × 2 | bestanden nach Korrektur |
 | SIM-047 | Operator / Verifier | `ecs:DescribeExpressGatewayService` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
 | SIM-048 | Operator / Verifier | `ecs:DescribeExpressGatewayService` | fremder Service, richtige Region | `implicitDeny` | bestanden |
+| SIM-049 | Operator / Verifier | `ecs:DescribeServices` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
+| SIM-050 | Operator / Verifier | `ecs:DescribeServices` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -121,7 +123,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-048
+## Ausführungsnachweise SIM-031 bis SIM-050
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -162,6 +164,10 @@ SIM-047  OPERATOR_VERIFIER_DESCRIBE_EXPRESS_SERVICE=allowed
          VERIFIER_DESCRIBE_EXPRESS_SERVICE_POSITIVE=passed
 SIM-048  OPERATOR_VERIFIER_DESCRIBE_WRONG_SERVICE=implicitDeny
          VERIFIER_DESCRIBE_WRONG_SERVICE_NEGATIVE=passed
+SIM-049  OPERATOR_VERIFIER_DESCRIBE_SERVICES=allowed
+         VERIFIER_DESCRIBE_SERVICES_POSITIVE=passed
+SIM-050  OPERATOR_VERIFIER_DESCRIBE_SERVICES_WRONG_SERVICE=implicitDeny
+         VERIFIER_DESCRIBE_SERVICES_WRONG_SERVICE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -176,7 +182,7 @@ SIM-048  OPERATOR_VERIFIER_DESCRIBE_WRONG_SERVICE=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-049`. Sein genauer
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-051`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
@@ -212,4 +218,9 @@ Quelle für SIM-031 bis SIM-046: vollständiger exportierter Chatverlauf in
 Testergebnisse übernommen.
 
 Quelle für SIM-047 und SIM-048: vom Nutzer am 4. August 2026 ausdrücklich
-gemeldete Terminalausgaben der Simulationen auf dem geprüften Ausgangsstand.
+gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
+Ausgangsstand.
+
+Quelle für SIM-049 und SIM-050: vom Nutzer am 4. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
+Ausgangsstand.
