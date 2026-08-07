@@ -2,7 +2,7 @@
 
 Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `12ce1ccc26b9f7375eb7ac6c983a2db08e1a1889`
+Geprüfter Ausgangsstand: `52095340ba3b37dba87bf65e46c8184c7606c957`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **62**
+- Bestätigte nummerierte Simulatorfälle: **64**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -97,6 +97,8 @@ nicht.
 | SIM-060 | Operator / Verifier | `ecs:ListTasks` | falscher Cluster-Kontext und richtige Region | `implicitDeny` | bestanden |
 | SIM-061 | Operator / Verifier | `ecs:DescribeClusters` | Default-Cluster und richtige Region | `allowed` | bestanden |
 | SIM-062 | Operator / Verifier | `ecs:DescribeClusters` | falscher Cluster und richtige Region | `implicitDeny` | bestanden |
+| SIM-063 | Operator / Verifier | `ecs:ListTagsForResource` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
+| SIM-064 | Operator / Verifier | `ecs:ListTagsForResource` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -135,7 +137,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-062
+## Ausführungsnachweise SIM-031 bis SIM-064
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -204,6 +206,10 @@ SIM-061  OPERATOR_VERIFIER_DESCRIBE_CLUSTERS=allowed
          VERIFIER_DESCRIBE_CLUSTERS_POSITIVE=passed
 SIM-062  OPERATOR_VERIFIER_DESCRIBE_CLUSTERS_WRONG_CLUSTER=implicitDeny
          VERIFIER_DESCRIBE_CLUSTERS_WRONG_CLUSTER_NEGATIVE=passed
+SIM-063  OPERATOR_VERIFIER_LIST_TAGS_FOR_RESOURCE=allowed
+         VERIFIER_LIST_TAGS_FOR_RESOURCE_POSITIVE=passed
+SIM-064  OPERATOR_VERIFIER_LIST_TAGS_FOR_RESOURCE_WRONG_SERVICE=implicitDeny
+         VERIFIER_LIST_TAGS_FOR_RESOURCE_WRONG_SERVICE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -213,23 +219,28 @@ SIM-062  OPERATOR_VERIFIER_DESCRIBE_CLUSTERS_WRONG_CLUSTER=implicitDeny
 - Ein eingefügter Shell-/Python-Block wurde beschädigt; außerdem war ein
   `file://`-Aufruf für Listenparameter ungeeignet. Der Versuch wurde nicht
   ausgeführt beziehungsweise nicht als Simulatorentscheidung gewertet.
+- Der erste Start von SIM-063 wurde beim Einfügen sichtbar beschädigt und
+  brach wegen der Kollision von `set -u` mit der RVM-Shell-Funktion
+  `rvm_bash_nounset` vor der AWS-Simulation ab. Er wurde nicht gewertet.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-063`. Sein genauer
-Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-065`. Sein
+genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
+festgelegt.
 
 ## Fortsetzungsregel
 
-1. Immer genau einen Simulatorfall ausführen.
-2. Das tatsächliche Terminalergebnis prüfen.
-3. Nur bei Übereinstimmung mit dem Soll den Fall als `bestanden` markieren.
-4. Spätestens nach jeweils zwei fachlich zusammengehörigen Fällen (Positiv- und
-   Negativfall) beide Entscheidungen und Pass-Marker gemeinsam in diesem
-   Dokument ergänzen.
-5. Den nächsten offenen Fall eindeutig benennen.
+1. Immer genau zwei fachlich zusammengehörige Simulatorfälle (Positiv- und
+   Negativfall) in einem kontrollierten Block ausführen.
+2. Beide tatsächlichen Terminalergebnisse einzeln prüfen.
+3. Nur bei Übereinstimmung mit dem jeweiligen Soll beide Fälle als `bestanden`
+   markieren.
+4. Nach jedem bestandenen Testpaar beide Entscheidungen und Pass-Marker
+   gemeinsam in diesem Dokument ergänzen und auf den PR-Branch committen.
+5. Das nächste offene Testpaar eindeutig benennen.
 6. Bei jeder Abweichung stoppen; während eines späteren Deployments niemals
    Berechtigungen reaktiv ergänzen.
 7. Nach einem neuen Commit den geprüften Referenz-Commit in diesem Dokument
@@ -285,3 +296,7 @@ Ausgangsstand `35e25ffd927135eef9087102f13e2d53b2955c4d`.
 Quelle für SIM-061 und SIM-062: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `12ce1ccc26b9f7375eb7ac6c983a2db08e1a1889`.
+
+Quelle für SIM-063 und SIM-064: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `52095340ba3b37dba87bf65e46c8184c7606c957`.
