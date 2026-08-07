@@ -1,8 +1,8 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 4. August 2026  
+Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `fa0ed91dba9d494067c22dcd67a0c15b0e7c081c`
+Geprüfter Ausgangsstand: `35e25ffd927135eef9087102f13e2d53b2955c4d`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **58**
+- Bestätigte nummerierte Simulatorfälle: **60**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -93,6 +93,8 @@ nicht.
 | SIM-056 | Operator / Verifier | `ecs:DescribeServiceRevisions` | synthetische Revisions-ARN eines fremden Services, richtige Region | `implicitDeny` | bestanden |
 | SIM-057 | Operator / Verifier | `ecs:DescribeTasks` | synthetische Task-ARN im Default-Cluster, korrekter Cluster-Kontext und richtige Region | `allowed` | bestanden |
 | SIM-058 | Operator / Verifier | `ecs:DescribeTasks` | synthetische Task-ARN im Default-Cluster, falscher Cluster-Kontext und richtige Region | `implicitDeny` | bestanden |
+| SIM-059 | Operator / Verifier | `ecs:ListTasks` | Default-Cluster-Kontext und richtige Region | `allowed` | bestanden |
+| SIM-060 | Operator / Verifier | `ecs:ListTasks` | falscher Cluster-Kontext und richtige Region | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -131,7 +133,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-058
+## Ausführungsnachweise SIM-031 bis SIM-060
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -192,6 +194,10 @@ SIM-057  OPERATOR_VERIFIER_DESCRIBE_TASKS=allowed
          VERIFIER_DESCRIBE_TASKS_POSITIVE=passed
 SIM-058  OPERATOR_VERIFIER_DESCRIBE_TASKS_WRONG_CLUSTER=implicitDeny
          VERIFIER_DESCRIBE_TASKS_WRONG_CLUSTER_NEGATIVE=passed
+SIM-059  OPERATOR_VERIFIER_LIST_TASKS=allowed
+         VERIFIER_LIST_TASKS_POSITIVE=passed
+SIM-060  OPERATOR_VERIFIER_LIST_TASKS_WRONG_CLUSTER=implicitDeny
+         VERIFIER_LIST_TASKS_WRONG_CLUSTER_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -206,7 +212,7 @@ SIM-058  OPERATOR_VERIFIER_DESCRIBE_TASKS_WRONG_CLUSTER=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Der nächste noch nicht protokollierte Simulatorfall ist `SIM-059`. Sein genauer
+Der nächste noch nicht protokollierte Simulatorfall ist `SIM-061`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies festgelegt.
 
 ## Fortsetzungsregel
@@ -265,3 +271,7 @@ Ausgangsstand.
 Quelle für SIM-057 und SIM-058: vom Nutzer am 4. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem jeweils geprüften
 Ausgangsstand.
+
+Quelle für SIM-059 und SIM-060: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `35e25ffd927135eef9087102f13e2d53b2955c4d`.
