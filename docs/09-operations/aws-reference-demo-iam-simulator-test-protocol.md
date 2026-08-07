@@ -2,7 +2,7 @@
 
 Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `b0083050893c06ee25b5e45ad6c3eb1f8231f0a9`
+Geprüfter Ausgangsstand: `7d27b310c4af876b4f1d8b9fa6dc49c7aac52be9`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **66**
+- Bestätigte nummerierte Simulatorfälle: **68**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -101,6 +101,8 @@ nicht.
 | SIM-064 | Operator / Verifier | `ecs:ListTagsForResource` | fremder Service, richtige Region | `implicitDeny` | bestanden |
 | SIM-065 | Operator / Verifier | `ecs:DescribeTaskDefinition` und `ecs:ListTaskDefinitions` | globale Ressource `*`, richtige Region | `allowed` × 2 | bestanden |
 | SIM-066 | Operator / Verifier | `ecs:DescribeTaskDefinition` und `ecs:ListTaskDefinitions` | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 2 | bestanden |
+| SIM-067 | Operator / Verifier | `ecr:DescribeImages`, `ecr:DescribeRepositories`, `ecr:ListImages` und `ecr:ListTagsForResource` | exaktes Referenz-Repository, richtige Region | `allowed` × 4 | bestanden |
+| SIM-068 | Operator / Verifier | `ecr:DescribeImages`, `ecr:DescribeRepositories`, `ecr:ListImages` und `ecr:ListTagsForResource` | fremdes Repository, richtige Region | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -139,7 +141,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-066
+## Ausführungsnachweise SIM-031 bis SIM-068
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -216,6 +218,10 @@ SIM-065  OPERATOR_VERIFIER_TASK_DEFINITION_READS=allowed allowed
          VERIFIER_TASK_DEFINITION_READS_POSITIVE=passed
 SIM-066  OPERATOR_VERIFIER_TASK_DEFINITION_READS_WRONG_REGION=implicitDeny implicitDeny
          VERIFIER_TASK_DEFINITION_READS_WRONG_REGION_NEGATIVE=passed
+SIM-067  OPERATOR_VERIFIER_ECR_READS=allowed allowed allowed allowed
+         VERIFIER_ECR_READS_POSITIVE=passed
+SIM-068  OPERATOR_VERIFIER_ECR_READS_WRONG_REPOSITORY=implicitDeny implicitDeny implicitDeny implicitDeny
+         VERIFIER_ECR_READS_WRONG_REPOSITORY_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -233,11 +239,15 @@ SIM-066  OPERATOR_VERIFIER_TASK_DEFINITION_READS_WRONG_REGION=implicitDeny impli
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-067`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-069`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
 ## Fortsetzungsregel
+
+Für alle weiteren Testpaare wird dieselbe temporäre Datei
+`/tmp/sim-067-068.sh` wiederverwendet. Vor jedem neuen Paar wird ihr bisheriger
+Inhalt im Editor vollständig durch den neuen kontrollierten Block ersetzt.
 
 1. Immer genau zwei fachlich zusammengehörige Simulatorfälle (Positiv- und
    Negativfall) in einem kontrollierten Block ausführen.
@@ -310,3 +320,7 @@ Ausgangsstand `52095340ba3b37dba87bf65e46c8184c7606c957`.
 Quelle für SIM-065 und SIM-066: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `b0083050893c06ee25b5e45ad6c3eb1f8231f0a9`.
+
+Quelle für SIM-067 und SIM-068: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `7d27b310c4af876b4f1d8b9fa6dc49c7aac52be9`.
