@@ -2,7 +2,7 @@
 
 Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `52095340ba3b37dba87bf65e46c8184c7606c957`
+Geprüfter Ausgangsstand: `b0083050893c06ee25b5e45ad6c3eb1f8231f0a9`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **64**
+- Bestätigte nummerierte Simulatorfälle: **66**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -99,6 +99,8 @@ nicht.
 | SIM-062 | Operator / Verifier | `ecs:DescribeClusters` | falscher Cluster und richtige Region | `implicitDeny` | bestanden |
 | SIM-063 | Operator / Verifier | `ecs:ListTagsForResource` | exakter Referenzservice, richtige Region | `allowed` | bestanden |
 | SIM-064 | Operator / Verifier | `ecs:ListTagsForResource` | fremder Service, richtige Region | `implicitDeny` | bestanden |
+| SIM-065 | Operator / Verifier | `ecs:DescribeTaskDefinition` und `ecs:ListTaskDefinitions` | globale Ressource `*`, richtige Region | `allowed` × 2 | bestanden |
+| SIM-066 | Operator / Verifier | `ecs:DescribeTaskDefinition` und `ecs:ListTaskDefinitions` | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 2 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -137,7 +139,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-064
+## Ausführungsnachweise SIM-031 bis SIM-066
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -210,6 +212,10 @@ SIM-063  OPERATOR_VERIFIER_LIST_TAGS_FOR_RESOURCE=allowed
          VERIFIER_LIST_TAGS_FOR_RESOURCE_POSITIVE=passed
 SIM-064  OPERATOR_VERIFIER_LIST_TAGS_FOR_RESOURCE_WRONG_SERVICE=implicitDeny
          VERIFIER_LIST_TAGS_FOR_RESOURCE_WRONG_SERVICE_NEGATIVE=passed
+SIM-065  OPERATOR_VERIFIER_TASK_DEFINITION_READS=allowed allowed
+         VERIFIER_TASK_DEFINITION_READS_POSITIVE=passed
+SIM-066  OPERATOR_VERIFIER_TASK_DEFINITION_READS_WRONG_REGION=implicitDeny implicitDeny
+         VERIFIER_TASK_DEFINITION_READS_WRONG_REGION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -227,7 +233,7 @@ SIM-064  OPERATOR_VERIFIER_LIST_TAGS_FOR_RESOURCE_WRONG_SERVICE=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-065`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-067`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -300,3 +306,7 @@ Ausgangsstand `12ce1ccc26b9f7375eb7ac6c983a2db08e1a1889`.
 Quelle für SIM-063 und SIM-064: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `52095340ba3b37dba87bf65e46c8184c7606c957`.
+
+Quelle für SIM-065 und SIM-066: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `b0083050893c06ee25b5e45ad6c3eb1f8231f0a9`.
