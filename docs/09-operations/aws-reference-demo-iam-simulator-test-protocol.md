@@ -2,7 +2,7 @@
 
 Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `7d27b310c4af876b4f1d8b9fa6dc49c7aac52be9`
+Geprüfter Ausgangsstand: `4c43c18cae02824257b7f01a70672ddcd76ea17c`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **68**
+- Bestätigte nummerierte Simulatorfälle: **70**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -103,6 +103,8 @@ nicht.
 | SIM-066 | Operator / Verifier | `ecs:DescribeTaskDefinition` und `ecs:ListTaskDefinitions` | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 2 | bestanden |
 | SIM-067 | Operator / Verifier | `ecr:DescribeImages`, `ecr:DescribeRepositories`, `ecr:ListImages` und `ecr:ListTagsForResource` | exaktes Referenz-Repository, richtige Region | `allowed` × 4 | bestanden |
 | SIM-068 | Operator / Verifier | `ecr:DescribeImages`, `ecr:DescribeRepositories`, `ecr:ListImages` und `ecr:ListTagsForResource` | fremdes Repository, richtige Region | `implicitDeny` × 4 | bestanden |
+| SIM-069 | Operator / Verifier | `logs:FilterLogEvents`, `logs:GetLogEvents` und `logs:ListTagsForResource` | exakte Referenz-Loggruppe, richtige Region | `allowed` × 3 | bestanden |
+| SIM-070 | Operator / Verifier | `logs:FilterLogEvents`, `logs:GetLogEvents` und `logs:ListTagsForResource` | fremde Loggruppe, richtige Region | `implicitDeny` × 3 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -141,7 +143,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-068
+## Ausführungsnachweise SIM-031 bis SIM-070
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -222,6 +224,10 @@ SIM-067  OPERATOR_VERIFIER_ECR_READS=allowed allowed allowed allowed
          VERIFIER_ECR_READS_POSITIVE=passed
 SIM-068  OPERATOR_VERIFIER_ECR_READS_WRONG_REPOSITORY=implicitDeny implicitDeny implicitDeny implicitDeny
          VERIFIER_ECR_READS_WRONG_REPOSITORY_NEGATIVE=passed
+SIM-069  OPERATOR_VERIFIER_LOG_RESOURCE_READS=allowed allowed allowed
+         VERIFIER_LOG_RESOURCE_READS_POSITIVE=passed
+SIM-070  OPERATOR_VERIFIER_LOG_RESOURCE_READS_WRONG_LOG_GROUP=implicitDeny implicitDeny implicitDeny
+         VERIFIER_LOG_RESOURCE_READS_WRONG_LOG_GROUP_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -234,19 +240,25 @@ SIM-068  OPERATOR_VERIFIER_ECR_READS_WRONG_REPOSITORY=implicitDeny implicitDeny 
 - Der erste Start von SIM-063 wurde beim Einfügen sichtbar beschädigt und
   brach wegen der Kollision von `set -u` mit der RVM-Shell-Funktion
   `rvm_bash_nounset` vor der AWS-Simulation ab. Er wurde nicht gewertet.
+- Ein erster Entwurf für SIM-069 simulierte `logs:GetLogEvents` mit einem
+  Logstream-ARN. Der IAM-Simulator lieferte dafür selbst mit minimalen
+  Test-Policies und `Resource: "*"` ein `implicitDeny`, wertete dieselbe
+  Aktion mit dem Loggruppen-ARN aber als `allowed`. Dieser Diagnoselauf wurde
+  nicht als SIM-069 gewertet; der bestätigte Test verwendet für alle drei
+  CloudWatch-Logs-Aktionen den vom Simulator auswertbaren Loggruppen-ARN.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-069`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-071`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
 ## Fortsetzungsregel
 
 Für alle weiteren Testpaare wird dieselbe temporäre Datei
-`/tmp/sim-067-068.sh` wiederverwendet. Vor jedem neuen Paar wird ihr bisheriger
+`/tmp/sim-065-066.sh` wiederverwendet. Vor jedem neuen Paar wird ihr bisheriger
 Inhalt im Editor vollständig durch den neuen kontrollierten Block ersetzt.
 
 1. Immer genau zwei fachlich zusammengehörige Simulatorfälle (Positiv- und
@@ -324,3 +336,7 @@ Ausgangsstand `b0083050893c06ee25b5e45ad6c3eb1f8231f0a9`.
 Quelle für SIM-067 und SIM-068: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `7d27b310c4af876b4f1d8b9fa6dc49c7aac52be9`.
+
+Quelle für SIM-069 und SIM-070: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `4c43c18cae02824257b7f01a70672ddcd76ea17c`.
