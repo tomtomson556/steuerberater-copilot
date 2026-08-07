@@ -2,7 +2,7 @@
 
 Stand: 7. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `4c43c18cae02824257b7f01a70672ddcd76ea17c`
+Geprüfter Ausgangsstand: `ef37f77a21b84be6d909bcd420a0cefcafa81b76`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **70**
+- Bestätigte nummerierte Simulatorfälle: **72**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -105,6 +105,8 @@ nicht.
 | SIM-068 | Operator / Verifier | `ecr:DescribeImages`, `ecr:DescribeRepositories`, `ecr:ListImages` und `ecr:ListTagsForResource` | fremdes Repository, richtige Region | `implicitDeny` × 4 | bestanden |
 | SIM-069 | Operator / Verifier | `logs:FilterLogEvents`, `logs:GetLogEvents` und `logs:ListTagsForResource` | exakte Referenz-Loggruppe, richtige Region | `allowed` × 3 | bestanden |
 | SIM-070 | Operator / Verifier | `logs:FilterLogEvents`, `logs:GetLogEvents` und `logs:ListTagsForResource` | fremde Loggruppe, richtige Region | `implicitDeny` × 3 | bestanden |
+| SIM-071 | Operator / Verifier | `logs:DescribeLogGroups` und `logs:DescribeLogStreams` | globale Ressource `*`, richtige Region | `allowed` × 2 | bestanden |
+| SIM-072 | Operator / Verifier | `logs:DescribeLogGroups` und `logs:DescribeLogStreams` | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 2 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -143,7 +145,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-070
+## Ausführungsnachweise SIM-031 bis SIM-072
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -228,6 +230,10 @@ SIM-069  OPERATOR_VERIFIER_LOG_RESOURCE_READS=allowed allowed allowed
          VERIFIER_LOG_RESOURCE_READS_POSITIVE=passed
 SIM-070  OPERATOR_VERIFIER_LOG_RESOURCE_READS_WRONG_LOG_GROUP=implicitDeny implicitDeny implicitDeny
          VERIFIER_LOG_RESOURCE_READS_WRONG_LOG_GROUP_NEGATIVE=passed
+SIM-071  OPERATOR_VERIFIER_LOG_DESCRIBE_READS=allowed allowed
+         VERIFIER_LOG_DESCRIBE_READS_POSITIVE=passed
+SIM-072  OPERATOR_VERIFIER_LOG_DESCRIBE_READS_WRONG_REGION=implicitDeny implicitDeny
+         VERIFIER_LOG_DESCRIBE_READS_WRONG_REGION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -251,7 +257,7 @@ SIM-070  OPERATOR_VERIFIER_LOG_RESOURCE_READS_WRONG_LOG_GROUP=implicitDeny impli
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-071`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-073`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -340,3 +346,7 @@ Ausgangsstand `7d27b310c4af876b4f1d8b9fa6dc49c7aac52be9`.
 Quelle für SIM-069 und SIM-070: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `4c43c18cae02824257b7f01a70672ddcd76ea17c`.
+
+Quelle für SIM-071 und SIM-072: vom Nutzer am 7. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `ef37f77a21b84be6d909bcd420a0cefcafa81b76`.
