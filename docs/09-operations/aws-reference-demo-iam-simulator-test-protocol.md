@@ -2,7 +2,7 @@
 
 Stand: 8. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `11b35a03654a79a8787fbd1e4205c0f6c7d08e8e`
+Geprüfter Ausgangsstand: `85dd456187b093dab3e3f863fa54bb15e7714ecb`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **82**
+- Bestätigte nummerierte Simulatorfälle: **84**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -117,6 +117,8 @@ nicht.
 | SIM-080 | Operator / Verifier | dieselben acht CloudFormation-Stack-Leseaktionen | nicht genehmigter Stack, richtige Region | `implicitDeny` × 8 | bestanden |
 | SIM-081 | Operator / Verifier | 31 regionale globale Leseaktionen für ACM, Application Auto Scaling, CloudFormation, CloudTrail, CloudWatch, EC2, ECS, ELB, Logs und Service Quotas | globale Ressource `*`, richtige Region `eu-central-1` | `allowed` × 31 | bestanden |
 | SIM-082 | Operator / Verifier | dieselben 31 regionalen globalen Leseaktionen | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 31 | bestanden |
+| SIM-083 | Task Execution Role / Permissions Boundary | sieben erforderliche Laufzeitaktionen für ECR-Pull, CloudWatch-Logs-Schreibzugriff und Secret-Lesen | breite Identity-Policy; ausschließlich freigegebene Referenzressourcen und richtige Region | `allowed` × 7 | bestanden |
+| SIM-084 | Task Execution Role / Permissions Boundary | zehn adversariale Aktionen: fremde ECR-, Logs- und Secret-Ressourcen sowie nicht freigegebene Lösch-, Schreib- und S3-Aktionen | breite Identity-Policy; richtige Region | `implicitDeny` × 10 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -144,6 +146,22 @@ VERIFIER_SECRET_WRONG_REGION_NEGATIVE=passed
 Damit ist die im Erstlauf entdeckte Regionslücke geschlossen und SIM-046
 bestanden.
 
+## Befund und Korrektur zu SIM-083
+
+Der erste Lauf von SIM-083 schlug für `logs:CreateLogStream` und
+`logs:PutLogEvents` fehl, während die fünf ECR- und Secrets-Manager-Aktionen
+bereits `allowed` waren. Die Detailausgabe des IAM-Simulators zeigte für die
+beiden Logs-Aktionen keine passende Boundary-Anweisung.
+
+Die Ursache war das zu enge Ressourcenmuster
+`...:log-group:/steuerberater-copilot/reference-demo/application:log-stream:*`
+in `task-execution-boundary.json`. Es wurde auf das weiterhin ausschließlich
+dieselbe Referenz-Loggruppe begrenzende AWS-Muster
+`...:log-group:/steuerberater-copilot/reference-demo/application:*`
+korrigiert. Ein isolierter Diagnoselauf bestätigte danach beide Logs-Aktionen
+als `allowed`; der vollständige Lauf von SIM-083/084 gegen Commit
+`85dd456187b093dab3e3f863fa54bb15e7714ecb` war anschließend erfolgreich.
+
 ## Ergänzende bestätigte Gruppenmarker
 
 Diese Marker stammen aus bestandenen Sammelprüfungen. Weil die einzelnen
@@ -155,7 +173,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-082
+## Ausführungsnachweise SIM-031 bis SIM-084
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -264,6 +282,10 @@ SIM-081  OPERATOR_VERIFIER_REGIONAL_GLOBAL_READS=allowed × 31
          VERIFIER_REGIONAL_GLOBAL_READS_POSITIVE=passed
 SIM-082  OPERATOR_VERIFIER_REGIONAL_GLOBAL_READS_WRONG_REGION=implicitDeny × 31
          VERIFIER_REGIONAL_GLOBAL_READS_WRONG_REGION_NEGATIVE=passed
+SIM-083  TASK_EXECUTION_BOUNDARY_ALLOWED_ACTIONS=allowed × 7
+         TASK_EXECUTION_BOUNDARY_ALLOWED_ACTIONS_POSITIVE=passed
+SIM-084  TASK_EXECUTION_BOUNDARY_ADVERSARIAL_DENIES=implicitDeny × 10
+         TASK_EXECUTION_BOUNDARY_ADVERSARIAL_DENIES_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -287,7 +309,7 @@ SIM-082  OPERATOR_VERIFIER_REGIONAL_GLOBAL_READS_WRONG_REGION=implicitDeny × 31
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-083`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-085`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -401,3 +423,8 @@ Ausgangsstand `02491a2ce7768580d3fb70559eca3eb2155ba9b7`.
 Quelle für SIM-081 und SIM-082: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `11b35a03654a79a8787fbd1e4205c0f6c7d08e8e`.
+
+Quelle für SIM-083 und SIM-084: vom Nutzer am 8. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem nach Korrektur der
+Task-Execution-Boundary geprüften Ausgangsstand
+`85dd456187b093dab3e3f863fa54bb15e7714ecb`.
