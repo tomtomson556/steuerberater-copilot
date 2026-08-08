@@ -2,7 +2,7 @@
 
 Stand: 8. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `02491a2ce7768580d3fb70559eca3eb2155ba9b7`
+Geprüfter Ausgangsstand: `11b35a03654a79a8787fbd1e4205c0f6c7d08e8e`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **80**
+- Bestätigte nummerierte Simulatorfälle: **82**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -115,6 +115,8 @@ nicht.
 | SIM-078 | Operator / Verifier | `sts:AssumeRole` auf die feste CloudFormation-Service-Rolle | Rollenübernahme durch den read-only Verifier | `implicitDeny` | bestanden |
 | SIM-079 | Operator / Verifier | `cloudformation:DescribeStackEvents`, `DescribeStackResource`, `DescribeStackResourceDrifts`, `DescribeStackResources`, `DescribeStacks`, `DetectStackDrift`, `GetTemplate` und `ListStackResources` | genehmigter Referenz-Stack, richtige Region | `allowed` × 8 | bestanden |
 | SIM-080 | Operator / Verifier | dieselben acht CloudFormation-Stack-Leseaktionen | nicht genehmigter Stack, richtige Region | `implicitDeny` × 8 | bestanden |
+| SIM-081 | Operator / Verifier | 31 regionale globale Leseaktionen für ACM, Application Auto Scaling, CloudFormation, CloudTrail, CloudWatch, EC2, ECS, ELB, Logs und Service Quotas | globale Ressource `*`, richtige Region `eu-central-1` | `allowed` × 31 | bestanden |
+| SIM-082 | Operator / Verifier | dieselben 31 regionalen globalen Leseaktionen | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 31 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -153,7 +155,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-080
+## Ausführungsnachweise SIM-031 bis SIM-082
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -258,6 +260,10 @@ SIM-079  OPERATOR_VERIFIER_CLOUDFORMATION_STACK_READS=allowed × 8
          VERIFIER_CLOUDFORMATION_STACK_READS_POSITIVE=passed
 SIM-080  OPERATOR_VERIFIER_CLOUDFORMATION_STACK_READS_WRONG_STACK=implicitDeny × 8
          VERIFIER_CLOUDFORMATION_STACK_READS_WRONG_STACK_NEGATIVE=passed
+SIM-081  OPERATOR_VERIFIER_REGIONAL_GLOBAL_READS=allowed × 31
+         VERIFIER_REGIONAL_GLOBAL_READS_POSITIVE=passed
+SIM-082  OPERATOR_VERIFIER_REGIONAL_GLOBAL_READS_WRONG_REGION=implicitDeny × 31
+         VERIFIER_REGIONAL_GLOBAL_READS_WRONG_REGION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -281,7 +287,7 @@ SIM-080  OPERATOR_VERIFIER_CLOUDFORMATION_STACK_READS_WRONG_STACK=implicitDeny �
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-081`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-083`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -391,3 +397,7 @@ Ausgangsstand `4f18310a547b99b16f34b6fb98dcb0e625893141`.
 Quelle für SIM-079 und SIM-080: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `02491a2ce7768580d3fb70559eca3eb2155ba9b7`.
+
+Quelle für SIM-081 und SIM-082: vom Nutzer am 8. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `11b35a03654a79a8787fbd1e4205c0f6c7d08e8e`.
