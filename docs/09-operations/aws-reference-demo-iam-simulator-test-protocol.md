@@ -2,7 +2,7 @@
 
 Stand: 8. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `4f18310a547b99b16f34b6fb98dcb0e625893141`
+Geprüfter Ausgangsstand: `02491a2ce7768580d3fb70559eca3eb2155ba9b7`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **78**
+- Bestätigte nummerierte Simulatorfälle: **80**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 
@@ -113,6 +113,8 @@ nicht.
 | SIM-076 | Operator / Verifier | dieselben zwei IAM-Policy-Leseaktionen | nicht freigegebene Policy im Control-Plane-Pfad | `implicitDeny` × 2 | bestanden |
 | SIM-077 | Operator / Verifier | `sts:GetCallerIdentity` | globale Ressource `*` | `allowed` | bestanden |
 | SIM-078 | Operator / Verifier | `sts:AssumeRole` auf die feste CloudFormation-Service-Rolle | Rollenübernahme durch den read-only Verifier | `implicitDeny` | bestanden |
+| SIM-079 | Operator / Verifier | `cloudformation:DescribeStackEvents`, `DescribeStackResource`, `DescribeStackResourceDrifts`, `DescribeStackResources`, `DescribeStacks`, `DetectStackDrift`, `GetTemplate` und `ListStackResources` | genehmigter Referenz-Stack, richtige Region | `allowed` × 8 | bestanden |
+| SIM-080 | Operator / Verifier | dieselben acht CloudFormation-Stack-Leseaktionen | nicht genehmigter Stack, richtige Region | `implicitDeny` × 8 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -151,7 +153,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-078
+## Ausführungsnachweise SIM-031 bis SIM-080
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -252,6 +254,10 @@ SIM-077  OPERATOR_VERIFIER_STS_CALLER_IDENTITY=allowed
          VERIFIER_STS_CALLER_IDENTITY_POSITIVE=passed
 SIM-078  OPERATOR_VERIFIER_STS_ASSUME_ROLE=implicitDeny
          VERIFIER_STS_ASSUME_ROLE_NEGATIVE=passed
+SIM-079  OPERATOR_VERIFIER_CLOUDFORMATION_STACK_READS=allowed × 8
+         VERIFIER_CLOUDFORMATION_STACK_READS_POSITIVE=passed
+SIM-080  OPERATOR_VERIFIER_CLOUDFORMATION_STACK_READS_WRONG_STACK=implicitDeny × 8
+         VERIFIER_CLOUDFORMATION_STACK_READS_WRONG_STACK_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -275,7 +281,7 @@ SIM-078  OPERATOR_VERIFIER_STS_ASSUME_ROLE=implicitDeny
 
 ## Nächster offener Einzelfall
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-079`. Sein
+Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-081`. Sein
 genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -381,3 +387,7 @@ Ausgangsstand `fb5f6e6f444207981e91df6c091cb16ba15a38c9`.
 Quelle für SIM-077 und SIM-078: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `4f18310a547b99b16f34b6fb98dcb0e625893141`.
+
+Quelle für SIM-079 und SIM-080: vom Nutzer am 8. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `02491a2ce7768580d3fb70559eca3eb2155ba9b7`.
