@@ -2,7 +2,7 @@
 
 Stand: 9. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `4e6ea71c9a117481a3d7fbb1f218b470be17a3b3`
+Geprüfter Ausgangsstand: `919bb16bfeaf54bab04de151cfa72ebb2902195b`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **88**
+- Bestätigte nummerierte Simulatorfälle: **90**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -124,6 +124,8 @@ nicht.
 | SIM-086 | Express Infrastructure Role / Permissions Boundary | sechs adversariale IAM-Fälle: zwei gekreuzte ARN/Service-Kombinationen, falscher Service, fremder Service-Linked-Role-ARN sowie `CreateRole` und `DeleteRole` | breite Identity-Policy | Erstlauf: `allowed` × 2 und `implicitDeny` × 4; Wiederholung nach Policy-Korrektur: `implicitDeny` × 6 | bestanden nach Korrektur |
 | SIM-087 | Express Infrastructure Role / Permissions Boundary | zehn ELBv2-Mutationen: `AddListenerCertificates`, `DeleteListener`, `DeleteLoadBalancer`, `DeleteRule`, `DeleteTargetGroup`, `DeregisterTargets`, `ModifyListener`, `ModifyRule`, `RegisterTargets` und `RemoveListenerCertificates` | breite Identity-Policy; passende ELBv2-Ressourcen mit `aws:ResourceTag/AmazonECSManaged=true` | `allowed` × 10 | bestanden |
 | SIM-088 | Express Infrastructure Role / Permissions Boundary | dieselben zehn ELBv2-Mutationen | breite Identity-Policy; gleiche Ressourcen mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 10 | bestanden |
+| SIM-089 | Express Infrastructure Role / Permissions Boundary | vier ELBv2-Create-Aktionen: `CreateListener`, `CreateLoadBalancer`, `CreateRule` und `CreateTargetGroup` | breite Identity-Policy; passende ELBv2-Ressourcen mit `aws:ResourceTag/AmazonECSManaged=true` | `allowed` × 4 | bestanden |
+| SIM-090 | Express Infrastructure Role / Permissions Boundary | dieselben vier ELBv2-Create-Aktionen | breite Identity-Policy; gleiche Ressourcen mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -219,7 +221,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-088
+## Ausführungsnachweise SIM-031 bis SIM-090
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -342,6 +344,10 @@ SIM-087  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS=allowed × 10
          EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_POSITIVE=passed
 SIM-088  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_WRONG_TAG=implicitDeny × 10
          EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_WRONG_TAG_NEGATIVE=passed
+SIM-089  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_CREATES=allowed × 4
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_CREATES_POSITIVE=passed
+SIM-090  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_CREATES_WRONG_TAG=implicitDeny × 4
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_CREATES_WRONG_TAG_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -365,7 +371,7 @@ SIM-088  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_WRONG_TAG=implicitDeny ×
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-089/090`. Sein genauer
+Das nächste noch nicht protokollierte Testpaar ist `SIM-091/092`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -493,3 +499,7 @@ nach Korrektur der Express-Infrastructure-Boundary auf
 Quelle für SIM-087 und SIM-088: vom Nutzer am 9. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `4e6ea71c9a117481a3d7fbb1f218b470be17a3b3`.
+
+Quelle für SIM-089 und SIM-090: vom Nutzer am 9. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `919bb16bfeaf54bab04de151cfa72ebb2902195b`.
