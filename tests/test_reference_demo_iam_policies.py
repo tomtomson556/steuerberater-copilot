@@ -271,7 +271,7 @@ def test_task_execution_boundary_is_the_fixed_runtime_ceiling() -> None:
     )
     assert statement_for_action(filename, "logs:PutLogEvents")["Resource"] == (
         f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:"
-        "/steuerberater-copilot/reference-demo/application:log-stream:*"
+        "/steuerberater-copilot/reference-demo/application:*"
     )
     assert statement_for_action(filename, "secretsmanager:GetSecretValue")[
         "Resource"
