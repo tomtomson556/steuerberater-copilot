@@ -1,8 +1,8 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 8. August 2026\
+Stand: 9. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `85dd456187b093dab3e3f863fa54bb15e7714ecb`
+Geprüfter Ausgangsstand: `6f18395ae1e94d4d337ce25fe11bca19ab8267c6`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,9 +23,10 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **84**
+- Bestätigte nummerierte Simulatorfälle: **86**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
+- SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
 
 Nur vom Nutzer ausdrücklich gemeldete Entscheidungen oder bestandene
 Gruppenmarker werden als bestätigt geführt. Erwartete Ergebnisse allein zählen
@@ -119,6 +120,8 @@ nicht.
 | SIM-082 | Operator / Verifier | dieselben 31 regionalen globalen Leseaktionen | globale Ressource `*`, falsche Region `eu-west-1` | `implicitDeny` × 31 | bestanden |
 | SIM-083 | Task Execution Role / Permissions Boundary | sieben erforderliche Laufzeitaktionen für ECR-Pull, CloudWatch-Logs-Schreibzugriff und Secret-Lesen | breite Identity-Policy; ausschließlich freigegebene Referenzressourcen und richtige Region | `allowed` × 7 | bestanden |
 | SIM-084 | Task Execution Role / Permissions Boundary | zehn adversariale Aktionen: fremde ECR-, Logs- und Secret-Ressourcen sowie nicht freigegebene Lösch-, Schreib- und S3-Aktionen | breite Identity-Policy; richtige Region | `implicitDeny` × 10 | bestanden |
+| SIM-085 | Express Infrastructure Role / Permissions Boundary | `iam:CreateServiceLinkedRole` für Application Auto Scaling und Elastic Load Balancing | breite Identity-Policy; je exakter Service-Linked-Role-ARN mit zugehörigem `iam:AWSServiceName` | `allowed` × 2 | bestanden |
+| SIM-086 | Express Infrastructure Role / Permissions Boundary | sechs adversariale IAM-Fälle: zwei gekreuzte ARN/Service-Kombinationen, falscher Service, fremder Service-Linked-Role-ARN sowie `CreateRole` und `DeleteRole` | breite Identity-Policy | Erstlauf: `allowed` × 2 und `implicitDeny` × 4; Wiederholung nach Policy-Korrektur: `implicitDeny` × 6 | bestanden nach Korrektur |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -162,6 +165,47 @@ korrigiert. Ein isolierter Diagnoselauf bestätigte danach beide Logs-Aktionen
 als `allowed`; der vollständige Lauf von SIM-083/084 gegen Commit
 `85dd456187b093dab3e3f863fa54bb15e7714ecb` war anschließend erfolgreich.
 
+## Befund und Korrektur zu SIM-086
+
+Der erste Lauf gegen Commit
+`e9910a9c81b36cba5604164cd39254f4d30c0698` bestätigte SIM-085, zeigte aber
+bei SIM-086, dass die beiden zugelassenen Service-Linked-Role-ARNs jeweils
+auch mit dem Service-Namen des anderen zulässigen Dienstes kombiniert werden
+konnten:
+
+```text
+EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES=allowed allowed
+EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES_POSITIVE=passed
+EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=allowed allowed implicitDeny implicitDeny implicitDeny implicitDeny
+EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=failed
+```
+
+Die Ursache war ein gemeinsames Boundary-Statement mit zwei Ressourcen-ARNs
+und zwei Werten für `iam:AWSServiceName`. Dadurch waren die Werte nicht
+paarweise gebunden. Das Statement wurde in zwei atomare Statements aufgeteilt:
+je ein exakter Service-Linked-Role-ARN mit genau dem zugehörigen
+`iam:AWSServiceName`. Ein statischer Regressionstest sichert diese
+Paarbindung.
+
+Durch die Aufteilung überschritt die Policy zunächst das AWS-Größenlimit für
+Managed Policies. Deshalb wurden ausschließlich 14 optionale `Sid`-Felder
+entfernt; Aktionen, Ressourcen, Bedingungen und die 18 Statements blieben
+unverändert. Die kompakte Policygröße sank von 6.344 auf 5.797 Zeichen. Der
+anschließende CI-Lauf #279 war vollständig erfolgreich.
+
+Die Wiederholung gegen Commit
+`6f18395ae1e94d4d337ce25fe11bca19ab8267c6` bestätigte sowohl die beiden
+zulässigen Paare als auch alle sechs adversarialen Verweigerungen:
+
+```text
+EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES=allowed allowed
+EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES_POSITIVE=passed
+EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
+EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=passed
+```
+
+Damit ist die Kreuzkombinationslücke geschlossen und SIM-086 bestanden.
+
 ## Ergänzende bestätigte Gruppenmarker
 
 Diese Marker stammen aus bestandenen Sammelprüfungen. Weil die einzelnen
@@ -173,7 +217,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-084
+## Ausführungsnachweise SIM-031 bis SIM-086
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -286,6 +330,12 @@ SIM-083  TASK_EXECUTION_BOUNDARY_ALLOWED_ACTIONS=allowed × 7
          TASK_EXECUTION_BOUNDARY_ALLOWED_ACTIONS_POSITIVE=passed
 SIM-084  TASK_EXECUTION_BOUNDARY_ADVERSARIAL_DENIES=implicitDeny × 10
          TASK_EXECUTION_BOUNDARY_ADVERSARIAL_DENIES_NEGATIVE=passed
+SIM-085  EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES=allowed allowed
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_SLR_CREATES_POSITIVE=passed
+SIM-086  Erstlauf: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=allowed allowed implicitDeny implicitDeny implicitDeny implicitDeny
+         Erstlauf: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=failed
+         Wiederholung: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=implicitDeny × 6
+         Wiederholung: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -307,10 +357,10 @@ SIM-084  TASK_EXECUTION_BOUNDARY_ADVERSARIAL_DENIES=implicitDeny × 10
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster offener Einzelfall
+## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar beginnt mit `SIM-085`. Sein
-genauer Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
+Das nächste noch nicht protokollierte Testpaar ist `SIM-087/088`. Sein genauer
+Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
 ## Fortsetzungsregel
@@ -428,3 +478,9 @@ Quelle für SIM-083 und SIM-084: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem nach Korrektur der
 Task-Execution-Boundary geprüften Ausgangsstand
 `85dd456187b093dab3e3f863fa54bb15e7714ecb`.
+
+Quelle für SIM-085 und SIM-086: vom Nutzer am 9. August 2026 ausdrücklich
+gemeldete Terminalausgaben des Erstlaufs auf
+`e9910a9c81b36cba5604164cd39254f4d30c0698` und der erfolgreichen Wiederholung
+nach Korrektur der Express-Infrastructure-Boundary auf
+`6f18395ae1e94d4d337ce25fe11bca19ab8267c6`.
