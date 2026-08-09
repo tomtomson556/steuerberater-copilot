@@ -2,7 +2,7 @@
 
 Stand: 9. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `6f18395ae1e94d4d337ce25fe11bca19ab8267c6`
+Geprüfter Ausgangsstand: `4e6ea71c9a117481a3d7fbb1f218b470be17a3b3`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **86**
+- Bestätigte nummerierte Simulatorfälle: **88**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -122,6 +122,8 @@ nicht.
 | SIM-084 | Task Execution Role / Permissions Boundary | zehn adversariale Aktionen: fremde ECR-, Logs- und Secret-Ressourcen sowie nicht freigegebene Lösch-, Schreib- und S3-Aktionen | breite Identity-Policy; richtige Region | `implicitDeny` × 10 | bestanden |
 | SIM-085 | Express Infrastructure Role / Permissions Boundary | `iam:CreateServiceLinkedRole` für Application Auto Scaling und Elastic Load Balancing | breite Identity-Policy; je exakter Service-Linked-Role-ARN mit zugehörigem `iam:AWSServiceName` | `allowed` × 2 | bestanden |
 | SIM-086 | Express Infrastructure Role / Permissions Boundary | sechs adversariale IAM-Fälle: zwei gekreuzte ARN/Service-Kombinationen, falscher Service, fremder Service-Linked-Role-ARN sowie `CreateRole` und `DeleteRole` | breite Identity-Policy | Erstlauf: `allowed` × 2 und `implicitDeny` × 4; Wiederholung nach Policy-Korrektur: `implicitDeny` × 6 | bestanden nach Korrektur |
+| SIM-087 | Express Infrastructure Role / Permissions Boundary | zehn ELBv2-Mutationen: `AddListenerCertificates`, `DeleteListener`, `DeleteLoadBalancer`, `DeleteRule`, `DeleteTargetGroup`, `DeregisterTargets`, `ModifyListener`, `ModifyRule`, `RegisterTargets` und `RemoveListenerCertificates` | breite Identity-Policy; passende ELBv2-Ressourcen mit `aws:ResourceTag/AmazonECSManaged=true` | `allowed` × 10 | bestanden |
+| SIM-088 | Express Infrastructure Role / Permissions Boundary | dieselben zehn ELBv2-Mutationen | breite Identity-Policy; gleiche Ressourcen mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 10 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -217,7 +219,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-086
+## Ausführungsnachweise SIM-031 bis SIM-088
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -336,6 +338,10 @@ SIM-086  Erstlauf: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=allowe
          Erstlauf: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=failed
          Wiederholung: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=implicitDeny × 6
          Wiederholung: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=passed
+SIM-087  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS=allowed × 10
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_POSITIVE=passed
+SIM-088  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_WRONG_TAG=implicitDeny × 10
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_MUTATIONS_WRONG_TAG_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -359,7 +365,7 @@ SIM-086  Erstlauf: EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES=allowe
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-087/088`. Sein genauer
+Das nächste noch nicht protokollierte Testpaar ist `SIM-089/090`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -457,7 +463,6 @@ Ausgangsstand `ef37f77a21b84be6d909bcd420a0cefcafa81b76`.
 Quelle für SIM-073 und SIM-074: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `4f650374c2944828f20aed6929052f46feaa81e3`.
-
 Quelle für SIM-075 und SIM-076: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `fb5f6e6f444207981e91df6c091cb16ba15a38c9`.
@@ -484,3 +489,7 @@ gemeldete Terminalausgaben des Erstlaufs auf
 `e9910a9c81b36cba5604164cd39254f4d30c0698` und der erfolgreichen Wiederholung
 nach Korrektur der Express-Infrastructure-Boundary auf
 `6f18395ae1e94d4d337ce25fe11bca19ab8267c6`.
+
+Quelle für SIM-087 und SIM-088: vom Nutzer am 9. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `4e6ea71c9a117481a3d7fbb1f218b470be17a3b3`.
