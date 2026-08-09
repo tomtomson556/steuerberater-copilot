@@ -2,7 +2,6 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "CreateApplicationAutoscalingServiceLinkedRole",
       "Effect": "Allow",
       "Action": "iam:CreateServiceLinkedRole",
       "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
@@ -13,7 +12,6 @@
       }
     },
     {
-      "Sid": "CreateElasticLoadBalancingServiceLinkedRole",
       "Effect": "Allow",
       "Action": "iam:CreateServiceLinkedRole",
       "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
@@ -97,7 +95,6 @@
       }
     },
     {
-      "Sid": "ModifySecurityGroupOperations",
       "Effect": "Allow",
       "Action": [
         "ec2:AuthorizeSecurityGroupEgress",
@@ -117,7 +114,6 @@
       }
     },
     {
-      "Sid": "TagOnCreateEC2Resources",
       "Effect": "Allow",
       "Action": "ec2:CreateTags",
       "Resource": [
@@ -135,7 +131,6 @@
       }
     },
     {
-      "Sid": "CertificateOperations",
       "Effect": "Allow",
       "Action": [
         "acm:AddTagsToCertificate",
@@ -151,7 +146,6 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingCreateOperations",
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DeregisterScalableTarget",
@@ -166,7 +160,6 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingPolicyOperations",
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DeleteScalingPolicy",
@@ -180,7 +173,6 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingReadOperations",
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DescribeScalableTargets",
@@ -190,7 +182,6 @@
       "Resource": "arn:aws:application-autoscaling:eu-central-1:<ACCOUNT_ID>:scalable-target/*"
     },
     {
-      "Sid": "CloudWatchAlarmCreateOperations",
       "Effect": "Allow",
       "Action": [
         "cloudwatch:PutMetricAlarm",
@@ -204,7 +195,6 @@
       }
     },
     {
-      "Sid": "CloudWatchAlarmOperations",
       "Effect": "Allow",
       "Action": [
         "cloudwatch:DeleteAlarms",
@@ -218,7 +208,6 @@
       }
     },
     {
-      "Sid": "ELBReadOperations",
       "Effect": "Allow",
       "Action": [
         "elasticloadbalancing:DescribeListeners",
@@ -235,7 +224,6 @@
       }
     },
     {
-      "Sid": "VPCReadOperations",
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeRouteTables",
@@ -251,7 +239,6 @@
       }
     },
     {
-      "Sid": "CloudWatchLogsCreateOperations",
       "Effect": "Allow",
       "Action": [
         "logs:CreateLogGroup",
@@ -265,7 +252,6 @@
       }
     },
     {
-      "Sid": "CloudWatchLogsReadOperations",
       "Effect": "Allow",
       "Action": "logs:DescribeLogGroups",
       "Resource": "*",
