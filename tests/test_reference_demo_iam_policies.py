@@ -336,11 +336,40 @@ def test_express_boundary_freezes_v6_service_names_and_reference_region() -> Non
         "logs:DescribeLogGroups",
         "logs:TagResource",
     }
-    create_slr = statement_for_action(filename, "iam:CreateServiceLinkedRole")
-    assert create_slr["Condition"]["StringEquals"]["iam:AWSServiceName"] == [
-        "ecs.application-autoscaling.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com",
-    ]
+    create_slr_statements = statements_for_action(
+        filename,
+        "iam:CreateServiceLinkedRole",
+    )
+    assert len(create_slr_statements) == 2
+    assert all(
+        actions(statement) == {"iam:CreateServiceLinkedRole"}
+        and isinstance(statement["Resource"], str)
+        and isinstance(
+            statement["Condition"]["StringEquals"]["iam:AWSServiceName"],
+            str,
+        )
+        for statement in create_slr_statements
+    )
+    assert {
+        (
+            statement["Resource"],
+            statement["Condition"]["StringEquals"]["iam:AWSServiceName"],
+        )
+        for statement in create_slr_statements
+    } == {
+        (
+            f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+            "ecs.application-autoscaling.amazonaws.com/"
+            "AWSServiceRoleForApplicationAutoScaling_ECSService",
+            "ecs.application-autoscaling.amazonaws.com",
+        ),
+        (
+            f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+            "elasticloadbalancing.amazonaws.com/"
+            "AWSServiceRoleForElasticLoadBalancing",
+            "elasticloadbalancing.amazonaws.com",
+        ),
+    }
     assert all(
         f":{REGION}:" in resource
         for statement in statements(filename)

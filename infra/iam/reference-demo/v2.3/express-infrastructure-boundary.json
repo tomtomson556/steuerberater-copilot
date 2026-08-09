@@ -2,18 +2,24 @@
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "CreateApplicationAutoscalingServiceLinkedRole",
       "Effect": "Allow",
       "Action": "iam:CreateServiceLinkedRole",
-      "Resource": [
-        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
-        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
-      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
       "Condition": {
         "StringEquals": {
-          "iam:AWSServiceName": [
-            "ecs.application-autoscaling.amazonaws.com",
-            "elasticloadbalancing.amazonaws.com"
-          ]
+          "iam:AWSServiceName": "ecs.application-autoscaling.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "CreateElasticLoadBalancingServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
         }
       }
     },
