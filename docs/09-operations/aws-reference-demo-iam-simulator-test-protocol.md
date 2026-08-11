@@ -2,7 +2,7 @@
 
 Stand: 11. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `3b5e8e3a9c95ce2cd75d1bf4bceb1d01e6590aba`
+Geprüfter Ausgangsstand: `3599fd04bdc743e2e065a3b9be18ded4eeed4d7a`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **96**
+- Bestätigte nummerierte Simulatorfälle: **98**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -132,6 +132,8 @@ nicht.
 | SIM-094 | Express Infrastructure Role / Permissions Boundary | dieselben fünf EC2-Security-Group-Mutationen | breite Identity-Policy; dieselbe Security Group mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 5 | bestanden |
 | SIM-095 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateSecurityGroup` auf synthetische Security Group und VPC | breite Identity-Policy; `aws:RequestTag/AmazonECSManaged=true`; beide Ressourcenentscheidungen `allowed`; keine fehlenden Kontextwerte | `allowed` | bestanden |
 | SIM-096 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateSecurityGroup` auf dieselben synthetischen Ressourcen | breite Identity-Policy; `aws:RequestTag/AmazonECSManaged=false`; Security Group `implicitDeny`, VPC `allowed`; keine fehlenden Kontextwerte | `implicitDeny` | bestanden |
+| SIM-097 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateTags` auf synthetische Security Group beziehungsweise Security-Group-Rule | breite Identity-Policy; freigegebene `ec2:CreateAction`-Werte `CreateSecurityGroup`, `AuthorizeSecurityGroupIngress` und `AuthorizeSecurityGroupEgress`; keine fehlenden Kontextwerte | `allowed` × 3 | bestanden |
+| SIM-098 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateTags` auf synthetische Security Group und Security-Group-Rule | breite Identity-Policy; nicht freigegebene `ec2:CreateAction=CreateNetworkInterface`; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -227,7 +229,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-096
+## Ausführungsnachweise SIM-031 bis SIM-098
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -370,6 +372,12 @@ SIM-096  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG=implicitDeny
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_RESOURCES=security-group=implicitDeny vpc=allowed
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_MISSING_CONTEXT=none
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_NEGATIVE=passed
+SIM-097  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS=allowed allowed allowed
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_MISSING_CONTEXT=none|none|none
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_POSITIVE=passed
+SIM-098  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=implicitDeny implicitDeny
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_MISSING_CONTEXT=none|none
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -415,7 +423,7 @@ SIM-096  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG=implicitDeny
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-097/098`. Sein genauer
+Das nächste noch nicht protokollierte Testpaar ist `SIM-099/100`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -559,3 +567,7 @@ Ausgangsstand `d51ce00e898d1de983f813ca8961df4031954381`.
 Quelle für SIM-095 und SIM-096: vom Nutzer am 11. August 2026 ausdrücklich
 gemeldete Terminalausgaben der erfolgreichen Wiederholung auf dem geprüften
 Ausgangsstand `3b5e8e3a9c95ce2cd75d1bf4bceb1d01e6590aba`.
+
+Quelle für SIM-097 und SIM-098: vom Nutzer am 11. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `3599fd04bdc743e2e065a3b9be18ded4eeed4d7a`.
