@@ -2,7 +2,7 @@
 
 Stand: 11. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `b76a72a051eef9d762621804bdee69ceb26c2fc1`
+Geprüfter Ausgangsstand: `d51ce00e898d1de983f813ca8961df4031954381`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **92**
+- Bestätigte nummerierte Simulatorfälle: **94**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -128,6 +128,8 @@ nicht.
 | SIM-090 | Express Infrastructure Role / Permissions Boundary | dieselben vier ELBv2-Create-Aktionen | breite Identity-Policy; gleiche Ressourcen mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 4 | bestanden |
 | SIM-091 | Express Infrastructure Role / Permissions Boundary | `elasticloadbalancing:AddTags` auf synthetischen Load-Balancer-ARN | breite Identity-Policy; `elasticloadbalancing:CreateAction=CreateLoadBalancer` | `allowed` | bestanden |
 | SIM-092 | Express Infrastructure Role / Permissions Boundary | `elasticloadbalancing:AddTags` auf denselben Load-Balancer-ARN | breite Identity-Policy; nicht freigegebener `elasticloadbalancing:CreateAction=CreateTrustStore` | `implicitDeny` | bestanden |
+| SIM-093 | Express Infrastructure Role / Permissions Boundary | fünf EC2-Security-Group-Mutationen: `AuthorizeSecurityGroupEgress`, `AuthorizeSecurityGroupIngress`, `DeleteSecurityGroup`, `RevokeSecurityGroupEgress` und `RevokeSecurityGroupIngress` | breite Identity-Policy; synthetische Security Group mit `aws:ResourceTag/AmazonECSManaged=true` | `allowed` × 5 | bestanden |
+| SIM-094 | Express Infrastructure Role / Permissions Boundary | dieselben fünf EC2-Security-Group-Mutationen | breite Identity-Policy; dieselbe Security Group mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 5 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -223,7 +225,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-092
+## Ausführungsnachweise SIM-031 bis SIM-094
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -354,6 +356,10 @@ SIM-091  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_ADD_TAGS_CREATE_LOAD_BALANCER=allow
          EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_ADD_TAGS_CREATE_LOAD_BALANCER_POSITIVE=passed
 SIM-092  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_ADD_TAGS_WRONG_CREATE_ACTION=implicitDeny
          EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_ADD_TAGS_WRONG_CREATE_ACTION_NEGATIVE=passed
+SIM-093  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS=allowed × 5
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_POSITIVE=passed
+SIM-094  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_WRONG_TAG=implicitDeny × 5
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_WRONG_TAG_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -381,12 +387,18 @@ SIM-092  EXPRESS_INFRASTRUCTURE_BOUNDARY_ELB_ADD_TAGS_WRONG_CREATE_ACTION=implic
   als SIM-091/092 gewertet; der bestätigte Test beschränkt sich auf den vom
   Simulator auswertbaren Load-Balancer-Pfad und prüft dort gezielt
   `elasticloadbalancing:CreateAction`.
+- Der erste Start von SIM-093/094 brach vor einer verwertbaren
+  Simulatorentscheidung mit einem `ValidationError` für
+  `permissionsBoundaryPolicyInputList` ab. Ursache war die Übergabe der
+  Boundary über einen für diesen Listenparameter ungeeigneten `file://`-Wert.
+  Dieser Lauf wurde nicht als SIM-Fall gewertet; die erfolgreiche Wiederholung
+  übergab Policy und Boundary jeweils als vollständigen JSON-String.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-093/094`. Sein genauer
+Das nächste noch nicht protokollierte Testpaar ist `SIM-095/096`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -522,3 +534,7 @@ Ausgangsstand `919bb16bfeaf54bab04de151cfa72ebb2902195b`.
 Quelle für SIM-091 und SIM-092: vom Nutzer am 11. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `b76a72a051eef9d762621804bdee69ceb26c2fc1`.
+
+Quelle für SIM-093 und SIM-094: vom Nutzer am 11. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften
+Ausgangsstand `d51ce00e898d1de983f813ca8961df4031954381`.
