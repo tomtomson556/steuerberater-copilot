@@ -2,7 +2,7 @@
 
 Stand: 11. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `3599fd04bdc743e2e065a3b9be18ded4eeed4d7a`
+Zuletzt geprüfter Ausgangsstand: `cb2ac53787f8428f8e6bc42a7ac64d8d9012005f`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,10 +23,11 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **98**
+- Bestätigte nummerierte Simulatorfälle: **100**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
+- SIM-075: historischer Verifier-Inventarstand mit 13 Policies; durch die ACM-Ergänzung sind aktuell 14 exakt freigegeben, die erneute Inventarprüfung folgt als SIM-101/102
 
 Nur vom Nutzer ausdrücklich gemeldete Entscheidungen oder bestandene
 Gruppenmarker werden als bestätigt geführt. Erwartete Ergebnisse allein zählen
@@ -134,6 +135,8 @@ nicht.
 | SIM-096 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateSecurityGroup` auf dieselben synthetischen Ressourcen | breite Identity-Policy; `aws:RequestTag/AmazonECSManaged=false`; Security Group `implicitDeny`, VPC `allowed`; keine fehlenden Kontextwerte | `implicitDeny` | bestanden |
 | SIM-097 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateTags` auf synthetische Security Group beziehungsweise Security-Group-Rule | breite Identity-Policy; freigegebene `ec2:CreateAction`-Werte `CreateSecurityGroup`, `AuthorizeSecurityGroupIngress` und `AuthorizeSecurityGroupEgress`; keine fehlenden Kontextwerte | `allowed` × 3 | bestanden |
 | SIM-098 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateTags` auf synthetische Security Group und Security-Group-Rule | breite Identity-Policy; nicht freigegebene `ec2:CreateAction=CreateNetworkInterface`; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
+| SIM-099 | Express Infrastructure Role / effektiver Policy-Pfad | `acm:RequestCertificate` mit AWS-Managed-Policy v6, ergänzender ACM-Identity-Policy und Express-Boundary | `aws:RequestTag/AmazonECSManaged=true`, `aws:RequestedRegion=eu-central-1`; Boundary erlaubt | `allowed` | bestanden |
+| SIM-100 | Express Infrastructure Role / effektiver Policy-Pfad | `acm:RequestCertificate` mit derselben Policy-Kombination | `aws:RequestTag/AmazonECSManaged=false`, `aws:RequestedRegion=eu-central-1`; Boundary verweigert | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -218,6 +221,39 @@ EXPRESS_INFRASTRUCTURE_BOUNDARY_IAM_ADVERSARIAL_DENIES_NEGATIVE=passed
 
 Damit ist die Kreuzkombinationslücke geschlossen und SIM-086 bestanden.
 
+## Befund und Korrektur zu ACM `RequestCertificate`
+
+Ein unnummerierter Diagnoselauf zeigte vor SIM-099/100, dass der für die
+Express Infrastructure Role vorgesehene Pfad `acm:RequestCertificate` mit der
+AWS-Managed-Policy `AmazonECSInfrastructureRoleforExpressGatewayServices` in
+der bestätigten Default-Version `v6` und dem damaligen Boundary-Modell nicht
+als `allowed` ausgewertet wurde. Auch die isolierte AWS-Managed-Policy v6
+lieferte für den bisherigen Certificate-ARN-/Resource-Tag-Pfad
+`implicitDeny`, ohne fehlende Kontextwerte.
+
+Die isolierte Gegenprobe bestätigte das passende Create-Modell:
+`Resource="*"` mit `aws:RequestTag/AmazonECSManaged=true` und
+`aws:RequestedRegion=eu-central-1` ergibt `allowed`; ein falscher Request-Tag
+ergibt `implicitDeny`.
+
+Daraufhin wurde die enge ergänzende Identity-Policy
+`express-infrastructure-acm-request-policy.json` eingeführt und das
+`acm:RequestCertificate`-Statement der Express-Boundary auf dieselbe
+Request-Tag- und Regionssemantik korrigiert. Die übrigen ACM-Aktionen bleiben
+weiterhin auf Certificate-ARN und `aws:ResourceTag/AmazonECSManaged=true`
+begrenzt.
+
+SIM-099/100 prüfen den effektiven Pfad aus AWS-Managed-Policy v6, ergänzender
+ACM-Identity-Policy und Express-Boundary. Der Positivfall ist `allowed` und
+`AllowedByPermissionsBoundary=True`; der falsche Request-Tag führt zu
+`implicitDeny` und `AllowedByPermissionsBoundary=False`.
+
+Im Negativfall meldet der Simulator zusätzlich nicht bereitgestellte Context
+Keys aus anderen Statements der vollständigen Policies. Die für
+`acm:RequestCertificate` relevanten Keys `aws:RequestTag/AmazonECSManaged` und
+`aws:RequestedRegion` wurden jedoch bereitgestellt. Deshalb bewertet der
+Test-Harness nur diese beiden Keys als für SIM-100 relevant.
+
 ## Ergänzende bestätigte Gruppenmarker
 
 Diese Marker stammen aus bestandenen Sammelprüfungen. Weil die einzelnen
@@ -229,7 +265,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-098
+## Ausführungsnachweise SIM-031 bis SIM-100
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -378,6 +414,15 @@ SIM-097  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS=allowed allowed allowed
 SIM-098  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=implicitDeny implicitDeny
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_MISSING_CONTEXT=none|none
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_NEGATIVE=passed
+SIM-099  AWS_MANAGED_POLICY_VERSION=v6
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE=allowed
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_BOUNDARY=True
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_MISSING_CONTEXT=none
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_POSITIVE=passed
+SIM-100  EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG=implicitDeny
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_BOUNDARY=False
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_MISSING_CONTEXT=iam:AWSServiceName|application-autoscaling:service-namespace|aws:ResourceTag/AmazonECSManaged|elasticloadbalancing:CreateAction|ec2:CreateAction
+         EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -418,14 +463,32 @@ SIM-098  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=imp
   Wiederholung stellte alle gemeldeten Context Keys explizit bereit und
   bestätigte bei `MISSING_CONTEXT=none` erneut Security Group `implicitDeny`,
   VPC `allowed` und die Gesamtentscheidung `implicitDeny`.
+- Vor SIM-099/100 zeigte ein unnummerierter ACM-Diagnoselauf, dass
+  `acm:RequestCertificate` mit der AWS-Managed-Policy v6 und dem damaligen
+  Certificate-ARN-/Resource-Tag-Modell nicht `allowed` wurde. Dieser Lauf
+  diente zur Ursachenanalyse und wurde nicht als nummerierter SIM-Fall gewertet.
+- Der erste vorgesehene SIM-100-Lauf lieferte bereits `implicitDeny` und
+  `AllowedByPermissionsBoundary=False`, endete aber mit dem lokalen
+  `...WRONG_TAG_NEGATIVE=failed`-Marker, weil der Harness pauschal
+  `MISSING_CONTEXT=none` verlangte. Die zusätzlich gemeldeten Keys stammten aus
+  anderen Statements; die für `RequestCertificate` relevanten Context Keys
+  waren vorhanden. Der Harness wurde ohne Policy-Änderung präzisiert und die
+  erfolgreiche Wiederholung erst danach als SIM-100 gewertet.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-099/100`. Sein genauer
-Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
-festgelegt.
+Das nächste noch nicht protokollierte Testpaar ist `SIM-101/102`:
+
+- SIM-101: `iam:GetPolicy` und `iam:GetPolicyVersion` auf allen aktuell 14 exakt
+  freigegebenen verwalteten Policies des Operator-Verifiers; erwartet
+  `allowed` × 28.
+- SIM-102: dieselben beiden Leseaktionen auf einer nicht freigegebenen Policy im
+  Control-Plane-Pfad; erwartet `implicitDeny` × 2.
+
+Damit wird der historische 13-Policy-Inventarstand aus SIM-075 nach der
+ACM-Ergänzung ausdrücklich neu bestätigt.
 
 ## Fortsetzungsregel
 
@@ -524,6 +587,9 @@ Ausgangsstand `4f650374c2944828f20aed6929052f46feaa81e3`.
 Quelle für SIM-075 und SIM-076: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `fb5f6e6f444207981e91df6c091cb16ba15a38c9`.
+Der dort geprüfte Bestand von 13 verwalteten Policies ist historisch korrekt;
+die später ergänzte ACM-Request-Policy wird separat mit SIM-101/102 erneut
+geprüft.
 
 Quelle für SIM-077 und SIM-078: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
@@ -571,3 +637,7 @@ Ausgangsstand `3b5e8e3a9c95ce2cd75d1bf4bceb1d01e6590aba`.
 Quelle für SIM-097 und SIM-098: vom Nutzer am 11. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `3599fd04bdc743e2e065a3b9be18ded4eeed4d7a`.
+
+Quelle für SIM-099 und SIM-100: vom Nutzer am 11. August 2026 ausdrücklich
+gemeldete Terminalausgaben der erfolgreichen Simulationen auf dem geprüften
+Ausgangsstand `cb2ac53787f8428f8e6bc42a7ac64d8d9012005f`; bestätigte AWS-Managed-Policy-Version `v6`.
