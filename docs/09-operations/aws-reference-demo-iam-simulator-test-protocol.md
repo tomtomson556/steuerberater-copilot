@@ -2,7 +2,7 @@
 
 Stand: 11. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Geprüfter Ausgangsstand: `d51ce00e898d1de983f813ca8961df4031954381`
+Geprüfter Ausgangsstand: `3b5e8e3a9c95ce2cd75d1bf4bceb1d01e6590aba`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **94**
+- Bestätigte nummerierte Simulatorfälle: **96**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -130,6 +130,8 @@ nicht.
 | SIM-092 | Express Infrastructure Role / Permissions Boundary | `elasticloadbalancing:AddTags` auf denselben Load-Balancer-ARN | breite Identity-Policy; nicht freigegebener `elasticloadbalancing:CreateAction=CreateTrustStore` | `implicitDeny` | bestanden |
 | SIM-093 | Express Infrastructure Role / Permissions Boundary | fünf EC2-Security-Group-Mutationen: `AuthorizeSecurityGroupEgress`, `AuthorizeSecurityGroupIngress`, `DeleteSecurityGroup`, `RevokeSecurityGroupEgress` und `RevokeSecurityGroupIngress` | breite Identity-Policy; synthetische Security Group mit `aws:ResourceTag/AmazonECSManaged=true` | `allowed` × 5 | bestanden |
 | SIM-094 | Express Infrastructure Role / Permissions Boundary | dieselben fünf EC2-Security-Group-Mutationen | breite Identity-Policy; dieselbe Security Group mit `aws:ResourceTag/AmazonECSManaged=false` | `implicitDeny` × 5 | bestanden |
+| SIM-095 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateSecurityGroup` auf synthetische Security Group und VPC | breite Identity-Policy; `aws:RequestTag/AmazonECSManaged=true`; beide Ressourcenentscheidungen `allowed`; keine fehlenden Kontextwerte | `allowed` | bestanden |
+| SIM-096 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateSecurityGroup` auf dieselben synthetischen Ressourcen | breite Identity-Policy; `aws:RequestTag/AmazonECSManaged=false`; Security Group `implicitDeny`, VPC `allowed`; keine fehlenden Kontextwerte | `implicitDeny` | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -225,7 +227,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-094
+## Ausführungsnachweise SIM-031 bis SIM-096
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -360,6 +362,14 @@ SIM-093  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS=allowed × 5
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_POSITIVE=passed
 SIM-094  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_WRONG_TAG=implicitDeny × 5
          EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_WRONG_TAG_NEGATIVE=passed
+SIM-095  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG=allowed
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_RESOURCES=security-group=allowed vpc=allowed
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_MISSING_CONTEXT=none
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_POSITIVE=passed
+SIM-096  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG=implicitDeny
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_RESOURCES=security-group=implicitDeny vpc=allowed
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_MISSING_CONTEXT=none
+         EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_CREATE_SG_WRONG_TAG_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -393,12 +403,19 @@ SIM-094  EXPRESS_INFRASTRUCTURE_BOUNDARY_EC2_SG_MUTATIONS_WRONG_TAG=implicitDeny
   Boundary über einen für diesen Listenparameter ungeeigneten `file://`-Wert.
   Dieser Lauf wurde nicht als SIM-Fall gewertet; die erfolgreiche Wiederholung
   übergab Policy und Boundary jeweils als vollständigen JSON-String.
+- Der erste Negativlauf für SIM-096 lieferte bereits `implicitDeny`, meldete
+  jedoch mehrere nicht bereitgestellte Context Keys aus anderen Statements der
+  vollständigen Express-Boundary und endete deshalb mit dem lokalen
+  `...WRONG_TAG_NEGATIVE=failed`-Marker. Dieser Lauf wurde nicht gewertet. Die
+  Wiederholung stellte alle gemeldeten Context Keys explizit bereit und
+  bestätigte bei `MISSING_CONTEXT=none` erneut Security Group `implicitDeny`,
+  VPC `allowed` und die Gesamtentscheidung `implicitDeny`.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
 ## Nächstes offenes Testpaar
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-095/096`. Sein genauer
+Das nächste noch nicht protokollierte Testpaar ist `SIM-097/098`. Sein genauer
 Prüfumfang wird vor der Ausführung anhand der aktuellen V2.3-Policies
 festgelegt.
 
@@ -538,3 +555,7 @@ Ausgangsstand `b76a72a051eef9d762621804bdee69ceb26c2fc1`.
 Quelle für SIM-093 und SIM-094: vom Nutzer am 11. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `d51ce00e898d1de983f813ca8961df4031954381`.
+
+Quelle für SIM-095 und SIM-096: vom Nutzer am 11. August 2026 ausdrücklich
+gemeldete Terminalausgaben der erfolgreichen Wiederholung auf dem geprüften
+Ausgangsstand `3b5e8e3a9c95ce2cd75d1bf4bceb1d01e6590aba`.
