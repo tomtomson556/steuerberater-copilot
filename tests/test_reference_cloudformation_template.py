@@ -215,7 +215,14 @@ def test_iam_trusts_and_managed_policies() -> None:
     assert infra_trust["Statement"][0]["Principal"]["Service"] == "ecs.amazonaws.com"
     assert roles["ExpressInfrastructureRole"]["Properties"]["ManagedPolicyArns"] == [
         "arn:aws:iam::aws:policy/service-role/"
-        "AmazonECSInfrastructureRoleforExpressGatewayServices"
+        "AmazonECSInfrastructureRoleforExpressGatewayServices",
+        {
+            "Sub": (
+                "arn:aws:iam::${AWS::AccountId}:policy/"
+                "steuerberater-copilot/reference-demo/"
+                "express-infrastructure-acm-request-policy"
+            )
+        },
     ]
 
 

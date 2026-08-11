@@ -184,6 +184,7 @@
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-secret-initializer",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-verifier",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary",
+        "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy",
         "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/task-execution-boundary"
       ]
     }

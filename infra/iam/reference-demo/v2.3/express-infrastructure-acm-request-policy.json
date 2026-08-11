@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "acm:RequestCertificate",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/AmazonECSManaged": "true",
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    }
+  ]
+}

@@ -135,13 +135,23 @@
       "Action": [
         "acm:AddTagsToCertificate",
         "acm:DeleteCertificate",
-        "acm:DescribeCertificate",
-        "acm:RequestCertificate"
+        "acm:DescribeCertificate"
       ],
       "Resource": "arn:aws:acm:eu-central-1:<ACCOUNT_ID>:certificate/*",
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/AmazonECSManaged": "true"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "acm:RequestCertificate",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/AmazonECSManaged": "true",
+          "aws:RequestedRegion": "eu-central-1"
         }
       }
     },

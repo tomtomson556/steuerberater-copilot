@@ -530,6 +530,7 @@ def test_bootstrap_plan_matches_v23_phase_order() -> None:
         "create-or-verify-policy",
         "create-or-verify-policy",
         "create-or-verify-policy",
+        "create-or-verify-policy",
         "create-or-verify-service-role",
         "attach-service-role-policy",
         "attach-service-role-policy",
@@ -553,6 +554,7 @@ def test_bootstrap_plan_matches_v23_phase_order() -> None:
     assert artifacts == [
         "task-execution-boundary.json",
         "express-infrastructure-boundary.json",
+        "express-infrastructure-acm-request-policy.json",
         "cloudformation-service-role-foundation-policy.json",
         "cloudformation-service-role-iam-lifecycle-policy.json",
         "cloudformation-service-role-policy.json",
@@ -571,6 +573,7 @@ def test_fresh_bootstrap_writes_only_the_fixed_control_plane_in_order() -> None:
     control_plane.bootstrap(config(), client)
 
     assert mutation_names(client) == [
+        "create-policy",
         "create-policy",
         "create-policy",
         "create-policy",
@@ -671,6 +674,7 @@ def test_teardown_plan_reflects_exact_reverse_dependency_order() -> None:
         "cloudformation-service-role-boundary.json",
         "task-execution-boundary.json",
         "express-infrastructure-boundary.json",
+        "express-infrastructure-acm-request-policy.json",
         "operator-cloudformation-policy.json",
         "operator-ecr-publisher-policy.json",
         "operator-secret-initializer-policy.json",

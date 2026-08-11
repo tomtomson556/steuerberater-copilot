@@ -1,9 +1,11 @@
 # AWS Reference Demo IAM Control Plane v2.3
 
 Versionierte IAM-Artefakte für die synthetische AWS-Referenzdemo in
-`eu-central-1`. Sie setzen ausschließlich die IAM-Control-Plane aus dem
-IAM-/Lifecycle-Konzept Version 2.3 um. Das CloudFormation-Template und das
-Deployment-Runbook werden in diesem Stand nicht verändert.
+`eu-central-1`. Sie setzen die IAM-Control-Plane aus dem IAM-/Lifecycle-Konzept
+Version 2.3 um. Das CloudFormation-Template wird ausschließlich dort ergänzt,
+wo die Express Infrastructure Role die für `acm:RequestCertificate`
+erforderliche Zusatzpolicy referenziert. Das Deployment-Runbook bleibt in
+diesem Stand unverändert.
 
 ## Artefakte
 
@@ -11,6 +13,7 @@ Deployment-Runbook werden in diesem Stand nicht verändert.
 |---|---|---|---|
 | `task-execution-boundary.json` | Permissions Boundary | `task-execution-boundary` | `/steuerberater-copilot/reference-demo/` |
 | `express-infrastructure-boundary.json` | Permissions Boundary | `express-infrastructure-boundary` | `/steuerberater-copilot/reference-demo/` |
+| `express-infrastructure-acm-request-policy.json` | Berechtigungs-Policy (`acm:RequestCertificate`) | `express-infrastructure-acm-request-policy` | `/steuerberater-copilot/reference-demo/` |
 | `cloudformation-service-role-foundation-policy.json` | Berechtigungs-Policy (ECR, Logs, EC2) | `reference-demo-cfn-foundation-policy` | `/steuerberater-copilot/control-plane/` |
 | `cloudformation-service-role-iam-lifecycle-policy.json` | Berechtigungs-Policy (IAM-Rollenlebenszyklus) | `reference-demo-cfn-iam-lifecycle-policy` | `/steuerberater-copilot/control-plane/` |
 | `cloudformation-service-role-policy.json` | Berechtigungs-Policy (Secrets Manager, ECS) | `reference-demo-cfn-service-policy` | `/steuerberater-copilot/control-plane/` |
@@ -34,6 +37,15 @@ Aktionsmenge der am 31. Juli 2026 aktuellen AWS-verwalteten Policy
 regionalen und accountbezogenen ARNs auf den Referenzpfad. Änderungen der
 AWS-verwalteten Policy erweitern die effektiven Rechte dadurch nicht
 automatisch.
+
+Die Simulatorprüfung hat für `acm:RequestCertificate` eine Abweichung in der
+AWS-verwalteten Policy v6 bestätigt: Das dort verwendete Zertifikat-ARN- und
+`aws:ResourceTag`-Modell autorisiert die Create-Aktion nicht. Deshalb ergänzt
+`express-infrastructure-acm-request-policy.json` ausschließlich diese eine
+Aktion mit `Resource="*"`, `aws:RequestTag/AmazonECSManaged=true` und der festen
+Region `eu-central-1`. Die Boundary enthält dieselbe Maximalgrenze. Die
+bestehenden ACM-Aktionen auf bereits vorhandenen Zertifikaten bleiben weiterhin
+auf den Zertifikat-ARN und `aws:ResourceTag/AmazonECSManaged=true` begrenzt.
 
 Die in Version 2.3 als ein Artefakt geplante CloudFormation-Service-Role-Policy
 überschreitet mit ihrer vollständigen Aktions- und Condition-Matrix die
