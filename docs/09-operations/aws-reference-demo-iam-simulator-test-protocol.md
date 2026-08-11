@@ -474,6 +474,18 @@ SIM-100  EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG=implicitDeny
   anderen Statements; die für `RequestCertificate` relevanten Context Keys
   waren vorhanden. Der Harness wurde ohne Policy-Änderung präzisiert und die
   erfolgreiche Wiederholung erst danach als SIM-100 gewertet.
+- Der erste vorgesehene SIM-101-Lauf auf Commit
+  `d97551c78abd8d3607d1290da902c3735e67796b` bestätigte den statischen
+  Verifier-Inventarwert von 14 Policies, wurde aber nicht als SIM-101 gewertet.
+  Der Harness zählte fälschlich nur die zwei Top-Level-`EvaluationResults`
+  für `iam:GetPolicy` und `iam:GetPolicyVersion` und erwartete dort 28
+  Ergebnisse. Bei einer Simulation mit mehreren Ressourcen liegen die
+  Einzelentscheidungen je Aktion in `ResourceSpecificResults`; deshalb meldete
+  der Harness `allowed x 2`, `TOTAL=2` und
+  `VERIFIER_IAM_POLICY_READS_POSITIVE=failed`. SIM-102 wurde wegen `set -e`
+  anschließend nicht ausgeführt. Für die Wiederholung muss der Harness die 28
+  ResourceSpecificResults auswerten; Policy-Änderungen sind daraus nicht
+  abzuleiten.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
