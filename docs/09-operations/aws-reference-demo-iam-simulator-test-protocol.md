@@ -2,7 +2,7 @@
 
 Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `06ab88abdab6e95c7be08358111af4df9804263a`
+Zuletzt geprüfter Ausgangsstand: `ab0deacb9975d50a482de5d1a5e3468cc7ab7c4d`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **108**
+- Bestätigte nummerierte Simulatorfälle: **110**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -145,6 +145,8 @@ nicht.
 | SIM-106 | CloudFormation-Service-Rolle | `iam:PutRolePermissionsBoundary`, `iam:DeleteRolePermissionsBoundary`, `iam:UpdateAssumeRolePolicy`, `iam:UpdateRole` und `iam:UpdateRoleDescription` | beide Rollen; statisch keine passenden Statements oder Allow-Wildcards; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
 | SIM-107 | CloudFormation-Service-Rolle | `iam:AttachRolePolicy` und `iam:DetachRolePolicy` | drei exakt genehmigte Rollen-/Policy-Bindungen: Task Execution Role mit AWS Task-Execution-Policy sowie Express Infrastructure Role mit AWS Express-Policy und kundenverwalteter ACM-Request-Policy; sechs `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung | `allowed` × 6 | bestanden |
 | SIM-108 | CloudFormation-Service-Rolle | dieselben beiden Aktionen | drei gekreuzte und zwei fremde Rollen-/Policy-Bindungen; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
+| SIM-109 | CloudFormation-Service-Rolle | `iam:PutRolePolicy` und `iam:DeleteRolePolicy` | ausschließlich Task Execution Role; statisch je genau eine Ressourcenfreigabe in Lifecycle-Policy und Boundary, keine Action-Wildcards; zwei `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung; Policy-Name und -Inhalt bleiben außerhalb der Simulatoraussage durch Template, Guard und Hash gebunden | `allowed` × 2 | bestanden |
+| SIM-110 | CloudFormation-Service-Rolle | dieselben beiden Inline-Policy-Aktionen | Express Infrastructure Role und synthetische fremde Rolle; vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -273,7 +275,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-108
+## Ausführungsnachweise SIM-031 bis SIM-110
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -484,6 +486,25 @@ SIM-108  CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS=implicitDe
          CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_TRUNCATED=false
          CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_NEGATIVE=passed
+SIM-109  CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_ACTIONS=2
+         CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_LIFECYCLE_RESOURCES=1
+         CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_BOUNDARY_RESOURCES=1
+         CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_INLINE_POLICY_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE=allowed allowed
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_TOTAL=2
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_TRUNCATED=false
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_POSITIVE=passed
+SIM-110  CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES=implicitDeny × 4
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_TOTAL=4
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_TRUNCATED=false
+         CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -581,15 +602,17 @@ SIM-108  CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS=implicitDe
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-107/108
+## Nächster Schritt nach SIM-109/110
 
-SIM-107/108 bestätigen die exakte Allowlist der drei genehmigten
-Managed-Policy-Bindungen für die beiden stackeigenen ECS-Rollen. Gekreuzte
-und fremde Bindungen bleiben sowohl beim Anhängen als auch beim Abhängen
-`implicitDeny`. Vor der Festlegung von SIM-109/110 werden die verbleibenden
-Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
-bereits durch SIM-001 bis SIM-108 abgedeckte Matrix und den dann aktuellen
-PR-Head abgeglichen.
+SIM-109/110 bestätigen, dass der Inline-Policy-Lifecycle der
+CloudFormation-Service-Rolle ausschließlich auf die Task Execution Role
+begrenzt ist. Die Express Infrastructure Role und eine synthetische fremde
+Rolle bleiben `implicitDeny`. Der Simulator trifft dabei bewusst keine
+Aussage zu Inline-Policy-Name oder -Inhalt; diese Invarianten bleiben durch
+Template, Guard und Hashprüfung gebunden. Vor der Festlegung von SIM-111/112
+werden die verbleibenden Simulatoranforderungen aus dem IAM-/Lifecycle-
+Konzept V2.3 erneut gegen die bereits durch SIM-001 bis SIM-110 abgedeckte
+Matrix und den dann aktuellen PR-Head abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -761,3 +784,8 @@ Quelle für SIM-107 und SIM-108: vom Nutzer am 13. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `06ab88abdab6e95c7be08358111af4df9804263a`.
+
+Quelle für SIM-109 und SIM-110: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`ab0deacb9975d50a482de5d1a5e3468cc7ab7c4d`.
