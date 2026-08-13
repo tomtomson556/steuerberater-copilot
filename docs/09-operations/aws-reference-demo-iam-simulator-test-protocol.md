@@ -2,7 +2,7 @@
 
 Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `bbba509dbfd82437d0ff721c1806d3f5f1279724`
+Zuletzt geprüfter Ausgangsstand: `2970b3ac88c0cbf4bcc16a8ac261049233ba439a`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **104**
+- Bestätigte nummerierte Simulatorfälle: **106**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -141,6 +141,8 @@ nicht.
 | SIM-102 | Operator / Verifier | dieselben zwei IAM-Policy-Leseaktionen | nicht freigegebene Policy im Control-Plane-Pfad | `implicitDeny` × 2 | bestanden |
 | SIM-103 | CloudFormation-Service-Rolle | `iam:CreateRole` für Task Execution Role und Express Infrastructure Role | je exakte Zielrolle mit der jeweils vorgeschriebenen Permissions Boundary und allen fünf Pflicht-Tags; keine fehlenden Kontextwerte | `allowed` × 2 | bestanden |
 | SIM-104 | CloudFormation-Service-Rolle | dieselben beiden `iam:CreateRole`-Pfade | Permissions Boundaries absichtlich zwischen den beiden Rollen gekreuzt; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
+| SIM-105 | CloudFormation-Service-Rolle | `iam:GetRole` und `iam:DeleteRole` | Task Execution Role und Express Infrastructure Role; vier `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung | `allowed` × 4 | bestanden |
+| SIM-106 | CloudFormation-Service-Rolle | `iam:PutRolePermissionsBoundary`, `iam:DeleteRolePermissionsBoundary`, `iam:UpdateAssumeRolePolicy`, `iam:UpdateRole` und `iam:UpdateRoleDescription` | beide Rollen; statisch keine passenden Statements oder Allow-Wildcards; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -269,7 +271,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-104
+## Ausführungsnachweise SIM-031 bis SIM-106
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -442,6 +444,23 @@ SIM-103  CFN_SERVICE_ROLE_CREATE_ROLES=allowed allowed
 SIM-104  CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY=implicitDeny implicitDeny
          CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY_MISSING_CONTEXT=none|none
          CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY_NEGATIVE=passed
+SIM-105  CFN_SERVICE_ROLE_ROLE_LIFECYCLE_READ_DELETE=allowed allowed allowed allowed
+         CFN_SERVICE_ROLE_ROLE_LIFECYCLE_READ_DELETE_TOTAL=4
+         CFN_SERVICE_ROLE_ROLE_LIFECYCLE_READ_DELETE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ROLE_LIFECYCLE_READ_DELETE_TRUNCATED=false
+         CFN_SERVICE_ROLE_ROLE_LIFECYCLE_READ_DELETE_POSITIVE=passed
+SIM-106  CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_ACTIONS=5
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_MATCHING_STATEMENTS=0
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_ALLOW_MATCHES=0
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS=implicitDeny × 10
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_TOTAL=10
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_TRUNCATED=false
+         CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -522,17 +541,32 @@ SIM-104  CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY=implicitDeny implicitDeny
   `ResourceSpecificResults`, die exakten 14 Ressourcen, ausschließlich
   `allowed` und keine fehlenden Kontextwerte. Erst dessen vollständig
   bestandener Lauf wurde als SIM-101/102 gewertet.
+- Der erste vorgesehene SIM-105/106-Lauf auf Commit
+  `2970b3ac88c0cbf4bcc16a8ac261049233ba439a` bestätigte für den Positivpfad
+  bereits `allowed` × 4 und `MISSING_CONTEXT=none`. Der Negativpfad lieferte
+  ebenfalls bereits die erwarteten zehn `implicitDeny`-Entscheidungen, endete
+  aber mit `CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_NEGATIVE=failed`, weil
+  der Harness pauschal `MISSING_CONTEXT=none` verlangte. Die gemeldeten Keys
+  stammten ausschließlich aus fachlich unbeteiligten Statements der vier
+  vollständig eingereichten Policy-Dokumente. Dieser Lauf wurde nicht
+  nummeriert; es erfolgte keine Policy-Änderung.
+- Ein weiterer Start des korrigierten SIM-105/106-Harnesses auf demselben
+  Commit bestand den statischen Abgleich aller vier Policy-Dokumente, brach
+  danach aber wegen fehlender AWS-Anmeldedaten mit `NoCredentials` vor beiden
+  `SimulateCustomPolicy`-Aufrufen ab. Es fand keine Simulatorentscheidung
+  statt; der Lauf wurde nicht gewertet.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-103/104
+## Nächster Schritt nach SIM-105/106
 
-SIM-103/104 bestätigen die in V2.3 geforderte feste Paarung der beiden
-stackeigenen ECS-Rollen mit ihren jeweils vorgeschriebenen Permissions
-Boundaries. Vor der Festlegung von SIM-105/106 werden die verbleibenden
+SIM-105/106 bestätigen den erforderlichen Lese- und Löschpfad für beide
+stackeigenen ECS-Rollen und zugleich, dass die fünf nicht freigegebenen
+Rollenmutationen im vollständigen effektiven Policy-Pfad `implicitDeny`
+bleiben. Vor der Festlegung von SIM-107/108 werden die verbleibenden
 Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
-bereits durch SIM-001 bis SIM-104 abgedeckte Matrix und den aktuellen PR-Head
-abgeglichen.
+bereits durch SIM-001 bis SIM-106 abgedeckte Matrix und den dann aktuellen
+PR-Head abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -694,3 +728,8 @@ Verifier-Inventarlaufs auf dem geprüften Ausgangsstand
 Quelle für SIM-103 und SIM-104: vom Nutzer am 13. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften Ausgangsstand
 `bbba509dbfd82437d0ff721c1806d3f5f1279724`.
+
+Quelle für SIM-105 und SIM-106: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen korrigierten Harnesses
+auf dem geprüften Ausgangsstand
+`2970b3ac88c0cbf4bcc16a8ac261049233ba439a`.
