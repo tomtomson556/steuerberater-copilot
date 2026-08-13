@@ -1,8 +1,8 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 11. August 2026\
+Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `cb2ac53787f8428f8e6bc42a7ac64d8d9012005f`
+Zuletzt geprüfter Ausgangsstand: `c6fc4b6cc64dc588f6d597607602dbd974c278c2`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,11 +23,11 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **100**
+- Bestätigte nummerierte Simulatorfälle: **102**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
-- SIM-075: historischer Verifier-Inventarstand mit 13 Policies; durch die ACM-Ergänzung sind aktuell 14 exakt freigegeben, die erneute Inventarprüfung folgt als SIM-101/102
+- SIM-075: historischer Verifier-Inventarstand mit 13 Policies; durch die ACM-Ergänzung sind aktuell 14 exakt freigegeben und mit SIM-101/102 erneut bestätigt
 
 Nur vom Nutzer ausdrücklich gemeldete Entscheidungen oder bestandene
 Gruppenmarker werden als bestätigt geführt. Erwartete Ergebnisse allein zählen
@@ -137,6 +137,8 @@ nicht.
 | SIM-098 | Express Infrastructure Role / Permissions Boundary | `ec2:CreateTags` auf synthetische Security Group und Security-Group-Rule | breite Identity-Policy; nicht freigegebene `ec2:CreateAction=CreateNetworkInterface`; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
 | SIM-099 | Express Infrastructure Role / effektiver Policy-Pfad | `acm:RequestCertificate` mit AWS-Managed-Policy v6, ergänzender ACM-Identity-Policy und Express-Boundary | `aws:RequestTag/AmazonECSManaged=true`, `aws:RequestedRegion=eu-central-1`; Boundary erlaubt | `allowed` | bestanden |
 | SIM-100 | Express Infrastructure Role / effektiver Policy-Pfad | `acm:RequestCertificate` mit derselben Policy-Kombination | `aws:RequestTag/AmazonECSManaged=false`, `aws:RequestedRegion=eu-central-1`; Boundary verweigert | `implicitDeny` | bestanden |
+| SIM-101 | Operator / Verifier | `iam:GetPolicy` und `iam:GetPolicyVersion` | alle aktuell 14 exakt freigegebenen verwalteten Policies; 28 `ResourceSpecificResults`, keine fehlenden Kontextwerte | `allowed` × 28 | bestanden |
+| SIM-102 | Operator / Verifier | dieselben zwei IAM-Policy-Leseaktionen | nicht freigegebene Policy im Control-Plane-Pfad | `implicitDeny` × 2 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -265,7 +267,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-100
+## Ausführungsnachweise SIM-031 bis SIM-102
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -423,6 +425,15 @@ SIM-100  EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG=implicitDeny
          EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_BOUNDARY=False
          EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_MISSING_CONTEXT=iam:AWSServiceName|application-autoscaling:service-namespace|aws:ResourceTag/AmazonECSManaged|elasticloadbalancing:CreateAction|ec2:CreateAction
          EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG_NEGATIVE=passed
+SIM-101  OPERATOR_VERIFIER_IAM_POLICY_INVENTORY=14
+         OPERATOR_VERIFIER_IAM_POLICY_READS_TOP_LEVEL=2
+         OPERATOR_VERIFIER_IAM_POLICY_READ_ACTIONS=iam:GetPolicy iam:GetPolicyVersion
+         OPERATOR_VERIFIER_IAM_POLICY_READS=allowed × 28
+         OPERATOR_VERIFIER_IAM_POLICY_READS_TOTAL=28
+         OPERATOR_VERIFIER_IAM_POLICY_READS_MISSING_CONTEXT=none
+         VERIFIER_IAM_POLICY_READS_POSITIVE=passed
+SIM-102  OPERATOR_VERIFIER_IAM_POLICY_READS_WRONG_POLICY=implicitDeny implicitDeny
+         VERIFIER_IAM_POLICY_READS_WRONG_POLICY_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -483,24 +494,38 @@ SIM-100  EXPRESS_INFRASTRUCTURE_ACM_REQUEST_CERTIFICATE_WRONG_TAG=implicitDeny
   Einzelentscheidungen je Aktion in `ResourceSpecificResults`; deshalb meldete
   der Harness `allowed x 2`, `TOTAL=2` und
   `VERIFIER_IAM_POLICY_READS_POSITIVE=failed`. SIM-102 wurde wegen `set -e`
-  anschließend nicht ausgeführt. Für die Wiederholung muss der Harness die 28
-  ResourceSpecificResults auswerten; Policy-Änderungen sind daraus nicht
-  abzuleiten.
+  anschließend nicht ausgeführt. Policy-Änderungen wurden daraus nicht
+  abgeleitet.
+- Ein weiterer vorgesehener SIM-101/102-Lauf auf Commit
+  `c6fc4b6cc64dc588f6d597607602dbd974c278c2` brach bereits beim
+  `SimulateCustomPolicy`-Request mit `ValidationError` ab. Die vollständige
+  Verifier-Policy beziehungsweise Operator-Boundary überschritten in dieser
+  Aufrufform die vom Request akzeptierten Dokumentgrößen. Es fand keine
+  verwertbare Simulatorentscheidung statt. Der Harness wurde deshalb auf die
+  unverändert einschlägigen `iam:GetPolicy`-/`iam:GetPolicyVersion`-Statements
+  der beiden Repository-Policies fokussiert; es erfolgte keine Policy-Änderung.
+- Der anschließende fokussierte Lauf auf demselben Commit lieferte für den
+  Positivpfad bereits `allowed` × 28, `TOTAL=28` und
+  `MISSING_CONTEXT=none`; der lokale Positivmarker blieb jedoch wegen eines
+  zusätzlichen spröden Struktur-/Vergleichschecks auf `failed`. Der
+  Negativpfad lieferte gleichzeitig `implicitDeny` × 2 und `passed`. Auch
+  dieser Zwischenlauf wurde nicht nummeriert. Der abschließende Harness prüfte
+  stattdessen strukturiert genau zwei Aktionen, je 14 erwartete
+  `ResourceSpecificResults`, die exakten 14 Ressourcen, ausschließlich
+  `allowed` und keine fehlenden Kontextwerte. Erst dessen vollständig
+  bestandener Lauf wurde als SIM-101/102 gewertet.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächstes offenes Testpaar
+## Nächster Schritt nach SIM-101/102
 
-Das nächste noch nicht protokollierte Testpaar ist `SIM-101/102`:
-
-- SIM-101: `iam:GetPolicy` und `iam:GetPolicyVersion` auf allen aktuell 14 exakt
-  freigegebenen verwalteten Policies des Operator-Verifiers; erwartet
-  `allowed` × 28.
-- SIM-102: dieselben beiden Leseaktionen auf einer nicht freigegebenen Policy im
-  Control-Plane-Pfad; erwartet `implicitDeny` × 2.
-
-Damit wird der historische 13-Policy-Inventarstand aus SIM-075 nach der
-ACM-Ergänzung ausdrücklich neu bestätigt.
+Der im bisherigen Protokoll ausdrücklich geplante Wiederholungstest des
+aktuellen 14-Policy-Verifier-Inventars ist mit SIM-101/102 abgeschlossen.
+Ein konkretes Paar SIM-103/104 war im Repository bisher nicht festgelegt.
+Vor seiner Festlegung werden die verbleibenden Simulatoranforderungen aus dem
+IAM-/Lifecycle-Konzept V2.3 gegen die bereits durch SIM-001 bis SIM-102
+abgedeckte Matrix und den aktuellen PR-Head abgeglichen. Dadurch wird kein
+zusätzlicher Testfall allein aus einer alten Chatübergabe erfunden.
 
 ## Fortsetzungsregel
 
@@ -515,7 +540,8 @@ Inhalt im Editor vollständig durch den neuen kontrollierten Block ersetzt.
    markieren.
 4. Nach jedem bestandenen Testpaar beide Entscheidungen und Pass-Marker
    gemeinsam in diesem Dokument ergänzen und auf den PR-Branch committen.
-5. Das nächste offene Testpaar eindeutig benennen.
+5. Das nächste offene Testpaar erst nach Abgleich mit dem aktuellen
+   Repository-Stand und der verbleibenden Pflichtmatrix eindeutig benennen.
 6. Bei jeder Abweichung stoppen; während eines späteren Deployments niemals
    Berechtigungen reaktiv ergänzen.
 7. Nach einem neuen Commit den geprüften Referenz-Commit in diesem Dokument
@@ -592,7 +618,6 @@ Quelle für SIM-071 und SIM-072: vom Nutzer am 7. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `ef37f77a21b84be6d909bcd420a0cefcafa81b76`.
 
-
 Quelle für SIM-073 und SIM-074: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `4f650374c2944828f20aed6929052f46feaa81e3`.
@@ -600,8 +625,7 @@ Quelle für SIM-075 und SIM-076: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
 Ausgangsstand `fb5f6e6f444207981e91df6c091cb16ba15a38c9`.
 Der dort geprüfte Bestand von 13 verwalteten Policies ist historisch korrekt;
-die später ergänzte ACM-Request-Policy wird separat mit SIM-101/102 erneut
-geprüft.
+die später ergänzte ACM-Request-Policy wurde mit SIM-101/102 erneut geprüft.
 
 Quelle für SIM-077 und SIM-078: vom Nutzer am 8. August 2026 ausdrücklich
 gemeldete Terminalausgaben der Simulationen auf dem geprüften
@@ -653,3 +677,8 @@ Ausgangsstand `3599fd04bdc743e2e065a3b9be18ded4eeed4d7a`.
 Quelle für SIM-099 und SIM-100: vom Nutzer am 11. August 2026 ausdrücklich
 gemeldete Terminalausgaben der erfolgreichen Simulationen auf dem geprüften
 Ausgangsstand `cb2ac53787f8428f8e6bc42a7ac64d8d9012005f`; bestätigte AWS-Managed-Policy-Version `v6`.
+
+Quelle für SIM-101 und SIM-102: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen fokussierten
+Verifier-Inventarlaufs auf dem geprüften Ausgangsstand
+`c6fc4b6cc64dc588f6d597607602dbd974c278c2`.
