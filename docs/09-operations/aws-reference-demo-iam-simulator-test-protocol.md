@@ -2,7 +2,7 @@
 
 Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `ab0deacb9975d50a482de5d1a5e3468cc7ab7c4d`
+Zuletzt geprüfter Ausgangsstand: `fbcb1bc1e1144794c2a1c5cf5c08bbf99b7333c5`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **110**
+- Bestätigte nummerierte Simulatorfälle: **112**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -147,6 +147,8 @@ nicht.
 | SIM-108 | CloudFormation-Service-Rolle | dieselben beiden Aktionen | drei gekreuzte und zwei fremde Rollen-/Policy-Bindungen; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
 | SIM-109 | CloudFormation-Service-Rolle | `iam:PutRolePolicy` und `iam:DeleteRolePolicy` | ausschließlich Task Execution Role; statisch je genau eine Ressourcenfreigabe in Lifecycle-Policy und Boundary, keine Action-Wildcards; zwei `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung; Policy-Name und -Inhalt bleiben außerhalb der Simulatoraussage durch Template, Guard und Hash gebunden | `allowed` × 2 | bestanden |
 | SIM-110 | CloudFormation-Service-Rolle | dieselben beiden Inline-Policy-Aktionen | Express Infrastructure Role und synthetische fremde Rolle; vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 4 | bestanden |
+| SIM-111 | CloudFormation-Service-Rolle | `iam:GetRolePolicy`, `iam:ListAttachedRolePolicies`, `iam:ListRolePolicies` und `iam:ListRoleTags` | Task Execution Role und Express Infrastructure Role; vier vollständige Policy-Dokumente, acht `ResourceSpecificResults`, keine fehlenden Kontextwerte, Boundary achtmal freigebend, keine Trunkierung | `allowed` × 8 | bestanden |
+| SIM-112 | CloudFormation-Service-Rolle | vollständiger unbedingter Rollen-Read/Delete-Block mit `iam:DeleteRole`, `iam:GetRole` und den vier Metadaten-Leseaktionen aus SIM-111 | synthetische fremde Rolle im Referenzpfad; sechs `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, keine passenden Statements, Boundary niemals freigebend, keine Trunkierung | `implicitDeny` × 6 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -275,7 +277,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-110
+## Ausführungsnachweise SIM-031 bis SIM-112
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -505,6 +507,30 @@ SIM-110  CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES=implicitDeny × 4
          CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_TRUNCATED=false
          CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES_NEGATIVE=passed
+SIM-111  CFN_SERVICE_ROLE_ROLE_READS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_POSITIVE_ACTIONS=4
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_STATEMENT_ACTIONS=6
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_ACTION_DOCUMENT_PAIRS=12
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_LIFECYCLE_RESOURCES=2
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_BOUNDARY_RESOURCES=2
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_CONDITIONED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_ROLE_READS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS=allowed × 8
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_TOTAL=8
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_BOUNDARY_ALLOWED=8
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_TRUNCATED=false
+         CFN_SERVICE_ROLE_ROLE_METADATA_READS_POSITIVE=passed
+SIM-112  CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE=implicitDeny × 6
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_TOTAL=6
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_TRUNCATED=false
+         CFN_SERVICE_ROLE_ROLE_READ_DELETE_WRONG_ROLE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -599,20 +625,30 @@ SIM-110  CFN_SERVICE_ROLE_INLINE_POLICY_LIFECYCLE_WRONG_ROLES=implicitDeny × 4
   danach aber wegen fehlender AWS-Anmeldedaten mit `NoCredentials` vor beiden
   `SimulateCustomPolicy`-Aufrufen ab. Es fand keine Simulatorentscheidung
   statt; der Lauf wurde nicht gewertet.
+- Der erste vorgesehene SIM-111/112-Lauf auf Commit
+  `fbcb1bc1e1144794c2a1c5cf5c08bbf99b7333c5` bestand den vollständigen
+  statischen Vorcheck, wurde aber vor einer Simulatorentscheidung mit einem
+  `ValidationError` für `permissionsBoundaryPolicyInputList` abgelehnt.
+  Ursache war erneut die für diesen Listenparameter ungeeignete Übergabe der
+  Boundary über `file://`. Der Lauf wurde nicht nummeriert; die erfolgreiche
+  Wiederholung übergab alle drei Identity-Policies und die Boundary jeweils
+  als kompakten vollständigen JSON-String. Es erfolgte keine Policy-Änderung.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-109/110
+## Nächster Schritt nach SIM-111/112
 
-SIM-109/110 bestätigen, dass der Inline-Policy-Lifecycle der
-CloudFormation-Service-Rolle ausschließlich auf die Task Execution Role
-begrenzt ist. Die Express Infrastructure Role und eine synthetische fremde
-Rolle bleiben `implicitDeny`. Der Simulator trifft dabei bewusst keine
-Aussage zu Inline-Policy-Name oder -Inhalt; diese Invarianten bleiben durch
-Template, Guard und Hashprüfung gebunden. Vor der Festlegung von SIM-111/112
-werden die verbleibenden Simulatoranforderungen aus dem IAM-/Lifecycle-
-Konzept V2.3 erneut gegen die bereits durch SIM-001 bis SIM-110 abgedeckte
-Matrix und den dann aktuellen PR-Head abgeglichen.
+SIM-111 bestätigt die vier zuvor noch offenen Rollen-Metadaten-Leseaktionen
+der CloudFormation-Service-Rolle auf beiden exakt freigegebenen ECS-Rollen.
+SIM-112 bestätigt zugleich, dass der vollständige unbedingte Rollen-Read/Delete-
+Block mit sechs Aktionen auf einer synthetischen fremden Rolle im Referenzpfad
+`implicitDeny` bleibt. Die rohen `MissingContextValues` stammen ausschließlich
+aus fachlich unbeteiligten Statements; für die sechs geprüften Aktionen sind
+keine Kontextwerte erforderlich, es wurden keine Statements getroffen und die
+Boundary gab keine Entscheidung frei. Vor der Festlegung von SIM-113/114 werden
+die verbleibenden Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3
+erneut gegen die bereits durch SIM-001 bis SIM-112 abgedeckte Matrix und den
+dann aktuellen PR-Head abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -789,3 +825,8 @@ Quelle für SIM-109 und SIM-110: vom Nutzer am 13. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `ab0deacb9975d50a482de5d1a5e3468cc7ab7c4d`.
+
+Quelle für SIM-111 und SIM-112: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`fbcb1bc1e1144794c2a1c5cf5c08bbf99b7333c5`.
