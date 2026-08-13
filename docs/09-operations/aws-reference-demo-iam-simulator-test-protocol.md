@@ -2,7 +2,7 @@
 
 Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `c6fc4b6cc64dc588f6d597607602dbd974c278c2`
+Zuletzt geprüfter Ausgangsstand: `bbba509dbfd82437d0ff721c1806d3f5f1279724`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **102**
+- Bestätigte nummerierte Simulatorfälle: **104**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -139,6 +139,8 @@ nicht.
 | SIM-100 | Express Infrastructure Role / effektiver Policy-Pfad | `acm:RequestCertificate` mit derselben Policy-Kombination | `aws:RequestTag/AmazonECSManaged=false`, `aws:RequestedRegion=eu-central-1`; Boundary verweigert | `implicitDeny` | bestanden |
 | SIM-101 | Operator / Verifier | `iam:GetPolicy` und `iam:GetPolicyVersion` | alle aktuell 14 exakt freigegebenen verwalteten Policies; 28 `ResourceSpecificResults`, keine fehlenden Kontextwerte | `allowed` × 28 | bestanden |
 | SIM-102 | Operator / Verifier | dieselben zwei IAM-Policy-Leseaktionen | nicht freigegebene Policy im Control-Plane-Pfad | `implicitDeny` × 2 | bestanden |
+| SIM-103 | CloudFormation-Service-Rolle | `iam:CreateRole` für Task Execution Role und Express Infrastructure Role | je exakte Zielrolle mit der jeweils vorgeschriebenen Permissions Boundary und allen fünf Pflicht-Tags; keine fehlenden Kontextwerte | `allowed` × 2 | bestanden |
+| SIM-104 | CloudFormation-Service-Rolle | dieselben beiden `iam:CreateRole`-Pfade | Permissions Boundaries absichtlich zwischen den beiden Rollen gekreuzt; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -267,7 +269,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-102
+## Ausführungsnachweise SIM-031 bis SIM-104
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -434,6 +436,12 @@ SIM-101  OPERATOR_VERIFIER_IAM_POLICY_INVENTORY=14
          VERIFIER_IAM_POLICY_READS_POSITIVE=passed
 SIM-102  OPERATOR_VERIFIER_IAM_POLICY_READS_WRONG_POLICY=implicitDeny implicitDeny
          VERIFIER_IAM_POLICY_READS_WRONG_POLICY_NEGATIVE=passed
+SIM-103  CFN_SERVICE_ROLE_CREATE_ROLES=allowed allowed
+         CFN_SERVICE_ROLE_CREATE_ROLES_MISSING_CONTEXT=none|none
+         CFN_SERVICE_ROLE_CREATE_ROLES_POSITIVE=passed
+SIM-104  CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY=implicitDeny implicitDeny
+         CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY_MISSING_CONTEXT=none|none
+         CFN_SERVICE_ROLE_CREATE_ROLES_WRONG_BOUNDARY_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -517,21 +525,21 @@ SIM-102  OPERATOR_VERIFIER_IAM_POLICY_READS_WRONG_POLICY=implicitDeny implicitDe
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-101/102
+## Nächster Schritt nach SIM-103/104
 
-Der im bisherigen Protokoll ausdrücklich geplante Wiederholungstest des
-aktuellen 14-Policy-Verifier-Inventars ist mit SIM-101/102 abgeschlossen.
-Ein konkretes Paar SIM-103/104 war im Repository bisher nicht festgelegt.
-Vor seiner Festlegung werden die verbleibenden Simulatoranforderungen aus dem
-IAM-/Lifecycle-Konzept V2.3 gegen die bereits durch SIM-001 bis SIM-102
-abgedeckte Matrix und den aktuellen PR-Head abgeglichen. Dadurch wird kein
-zusätzlicher Testfall allein aus einer alten Chatübergabe erfunden.
+SIM-103/104 bestätigen die in V2.3 geforderte feste Paarung der beiden
+stackeigenen ECS-Rollen mit ihren jeweils vorgeschriebenen Permissions
+Boundaries. Vor der Festlegung von SIM-105/106 werden die verbleibenden
+Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
+bereits durch SIM-001 bis SIM-104 abgedeckte Matrix und den aktuellen PR-Head
+abgeglichen.
 
 ## Fortsetzungsregel
 
 Für alle weiteren Testpaare wird dieselbe temporäre Datei
-`/tmp/sim-065-066.sh` wiederverwendet. Vor jedem neuen Paar wird ihr bisheriger
-Inhalt im Editor vollständig durch den neuen kontrollierten Block ersetzt.
+`/workspaces/exports/sim-065-066.sh` wiederverwendet. Vor jedem neuen Paar wird
+ihr bisheriger Inhalt im Editor vollständig durch den neuen kontrollierten
+Block ersetzt.
 
 1. Immer genau zwei fachlich zusammengehörige Simulatorfälle (Positiv- und
    Negativfall) in einem kontrollierten Block ausführen.
@@ -682,3 +690,7 @@ Quelle für SIM-101 und SIM-102: vom Nutzer am 13. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen fokussierten
 Verifier-Inventarlaufs auf dem geprüften Ausgangsstand
 `c6fc4b6cc64dc588f6d597607602dbd974c278c2`.
+
+Quelle für SIM-103 und SIM-104: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben der Simulationen auf dem geprüften Ausgangsstand
+`bbba509dbfd82437d0ff721c1806d3f5f1279724`.
