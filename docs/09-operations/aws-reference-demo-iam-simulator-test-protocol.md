@@ -2,7 +2,7 @@
 
 Stand: 13. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `2970b3ac88c0cbf4bcc16a8ac261049233ba439a`
+Zuletzt geprüfter Ausgangsstand: `06ab88abdab6e95c7be08358111af4df9804263a`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **106**
+- Bestätigte nummerierte Simulatorfälle: **108**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -143,6 +143,8 @@ nicht.
 | SIM-104 | CloudFormation-Service-Rolle | dieselben beiden `iam:CreateRole`-Pfade | Permissions Boundaries absichtlich zwischen den beiden Rollen gekreuzt; keine fehlenden Kontextwerte | `implicitDeny` × 2 | bestanden |
 | SIM-105 | CloudFormation-Service-Rolle | `iam:GetRole` und `iam:DeleteRole` | Task Execution Role und Express Infrastructure Role; vier `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-106 | CloudFormation-Service-Rolle | `iam:PutRolePermissionsBoundary`, `iam:DeleteRolePermissionsBoundary`, `iam:UpdateAssumeRolePolicy`, `iam:UpdateRole` und `iam:UpdateRoleDescription` | beide Rollen; statisch keine passenden Statements oder Allow-Wildcards; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
+| SIM-107 | CloudFormation-Service-Rolle | `iam:AttachRolePolicy` und `iam:DetachRolePolicy` | drei exakt genehmigte Rollen-/Policy-Bindungen: Task Execution Role mit AWS Task-Execution-Policy sowie Express Infrastructure Role mit AWS Express-Policy und kundenverwalteter ACM-Request-Policy; sechs `ResourceSpecificResults`, keine fehlenden Kontextwerte, keine Trunkierung | `allowed` × 6 | bestanden |
+| SIM-108 | CloudFormation-Service-Rolle | dieselben beiden Aktionen | drei gekreuzte und zwei fremde Rollen-/Policy-Bindungen; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; keine passenden Statements, keine Trunkierung | `implicitDeny` × 10 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -271,7 +273,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-106
+## Ausführungsnachweise SIM-031 bis SIM-108
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -461,6 +463,27 @@ SIM-106  CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_DOCUMENTS=4
          CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_TRUNCATED=false
          CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_NEGATIVE=passed
+SIM-107  CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_ACTIONS=2
+         CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_LIFECYCLE_BINDINGS=3
+         CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_BOUNDARY_BINDINGS=3
+         CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_MANAGED_POLICY_BINDINGS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH=allowed × 6
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_TOTAL=6
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_BINDINGS=3
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_TRUNCATED=false
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_POSITIVE=passed
+SIM-108  CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS=implicitDeny × 10
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_TOTAL=10
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_CASES=5
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_TRUNCATED=false
+         CFN_SERVICE_ROLE_MANAGED_POLICY_ATTACH_DETACH_WRONG_BINDINGS_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -558,14 +581,14 @@ SIM-106  CFN_SERVICE_ROLE_FORBIDDEN_ROLE_MUTATIONS_STATIC_DOCUMENTS=4
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-105/106
+## Nächster Schritt nach SIM-107/108
 
-SIM-105/106 bestätigen den erforderlichen Lese- und Löschpfad für beide
-stackeigenen ECS-Rollen und zugleich, dass die fünf nicht freigegebenen
-Rollenmutationen im vollständigen effektiven Policy-Pfad `implicitDeny`
-bleiben. Vor der Festlegung von SIM-107/108 werden die verbleibenden
+SIM-107/108 bestätigen die exakte Allowlist der drei genehmigten
+Managed-Policy-Bindungen für die beiden stackeigenen ECS-Rollen. Gekreuzte
+und fremde Bindungen bleiben sowohl beim Anhängen als auch beim Abhängen
+`implicitDeny`. Vor der Festlegung von SIM-109/110 werden die verbleibenden
 Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
-bereits durch SIM-001 bis SIM-106 abgedeckte Matrix und den dann aktuellen
+bereits durch SIM-001 bis SIM-108 abgedeckte Matrix und den dann aktuellen
 PR-Head abgeglichen.
 
 ## Fortsetzungsregel
@@ -733,3 +756,8 @@ Quelle für SIM-105 und SIM-106: vom Nutzer am 13. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen korrigierten Harnesses
 auf dem geprüften Ausgangsstand
 `2970b3ac88c0cbf4bcc16a8ac261049233ba439a`.
+
+Quelle für SIM-107 und SIM-108: vom Nutzer am 13. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`06ab88abdab6e95c7be08358111af4df9804263a`.
