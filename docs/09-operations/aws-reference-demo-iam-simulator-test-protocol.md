@@ -2,7 +2,7 @@
 
 Stand: 15. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `79d1df1cf5239fd0a0732bc1fef41cb901ac7206`
+Zuletzt geprüfter Ausgangsstand: `09f14e9ac9f1546883a591b0e275d73d61b08494`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **116**
+- Bestätigte nummerierte Simulatorfälle: **118**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -153,6 +153,8 @@ nicht.
 | SIM-114 | CloudFormation-Service-Rolle | dieselben beiden Rollen-Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner` auf beiden Rollen, falscher Project-Wert auf beiden Rollen sowie synthetische fremde Rolle; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, keine passenden Statements, relevante Kontextwerte vollständig, keine Trunkierung; Boundary bei den acht Tag-Guard-Gegenfällen freigebend und bei der fremden Rolle niemals freigebend | `implicitDeny` × 10 | bestanden |
 | SIM-115 | CloudFormation-Service-Rolle | `ecr:CreateRepository`, `ecr:TagResource`, `logs:CreateLogGroup` und `logs:TagResource` | jeweils aktionsgerechte Referenzressource; vollständige effektive Policies, fünf feste Request-Tags, exakt fünf zulässige Tag-Schlüssel und richtige Region; vier einzeln simulierte `ResourceSpecificResults`, keine fehlenden Kontextwerte, Boundary viermal freigebend, keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-116 | CloudFormation-Service-Rolle | dieselben vier ECR-/Logs-Create-/Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner`, falscher Project-Wert und falsche Region jeweils auf den vier korrekten Action-/Ressourcen-Paaren sowie vier fremde ECR-/Log-Group-Ressourcen; 16 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, relevante Kontextwerte vollständig, keine passenden Statements, keine Trunkierung; Boundary bei den zwölf Condition-Gegenfällen freigebend und bei den vier fremden Ressourcen niemals freigebend | `implicitDeny` × 16 | bestanden |
+| SIM-117 | CloudFormation-Service-Rolle | `ecr:DescribeRepositories`, `ecr:ListTagsForResource`, `ecr:PutImageTagMutability`, `ecr:UntagResource` und `ecr:DeleteRepository` | festes Referenz-Repository; vollständige effektive Policies; fünf einzeln simulierte `ResourceSpecificResults`; keine fehlenden Kontextwerte; fünf passende Statements; Boundary fünfmal freigebend; keine Trunkierung | `allowed` × 5 | bestanden |
+| SIM-118 | CloudFormation-Service-Rolle | dieselben fünf ECR-Read-/Update-/Delete-Aktionen | fremdes Repository in `eu-central-1` und fest benanntes Repository in `eu-west-1`; zehn einzeln simulierte `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 10 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -281,7 +283,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-112
+## Ausführungsnachweise SIM-031 bis SIM-118
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -622,9 +624,51 @@ SIM-116  CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY=implicitDeny × 4
          CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_TRUNCATED=false
          CFN_SERVICE_ROLE_ECR_LOG_CREATE_GUARDS_NEGATIVE_TOTAL=16
          CFN_SERVICE_ROLE_ECR_LOG_CREATE_GUARDS_NEGATIVE=passed
+SIM-117  CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_ACTIONS=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_ACTION_DOCUMENT_PAIRS=10
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_FOUNDATION_RESOURCES=2
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_BOUNDARY_RESOURCES=2
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_CONDITIONED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE=allowed × 5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_TOTAL=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_MATCHED_STATEMENTS=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_BOUNDARY_ALLOWED=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_POSITIVE=passed
+SIM-118  CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY=implicitDeny × 5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_TOTAL=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY_NEGATIVE=passed
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION=implicitDeny × 5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_TOTAL=5
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_NEGATIVE=passed
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_NEGATIVE_TOTAL=10
+         CFN_SERVICE_ROLE_ECR_LIFECYCLE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
+
+- Die ersten vier Harness-Ausführungen für das spätere SIM-117/118-Paar
+  wurden nicht gewertet: zunächst wechselte ein `jq`-Ausdruck innerhalb
+  der Action-Prüfung versehentlich auf das Action-Array; danach beendete
+  `set -e` eine Arithmetik mit dem korrekten Ergebnis null; ein erster
+  Korrekturblock verwendete anschließend eine fehlerhafte
+  Command-Substitution; zuletzt wurde ein von AWS nicht ausgegebenes
+  `IsTruncated`-Feld als `null` statt als `false` interpretiert. Keine
+  dieser Ausführungen ergab einen Policybefund oder erhielt SIM-Nummern. Erst
+  die vollständig bestandene Wiederholung wurde als SIM-117/118 gewertet.
 
 - Ein früher Test nutzte durch eine unscharfe Dateisuche die falsche
   Policy-Datei. Daraus wurde kein Policybefund abgeleitet.
