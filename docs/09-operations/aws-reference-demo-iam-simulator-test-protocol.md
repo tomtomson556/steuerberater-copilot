@@ -2,7 +2,7 @@
 
 Stand: 15. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `d5d4c711be85855faf5ce669855d3ff58d7b4542`
+Zuletzt geprüfter Ausgangsstand: `79d1df1cf5239fd0a0732bc1fef41cb901ac7206`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **114**
+- Bestätigte nummerierte Simulatorfälle: **116**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -151,6 +151,8 @@ nicht.
 | SIM-112 | CloudFormation-Service-Rolle | vollständiger unbedingter Rollen-Read/Delete-Block mit `iam:DeleteRole`, `iam:GetRole` und den vier Metadaten-Leseaktionen aus SIM-111 | synthetische fremde Rolle im Referenzpfad; sechs `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, keine passenden Statements, Boundary niemals freigebend, keine Trunkierung | `implicitDeny` × 6 | bestanden |
 | SIM-113 | CloudFormation-Service-Rolle | `iam:TagRole` und `iam:UntagRole` | Task Execution Role und Express Infrastructure Role; vollständige effektive Policies, exakte fünf Request-Tag-Werte, exakt fünf zulässige Tag-Schlüssel und passender `iam:ResourceTag/Project`-Wert; vier `ResourceSpecificResults`, keine fehlenden Kontextwerte, Boundary viermal freigebend, keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-114 | CloudFormation-Service-Rolle | dieselben beiden Rollen-Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner` auf beiden Rollen, falscher Project-Wert auf beiden Rollen sowie synthetische fremde Rolle; zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, keine passenden Statements, relevante Kontextwerte vollständig, keine Trunkierung; Boundary bei den acht Tag-Guard-Gegenfällen freigebend und bei der fremden Rolle niemals freigebend | `implicitDeny` × 10 | bestanden |
+| SIM-115 | CloudFormation-Service-Rolle | `ecr:CreateRepository`, `ecr:TagResource`, `logs:CreateLogGroup` und `logs:TagResource` | jeweils aktionsgerechte Referenzressource; vollständige effektive Policies, fünf feste Request-Tags, exakt fünf zulässige Tag-Schlüssel und richtige Region; vier einzeln simulierte `ResourceSpecificResults`, keine fehlenden Kontextwerte, Boundary viermal freigebend, keine Trunkierung | `allowed` × 4 | bestanden |
+| SIM-116 | CloudFormation-Service-Rolle | dieselben vier ECR-/Logs-Create-/Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner`, falscher Project-Wert und falsche Region jeweils auf den vier korrekten Action-/Ressourcen-Paaren sowie vier fremde ECR-/Log-Group-Ressourcen; 16 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, relevante Kontextwerte vollständig, keine passenden Statements, keine Trunkierung; Boundary bei den zwölf Condition-Gegenfällen freigebend und bei den vier fremden Ressourcen niemals freigebend | `implicitDeny` × 16 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -572,6 +574,54 @@ SIM-114  CFN_SERVICE_ROLE_ROLE_TAGS_WRONG_KEY=implicitDeny × 4
          CFN_SERVICE_ROLE_ROLE_TAGS_WRONG_ROLE_TRUNCATED=false
          CFN_SERVICE_ROLE_ROLE_TAG_GUARDS_NEGATIVE_TOTAL=10
          CFN_SERVICE_ROLE_ROLE_TAG_GUARDS_NEGATIVE=passed
+SIM-115  AWS_REGION_CHECK=passed
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_ACTIONS=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_ACTION_DOCUMENT_PAIRS=8
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_FOUNDATION_RESOURCES=6
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_BOUNDARY_RESOURCES=2
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_REQUEST_TAGS=5
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_ALLOWED_TAG_KEYS=5
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE=allowed × 4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_TOTAL=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_MATCHED_STATEMENTS=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_LIFECYCLE_POSITIVE=passed
+SIM-116  CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY=implicitDeny × 4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_TOTAL=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_MISSING_CONTEXT=ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_KEY_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT=implicitDeny × 4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_TOTAL=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_MISSING_CONTEXT=ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_PROJECT_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION=implicitDeny × 4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_TOTAL=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_MISSING_CONTEXT=ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES=implicitDeny × 4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_TOTAL=4
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_MISSING_CONTEXT=ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_WRONG_RESOURCES_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_GUARDS_NEGATIVE_TOTAL=16
+         CFN_SERVICE_ROLE_ECR_LOG_CREATE_GUARDS_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -680,25 +730,36 @@ SIM-114  CFN_SERVICE_ROLE_ROLE_TAGS_WRONG_KEY=implicitDeny × 4
   erwartete Stand bereits auf `d5d4c711be85855faf5ce669855d3ff58d7b4542`.
   Nach dem reinen Fast-Forward wurde derselbe Harness vollständig erfolgreich
   ausgeführt. Der abgebrochene Start wurde nicht nummeriert.
+- Der erste vorgesehene SIM-115/116-Lauf auf Commit
+  `79d1df1cf5239fd0a0732bc1fef41cb901ac7206` lieferte bereits alle vier
+  erwarteten `allowed`-Entscheidungen des Positivpfads sowie alle 16
+  erwarteten `implicitDeny`-Entscheidungen der Gegenfälle. Der lokale
+  Negativmarker blieb dennoch auf `failed`, weil der Harness pauschal
+  `MISSING_CONTEXT=none` verlangte. Die gemeldeten Keys stammten
+  ausschließlich aus fachlich unbeteiligten Statements; alle für die vier
+  ECR-/Logs-Aktionen relevanten Kontextwerte waren vollständig. Dieser Lauf
+  wurde nicht nummeriert. Der Harness wurde ohne Policy-Änderung auf
+  `RELEVANT_MISSING_CONTEXT=none` präzisiert und anschließend vollständig
+  erfolgreich wiederholt.
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-113/114
+## Nächster Schritt nach SIM-115/116
 
-SIM-113 bestätigt den `iam:TagRole`-/`iam:UntagRole`-Lifecycle der
-CloudFormation-Service-Rolle auf beiden exakt freigegebenen ECS-Rollen. Die
-vollständigen effektiven Policies erlauben alle vier Action-/Ressourcen-Paare
-nur mit den vorgesehenen fünf Tag-Schlüsseln und -Werten beziehungsweise dem
-passenden Project-Ressourcen-Tag; die Boundary gab alle vier Entscheidungen
-frei. SIM-114 bestätigt für einen unzulässigen Tag-Schlüssel, einen falschen
-Project-Wert und eine synthetische fremde Rolle insgesamt zehn
-`implicitDeny`-Entscheidungen. Die rohen `MissingContextValues` stammen
-ausschließlich aus fachlich unbeteiligten Statements; alle für die beiden
-Tag-Aktionen relevanten Kontextwerte waren vollständig, es wurden keine
-Statements getroffen und kein Ergebnis war trunkiert. Vor der Festlegung von
-SIM-115/116 werden die verbleibenden Simulatoranforderungen aus dem
-IAM-/Lifecycle-Konzept V2.3 erneut gegen die bereits durch SIM-001 bis SIM-114
-abgedeckte Matrix und den dann aktuellen PR-Head abgeglichen.
+SIM-115 bestätigt die vier aktionsgerecht einzeln simulierten Create-/Tag-
+Paare für das feste ECR-Repository und die feste Application Log Group. Alle
+vier Entscheidungen sind mit den fünf vorgeschriebenen Request-Tags, exakt
+fünf Tag-Schlüsseln und der Referenzregion `allowed`; die Boundary gab alle
+vier Entscheidungen frei. SIM-116 bestätigt für einen unzulässigen
+Tag-Schlüssel, einen falschen Project-Wert, die falsche Region und fremde
+Ressourcen insgesamt 16 `implicitDeny`-Entscheidungen. Die rohen
+`MissingContextValues` stammen ausschließlich aus fachlich unbeteiligten
+Statements; alle für die geprüften Aktionen relevanten Kontextwerte waren
+vollständig, es wurden keine Statements getroffen und kein Ergebnis war
+trunkiert. Vor der Festlegung von SIM-117/118 werden die verbleibenden
+Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
+bereits durch SIM-001 bis SIM-116 abgedeckte Matrix und den dann aktuellen
+PR-Head abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -885,3 +946,8 @@ Quelle für SIM-113 und SIM-114: vom Nutzer am 15. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `d5d4c711be85855faf5ce669855d3ff58d7b4542`.
+
+Quelle für SIM-115 und SIM-116: vom Nutzer am 15. August 2026 ausdrücklich
+gemeldete Terminalausgaben der vollständig bestandenen korrigierten
+Wiederholung auf dem geprüften Ausgangsstand
+`79d1df1cf5239fd0a0732bc1fef41cb901ac7206`.
