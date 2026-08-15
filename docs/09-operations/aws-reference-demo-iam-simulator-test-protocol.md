@@ -2,7 +2,7 @@
 
 Stand: 15. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `09f14e9ac9f1546883a591b0e275d73d61b08494`
+Zuletzt geprüfter Ausgangsstand: `ccbe59333c30cffbbc32ddd7fc0ad654c4fc08be`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **118**
+- Bestätigte nummerierte Simulatorfälle: **120**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -155,6 +155,8 @@ nicht.
 | SIM-116 | CloudFormation-Service-Rolle | dieselben vier ECR-/Logs-Create-/Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner`, falscher Project-Wert und falsche Region jeweils auf den vier korrekten Action-/Ressourcen-Paaren sowie vier fremde ECR-/Log-Group-Ressourcen; 16 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte, relevante Kontextwerte vollständig, keine passenden Statements, keine Trunkierung; Boundary bei den zwölf Condition-Gegenfällen freigebend und bei den vier fremden Ressourcen niemals freigebend | `implicitDeny` × 16 | bestanden |
 | SIM-117 | CloudFormation-Service-Rolle | `ecr:DescribeRepositories`, `ecr:ListTagsForResource`, `ecr:PutImageTagMutability`, `ecr:UntagResource` und `ecr:DeleteRepository` | festes Referenz-Repository; vollständige effektive Policies; fünf einzeln simulierte `ResourceSpecificResults`; keine fehlenden Kontextwerte; fünf passende Statements; Boundary fünfmal freigebend; keine Trunkierung | `allowed` × 5 | bestanden |
 | SIM-118 | CloudFormation-Service-Rolle | dieselben fünf ECR-Read-/Update-/Delete-Aktionen | fremdes Repository in `eu-central-1` und fest benanntes Repository in `eu-west-1`; zehn einzeln simulierte `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 10 | bestanden |
+| SIM-119 | CloudFormation-Service-Rolle | `logs:DescribeLogGroups`, `logs:ListTagsForResource`, `logs:PutRetentionPolicy`, `logs:DeleteRetentionPolicy`, `logs:UntagResource` und `logs:DeleteLogGroup` | `DescribeLogGroups` mit globaler Ressource `*` und richtiger Region; die übrigen fünf Aktionen auf der festen Application Log Group; vier vollständige Policy-Dokumente, sechs atomare Evaluationen und fünf `ResourceSpecificResults`; keine fehlenden Kontextwerte; sechs passende Statements; Boundary sechsmal freigebend; keine Trunkierung | `allowed` × 6 | bestanden |
+| SIM-120 | CloudFormation-Service-Rolle | dieselben sechs CloudWatch-Logs-Read-/Update-/Delete-Aktionen | fremde Log Group in `eu-central-1` für die fünf ressourcengebundenen Aktionen, `DescribeLogGroups` mit globaler Ressource `*` in `eu-west-1` sowie die feste Log Group in `eu-west-1` für die fünf ressourcengebundenen Aktionen; elf atomare Evaluationen und zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 11 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -283,7 +285,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-118
+## Ausführungsnachweise SIM-031 bis SIM-120
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -656,6 +658,43 @@ SIM-118  CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY=implicitDeny × 5
          CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REGION_NEGATIVE=passed
          CFN_SERVICE_ROLE_ECR_LIFECYCLE_NEGATIVE_TOTAL=10
          CFN_SERVICE_ROLE_ECR_LIFECYCLE_NEGATIVE=passed
+SIM-119  CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_ACTIONS=6
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_ACTION_DOCUMENT_PAIRS=12
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_DESCRIBE_FOUNDATION_RESOURCES=1
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_DESCRIBE_BOUNDARY_RESOURCES=1
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_FOUNDATION_RESOURCES=2
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_BOUNDARY_RESOURCES=2
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_DESCRIBE_CONDITIONED_STATEMENTS=2
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_CONDITIONED_STATEMENTS=0
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE=allowed × 6
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_TOTAL=6
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_RESOURCE_SPECIFIC_RESULTS=5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_MATCHED_STATEMENTS=6
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_BOUNDARY_ALLOWED=6
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_TRUNCATED=false
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_POSITIVE=passed
+SIM-120  CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_LOG_GROUP=implicitDeny × 5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_LOG_GROUP_TOTAL=5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_LOG_GROUP_RESOURCE_SPECIFIC_RESULTS=5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_DESCRIBE_WRONG_REGION=implicitDeny
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_DESCRIBE_WRONG_REGION_TOTAL=1
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_DESCRIBE_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=0
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_REGION=implicitDeny × 5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_REGION_TOTAL=5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=5
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_TOTAL=11
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=10
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_TRUNCATED=false
+         CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -788,22 +827,31 @@ SIM-118  CFN_SERVICE_ROLE_ECR_LIFECYCLE_WRONG_REPOSITORY=implicitDeny × 5
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Nächster Schritt nach SIM-115/116
+## Stand nach SIM-119/120
 
-SIM-115 bestätigt die vier aktionsgerecht einzeln simulierten Create-/Tag-
-Paare für das feste ECR-Repository und die feste Application Log Group. Alle
-vier Entscheidungen sind mit den fünf vorgeschriebenen Request-Tags, exakt
-fünf Tag-Schlüsseln und der Referenzregion `allowed`; die Boundary gab alle
-vier Entscheidungen frei. SIM-116 bestätigt für einen unzulässigen
-Tag-Schlüssel, einen falschen Project-Wert, die falsche Region und fremde
-Ressourcen insgesamt 16 `implicitDeny`-Entscheidungen. Die rohen
+SIM-119 bestätigt den vollständigen noch offenen CloudWatch-Logs-Lifecycle der
+CloudFormation-Service-Rolle: `logs:DescribeLogGroups` wurde aktionsgerecht
+mit globaler Ressource `*` und Referenzregion simuliert; die fünf
+ressourcengebundenen Read-/Update-/Delete-Aktionen wurden jeweils atomar gegen
+die feste Application Log Group geprüft. Alle sechs Entscheidungen sind
+`allowed`, die Boundary gab alle sechs frei, es fehlten keine Kontextwerte
+und kein Ergebnis war trunkiert.
+
+SIM-120 bestätigt elf `implicitDeny`-Entscheidungen: fünf Aktionen gegen eine
+fremde Log Group in `eu-central-1`, `DescribeLogGroups` in `eu-west-1`
+sowie fünf Aktionen gegen die fest benannte Log Group in `eu-west-1`. Für
+`Resource: "*"` liefert AWS erwartungsgemäß kein `ResourceSpecificResults`-
+Element; deshalb entsprechen sechs beziehungsweise elf atomare Evaluationen
+fünf beziehungsweise zehn ressourcenspezifischen Einträgen. Die rohen
 `MissingContextValues` stammen ausschließlich aus fachlich unbeteiligten
 Statements; alle für die geprüften Aktionen relevanten Kontextwerte waren
-vollständig, es wurden keine Statements getroffen und kein Ergebnis war
-trunkiert. Vor der Festlegung von SIM-117/118 werden die verbleibenden
-Simulatoranforderungen aus dem IAM-/Lifecycle-Konzept V2.3 erneut gegen die
-bereits durch SIM-001 bis SIM-116 abgedeckte Matrix und den dann aktuellen
-PR-Head abgeglichen.
+vollständig. Es wurden keine Statements getroffen, die Boundary gab keinen
+Gegenfall frei und kein Ergebnis war trunkiert.
+
+Keine Policy-Änderung war erforderlich. Vor der Festlegung des nächsten
+Testpaars werden der dann aktuelle PR-Head, die verbleibende
+V2.3-Simulatorpflichtmatrix und die noch nicht abgedeckten
+CloudFormation-Service-Role-Aktionen erneut live abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -995,3 +1043,13 @@ Quelle für SIM-115 und SIM-116: vom Nutzer am 15. August 2026 ausdrücklich
 gemeldete Terminalausgaben der vollständig bestandenen korrigierten
 Wiederholung auf dem geprüften Ausgangsstand
 `79d1df1cf5239fd0a0732bc1fef41cb901ac7206`.
+
+Quelle für SIM-117 und SIM-118: vom Nutzer am 15. August 2026 ausdrücklich
+gemeldete Terminalausgaben der vollständig bestandenen Wiederholung auf dem
+geprüften Ausgangsstand
+`09f14e9ac9f1546883a591b0e275d73d61b08494`.
+
+Quelle für SIM-119 und SIM-120: vom Nutzer am 15. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`ccbe59333c30cffbbc32ddd7fc0ad654c4fc08be`.
