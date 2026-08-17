@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **124**
+- Bestätigte nummerierte Simulatorfälle: **126**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -161,6 +161,8 @@ nicht.
 | SIM-122 | CloudFormation-Service-Rolle | dieselben neun regionalen EC2-Leseaktionen | globale Ressource `*` und falsche Region `eu-west-1`; neun atomare Evaluationen und keine `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 9 | bestanden |
 | SIM-123 | CloudFormation-Service-Rolle | `ec2:CreateInternetGateway`, `ec2:CreateRouteTable`, `ec2:CreateSubnet` und `ec2:CreateVpc` | richtige Region und richtiges Konto; zulässige Pflicht-Tags einschließlich `Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, vier atomare Evaluationen und sechs `ResourceSpecificResults`; keine fehlenden Kontextwerte; sechs passende Statements; Boundary sechsmal freigebend; keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-124 | CloudFormation-Service-Rolle | dieselben vier EC2-Create-Aktionen | unzulässiger Tag-Schlüssel, falscher Project-Wert, falsche Region und fremdes Konto; 16 atomare Evaluationen und 24 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary über die ersten drei Gegenfallgruppen 18-mal freigebend und beim fremden Konto niemals freigebend; keine Trunkierung | `implicitDeny` × 16 | bestanden |
+| SIM-125 | CloudFormation-Service-Rolle | `ec2:CreateTags` auf Internet Gateway, Route Table, Subnet und VPC | vier korrekte Action-/Ressourcenbindungen über `ec2:CreateAction=CreateInternetGateway`, `CreateRouteTable`, `CreateSubnet` und `CreateVpc`; fünf feste Request-Tags und exakt fünf zulässige Tag-Schlüssel; vier vollständige Policy-Dokumente, vier atomare Evaluationen und vier `ResourceSpecificResults`; keine fehlenden Kontextwerte; vier passende Statements; Boundary viermal freigebend; keine Trunkierung | `allowed` × 4 | bestanden |
+| SIM-126 | CloudFormation-Service-Rolle | `ec2:CreateTags` auf denselben vier EC2-Ressourcentypen | nicht freigegebener Wert `ec2:CreateAction=CreateNetworkInterface`; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary viermal freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -766,9 +768,56 @@ SIM-124  CFN_SERVICE_ROLE_EC2_CREATES_BAD_TAG_KEY=implicitDeny × 4
          CFN_SERVICE_ROLE_EC2_CREATES_NEGATIVE_BOUNDARY_ALLOWED=18
          CFN_SERVICE_ROLE_EC2_CREATES_NEGATIVE_TRUNCATED=false
          CFN_SERVICE_ROLE_EC2_CREATES_NEGATIVE=passed
+SIM-125  CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_FOUNDATION_ACTIONS=1
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_BOUNDARY_ACTIONS=1
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_ACTION_DOCUMENT_PAIRS=2
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_FOUNDATION_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_BOUNDARY_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_CONDITIONED_STATEMENTS=1
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_CREATE_ACTIONS=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS=allowed × 4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_TOTAL=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_RESOURCE_SPECIFIC_RESULTS=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_MATCHED_STATEMENTS=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_POSITIVE=passed
+SIM-126  CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=implicitDeny × 4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_TOTAL=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_RESOURCE_SPECIFIC_RESULTS=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_MISSING_CONTEXT=aws:RequestedRegion|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_BOUNDARY_ALLOWED=4
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
+
+- Die ersten beiden vorgesehenen SIM-125/126-Läufe auf Commit
+  `19fba93cdff254fae2d5150087d11123dab1fd1f` wurden wegen reiner
+  Harness-Fehler nicht gewertet. Der erste Lauf bestätigte bereits vier
+  `allowed`-Entscheidungen, vier `ResourceSpecificResults`, vollständige
+  Kontextwerte und vier Boundary-Freigaben, zählte dieselben vier passenden
+  Statements aber sowohl auf Evaluationsebene als auch nochmals in
+  `ResourceSpecificResults` und endete deshalb mit
+  `CFN_SERVICE_ROLE_EC2_CREATE_TAGS_POSITIVE=failed`; der Negativpfad wurde
+  dabei noch nicht ausgeführt. Der zweite Lauf bestätigte den Positivpfad
+  vollständig und lieferte für den Negativpfad bereits vier
+  `implicitDeny`-Entscheidungen, vier `ResourceSpecificResults`, keine
+  passenden Statements, vier Boundary-Freigaben und keine Trunkierung. Sein
+  lokaler Negativmarker verlangte jedoch pauschal `MISSING_CONTEXT=none`.
+  Die gemeldeten Schlüssel stammten ausschließlich aus fachlich
+  unbeteiligten Statements; alle für `ec2:CreateTags` relevanten
+  Kontextwerte waren vollständig. Der Harness wurde ohne Policy-Änderung
+  zunächst auf ressourcenspezifische Trefferzählung und anschließend auf
+  `RELEVANT_MISSING_CONTEXT=none` präzisiert. Erst die vollständig
+  bestandene dritte Ausführung wurde als SIM-125/126 gewertet.
 
 - Der erste vorgesehene SIM-123/124-Lauf auf Commit
   `22bf35143157ddf17d90e64c5bf5b9a8ef250625` bestand die statischen
@@ -910,33 +959,31 @@ SIM-124  CFN_SERVICE_ROLE_EC2_CREATES_BAD_TAG_KEY=implicitDeny × 4
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-123/124
+## Stand nach SIM-125/126
 
-SIM-123 bestätigt die vier EC2-Create-Aktionen
-`CreateInternetGateway`, `CreateRouteTable`, `CreateSubnet` und
-`CreateVpc` für die CloudFormation-Service-Rolle. Die vier atomaren
-Evaluationen erzeugten zusammen sechs `ResourceSpecificResults`; alle vier
-Gesamtentscheidungen und alle sechs Ressourcenentscheidungen sind `allowed`.
-Die vollständigen Kontextwerte führten zu sechs passenden Statements, die
-Boundary gab alle sechs Ressourcen frei und kein Ergebnis war trunkiert.
+SIM-125 bestätigt `ec2:CreateTags` für die vier EC2-Ressourcentypen
+Internet Gateway, Route Table, Subnet und VPC mit den jeweils vorgesehenen
+`ec2:CreateAction`-Werten `CreateInternetGateway`, `CreateRouteTable`,
+`CreateSubnet` und `CreateVpc`. Alle vier Gesamt- und
+Ressourcenentscheidungen sind `allowed`; es fehlten keine Kontextwerte,
+vier Statements trafen zu, die Boundary gab alle vier Ressourcen frei und
+kein Ergebnis war trunkiert.
 
-SIM-124 bestätigt für dieselben vier Aktionen insgesamt 16
-`implicitDeny`-Entscheidungen über vier Gegenfallgruppen. Unzulässiger
-Tag-Schlüssel, falscher `Project`-Wert und falsche Region wurden jeweils bei
-sechs von der Boundary freigegebenen Ressourcen durch die
-Foundation-Bedingungen verweigert. Beim fremden Konto gab die Boundary keine
-der sechs Ressourcen frei. Insgesamt entstanden 24
-`ResourceSpecificResults`, es wurde kein Statement getroffen und kein
-Ergebnis war trunkiert. Die rohen fehlenden Kontextwerte stammen
-ausschließlich aus fachlich unbeteiligten Statements; alle für diese vier
-Create-Aktionen relevanten Kontextwerte waren vollständig.
+SIM-126 bestätigt, dass der nicht freigegebene Wert
+`ec2:CreateAction=CreateNetworkInterface` auf allen vier Ressourcen jeweils
+zu `implicitDeny` führt. Die Boundary gab die Ressourcen viermal frei,
+während die Foundation-Bedingung nicht erfüllt war; daher wurde kein
+Foundation-Statement getroffen. Die rohen fehlenden Kontextwerte stammen
+ausschließlich aus fachlich unbeteiligten Statements. Alle für
+`ec2:CreateTags` relevanten Request-Tag-, TagKeys- und CreateAction-Werte
+waren vollständig, und kein Ergebnis war trunkiert.
 
-Der erste Lauf wurde wegen des beschriebenen reinen Harness-Fehlers vor jeder
-AWS-Simulation nicht gewertet. Die korrigierte Wiederholung prüfte unverändert
-dieselben vollständigen vier Policy-Dokumente. Keine Policy-Änderung war
-erforderlich. Als nächstes fachlich vorgesehenes Paar bleibt SIM-125/126 für
-`ec2:CreateTags` mit den vier exakten `ec2:CreateAction`-Bindungen; vor der
-Ausführung wird der aktuelle PR-Head erneut abgeglichen.
+Die beiden vorherigen Ausführungen wurden wegen der beschriebenen reinen
+Harness-Fehler nicht gewertet. Die erfolgreiche Wiederholung prüfte
+unverändert dieselben vollständigen vier Policy-Dokumente. Keine
+Policy-Änderung war erforderlich. Vor dem nächsten Testpaar werden der neue
+PR-Head und die verbleibenden noch nicht abgedeckten
+CloudFormation-Service-Role-Aktionen erneut live abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -1147,3 +1194,8 @@ Quelle für SIM-123 und SIM-124: vom Nutzer am 17. August 2026 ausdrücklich
 gemeldete Terminalausgaben der vollständig bestandenen korrigierten
 Wiederholung auf dem geprüften Ausgangsstand
 `22bf35143157ddf17d90e64c5bf5b9a8ef250625`.
+
+Quelle für SIM-125 und SIM-126: vom Nutzer am 17. August 2026 ausdrücklich
+gemeldete Terminalausgaben der vollständig bestandenen, zweimal ausschließlich
+am Harness korrigierten Wiederholung auf dem geprüften Ausgangsstand
+`19fba93cdff254fae2d5150087d11123dab1fd1f`.
