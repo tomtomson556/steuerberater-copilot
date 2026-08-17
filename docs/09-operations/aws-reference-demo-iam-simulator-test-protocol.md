@@ -1,8 +1,8 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 15. August 2026\
+Stand: 17. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `ccbe59333c30cffbbc32ddd7fc0ad654c4fc08be`
+Zuletzt geprüfter Ausgangsstand: `c38574bcfc575f1d95aa014ed3773a83dfda778f`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **120**
+- Bestätigte nummerierte Simulatorfälle: **122**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -157,6 +157,8 @@ nicht.
 | SIM-118 | CloudFormation-Service-Rolle | dieselben fünf ECR-Read-/Update-/Delete-Aktionen | fremdes Repository in `eu-central-1` und fest benanntes Repository in `eu-west-1`; zehn einzeln simulierte `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 10 | bestanden |
 | SIM-119 | CloudFormation-Service-Rolle | `logs:DescribeLogGroups`, `logs:ListTagsForResource`, `logs:PutRetentionPolicy`, `logs:DeleteRetentionPolicy`, `logs:UntagResource` und `logs:DeleteLogGroup` | `DescribeLogGroups` mit globaler Ressource `*` und richtiger Region; die übrigen fünf Aktionen auf der festen Application Log Group; vier vollständige Policy-Dokumente, sechs atomare Evaluationen und fünf `ResourceSpecificResults`; keine fehlenden Kontextwerte; sechs passende Statements; Boundary sechsmal freigebend; keine Trunkierung | `allowed` × 6 | bestanden |
 | SIM-120 | CloudFormation-Service-Rolle | dieselben sechs CloudWatch-Logs-Read-/Update-/Delete-Aktionen | fremde Log Group in `eu-central-1` für die fünf ressourcengebundenen Aktionen, `DescribeLogGroups` mit globaler Ressource `*` in `eu-west-1` sowie die feste Log Group in `eu-west-1` für die fünf ressourcengebundenen Aktionen; elf atomare Evaluationen und zehn `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 11 | bestanden |
+| SIM-121 | CloudFormation-Service-Rolle | neun regionale EC2-Leseaktionen: `ec2:DescribeAvailabilityZones`, `ec2:DescribeInternetGateways`, `ec2:DescribeNetworkAcls`, `ec2:DescribeNetworkInterfaces`, `ec2:DescribeRouteTables`, `ec2:DescribeSecurityGroups`, `ec2:DescribeSubnets`, `ec2:DescribeVpcAttribute` und `ec2:DescribeVpcs` | globale Ressource `*` und richtige Region `eu-central-1`; vier vollständige Policy-Dokumente, neun atomare Evaluationen und keine `ResourceSpecificResults`; keine fehlenden Kontextwerte; neun passende Statements; Boundary neunmal freigebend; keine Trunkierung | `allowed` × 9 | bestanden |
+| SIM-122 | CloudFormation-Service-Rolle | dieselben neun regionalen EC2-Leseaktionen | globale Ressource `*` und falsche Region `eu-west-1`; neun atomare Evaluationen und keine `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 9 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -285,7 +287,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-120
+## Ausführungsnachweise SIM-031 bis SIM-122
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -695,6 +697,32 @@ SIM-120  CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_LOG_GROUP=implicitDeny × 5
          CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_BOUNDARY_ALLOWED=0
          CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE_TRUNCATED=false
          CFN_SERVICE_ROLE_LOG_LIFECYCLE_NEGATIVE=passed
+SIM-121  CFN_SERVICE_ROLE_EC2_READS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_ACTIONS=9
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_ACTION_DOCUMENT_PAIRS=18
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_FOUNDATION_RESOURCES=9
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_BOUNDARY_RESOURCES=9
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_CONDITIONED_STATEMENTS=18
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_EC2_READS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_EC2_READS=allowed × 9
+         CFN_SERVICE_ROLE_EC2_READS_TOTAL=9
+         CFN_SERVICE_ROLE_EC2_READS_RESOURCE_SPECIFIC_RESULTS=0
+         CFN_SERVICE_ROLE_EC2_READS_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_READS_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_READS_MATCHED_STATEMENTS=9
+         CFN_SERVICE_ROLE_EC2_READS_BOUNDARY_ALLOWED=9
+         CFN_SERVICE_ROLE_EC2_READS_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_READS_POSITIVE=passed
+SIM-122  CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION=implicitDeny × 9
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_TOTAL=9
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=0
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_READS_WRONG_REGION_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -827,30 +855,29 @@ SIM-120  CFN_SERVICE_ROLE_LOG_LIFECYCLE_WRONG_LOG_GROUP=implicitDeny × 5
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-119/120
+## Stand nach SIM-121/122
 
-SIM-119 bestätigt den vollständigen noch offenen CloudWatch-Logs-Lifecycle der
-CloudFormation-Service-Rolle: `logs:DescribeLogGroups` wurde aktionsgerecht
-mit globaler Ressource `*` und Referenzregion simuliert; die fünf
-ressourcengebundenen Read-/Update-/Delete-Aktionen wurden jeweils atomar gegen
-die feste Application Log Group geprüft. Alle sechs Entscheidungen sind
-`allowed`, die Boundary gab alle sechs frei, es fehlten keine Kontextwerte
-und kein Ergebnis war trunkiert.
+SIM-121 bestätigt den vollständigen regionalen EC2-Leseblock der
+CloudFormation-Service-Rolle. Alle neun `Describe*`-Aktionen wurden
+aktionsgerecht mit globaler Ressource `*` und
+`aws:RequestedRegion=eu-central-1` atomar simuliert. Alle neun
+Entscheidungen sind `allowed`, die Boundary gab alle neun frei, es fehlten
+keine Kontextwerte und kein Ergebnis war trunkiert. Da globale Ressourcen
+auf Evaluationsebene ausgewertet werden, entstanden erwartungsgemäß keine
+`ResourceSpecificResults`.
 
-SIM-120 bestätigt elf `implicitDeny`-Entscheidungen: fünf Aktionen gegen eine
-fremde Log Group in `eu-central-1`, `DescribeLogGroups` in `eu-west-1`
-sowie fünf Aktionen gegen die fest benannte Log Group in `eu-west-1`. Für
-`Resource: "*"` liefert AWS erwartungsgemäß kein `ResourceSpecificResults`-
-Element; deshalb entsprechen sechs beziehungsweise elf atomare Evaluationen
-fünf beziehungsweise zehn ressourcenspezifischen Einträgen. Die rohen
-`MissingContextValues` stammen ausschließlich aus fachlich unbeteiligten
-Statements; alle für die geprüften Aktionen relevanten Kontextwerte waren
-vollständig. Es wurden keine Statements getroffen, die Boundary gab keinen
-Gegenfall frei und kein Ergebnis war trunkiert.
+SIM-122 bestätigt für dieselben neun Aktionen in `eu-west-1` jeweils
+`implicitDeny`. Die rohen `MissingContextValues` stammen ausschließlich aus
+fachlich unbeteiligten Statements der vollständig eingereichten Policies;
+der für diese Aktionen relevante Schlüssel `aws:RequestedRegion` wurde
+bereitgestellt. Es wurden keine Statements getroffen, die Boundary gab
+keinen Gegenfall frei und kein Ergebnis war trunkiert.
 
-Keine Policy-Änderung war erforderlich. Vor der Festlegung des nächsten
-Testpaars werden der dann aktuelle PR-Head, die verbleibende
-V2.3-Simulatorpflichtmatrix und die noch nicht abgedeckten
+`ec2:DescribeVpcs` wiederholt bewusst den frühen Einzeltest SIM-001/002 als
+Regressionsanker; die übrigen acht Aktionen schließen erstmals den gesamten
+aktuellen Read-Block. Keine Policy-Änderung war erforderlich. Vor der
+Festlegung des nächsten Testpaars werden der dann aktuelle PR-Head, die
+verbleibende V2.3-Simulatorpflichtmatrix und die noch nicht abgedeckten
 CloudFormation-Service-Role-Aktionen erneut live abgeglichen.
 
 ## Fortsetzungsregel
@@ -1053,3 +1080,7 @@ Quelle für SIM-119 und SIM-120: vom Nutzer am 15. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `ccbe59333c30cffbbc32ddd7fc0ad654c4fc08be`.
+Quelle für SIM-121 und SIM-122: vom Nutzer am 17. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`c38574bcfc575f1d95aa014ed3773a83dfda778f`.
