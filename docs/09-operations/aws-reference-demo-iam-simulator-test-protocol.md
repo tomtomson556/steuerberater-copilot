@@ -1,8 +1,8 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 17. August 2026\
+Stand: 18. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `22bf35143157ddf17d90e64c5bf5b9a8ef250625`
+Zuletzt geprüfter Ausgangsstand: `1932ec9601693eff6e9fa2abfa339ba150891ebc`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **126**
+- Bestätigte nummerierte Simulatorfälle: **128**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -163,6 +163,8 @@ nicht.
 | SIM-124 | CloudFormation-Service-Rolle | dieselben vier EC2-Create-Aktionen | unzulässiger Tag-Schlüssel, falscher Project-Wert, falsche Region und fremdes Konto; 16 atomare Evaluationen und 24 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary über die ersten drei Gegenfallgruppen 18-mal freigebend und beim fremden Konto niemals freigebend; keine Trunkierung | `implicitDeny` × 16 | bestanden |
 | SIM-125 | CloudFormation-Service-Rolle | `ec2:CreateTags` auf Internet Gateway, Route Table, Subnet und VPC | vier korrekte Action-/Ressourcenbindungen über `ec2:CreateAction=CreateInternetGateway`, `CreateRouteTable`, `CreateSubnet` und `CreateVpc`; fünf feste Request-Tags und exakt fünf zulässige Tag-Schlüssel; vier vollständige Policy-Dokumente, vier atomare Evaluationen und vier `ResourceSpecificResults`; keine fehlenden Kontextwerte; vier passende Statements; Boundary viermal freigebend; keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-126 | CloudFormation-Service-Rolle | `ec2:CreateTags` auf denselben vier EC2-Ressourcentypen | nicht freigegebener Wert `ec2:CreateAction=CreateNetworkInterface`; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary viermal freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
+| SIM-127 | CloudFormation-Service-Rolle | sieben EC2-Lifecycle-Mutationen: `ec2:AssociateRouteTable`, `ec2:AttachInternetGateway`, `ec2:CreateRoute`, `ec2:ModifySubnetAttribute`, `ec2:ModifyVpcAttribute`, `ec2:ReplaceRoute` und `ec2:ReplaceRouteTableAssociation` | richtige Region, richtiges Konto und `ec2:ResourceTag/Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, sieben atomare Evaluationen und zehn aktionsgenaue `ResourceSpecificResults`; keine fehlenden Kontextwerte; zehn passende Statements; Boundary zehnmal freigebend; keine Trunkierung | `allowed` × 7 | bestanden |
+| SIM-128 | CloudFormation-Service-Rolle | dieselben sieben EC2-Lifecycle-Mutationen | falscher Project-Wert, falsche Region und fremdes Konto; 21 atomare Evaluationen und 30 aktionsgenaue `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 21 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -291,7 +293,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-122
+## Ausführungsnachweise SIM-031 bis SIM-128
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -795,6 +797,55 @@ SIM-126  CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=implicitDeny × 4
          CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_BOUNDARY_ALLOWED=4
          CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_TRUNCATED=false
          CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION_NEGATIVE=passed
+SIM-127  CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_FOUNDATION_ACTIONS=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_BOUNDARY_ACTIONS=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_ACTION_DOCUMENT_PAIRS=14
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_FOUNDATION_STATEMENT_ACTIONS=15
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_BOUNDARY_STATEMENT_ACTIONS=15
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_FOUNDATION_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_BOUNDARY_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_CONDITIONED_STATEMENTS=2
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_EC2_MUTATIONS=allowed × 7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_TOTAL=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_RESOURCE_SPECIFIC_RESULTS=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_MATCHED_STATEMENTS=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_BOUNDARY_ALLOWED=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_POSITIVE=passed
+SIM-128  CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT=implicitDeny × 7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_TOTAL=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_RESOURCE_SPECIFIC_RESULTS=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION=implicitDeny × 7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_TOTAL=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_REGION_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT=implicitDeny × 7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_TOTAL=7
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_RESOURCE_SPECIFIC_RESULTS=10
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_FOREIGN_ACCOUNT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_TOTAL=21
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=30
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -959,31 +1010,31 @@ SIM-126  CFN_SERVICE_ROLE_EC2_CREATE_TAGS_WRONG_CREATE_ACTION=implicitDeny × 4
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-125/126
+## Stand nach SIM-127/128
 
-SIM-125 bestätigt `ec2:CreateTags` für die vier EC2-Ressourcentypen
-Internet Gateway, Route Table, Subnet und VPC mit den jeweils vorgesehenen
-`ec2:CreateAction`-Werten `CreateInternetGateway`, `CreateRouteTable`,
-`CreateSubnet` und `CreateVpc`. Alle vier Gesamt- und
-Ressourcenentscheidungen sind `allowed`; es fehlten keine Kontextwerte,
-vier Statements trafen zu, die Boundary gab alle vier Ressourcen frei und
-kein Ergebnis war trunkiert.
+SIM-127 bestätigt die sieben nicht destruktiven EC2-Lifecycle-Mutationen
+`AssociateRouteTable`, `AttachInternetGateway`, `CreateRoute`,
+`ModifySubnetAttribute`, `ModifyVpcAttribute`, `ReplaceRoute` und
+`ReplaceRouteTableAssociation` für die aktionsgenauen Route-Table-, Subnet-,
+Internet-Gateway- und VPC-Ressourcen im Referenzkonto und in
+`eu-central-1`. Mit `ec2:ResourceTag/Project=steuerberater-copilot` sind alle
+sieben Gesamtentscheidungen und alle zehn Ressourcenentscheidungen
+`allowed`; zehn Foundation-Statements trafen zu, die Boundary gab alle zehn
+Ressourcen frei, es fehlte kein Kontextwert und kein Ergebnis war trunkiert.
 
-SIM-126 bestätigt, dass der nicht freigegebene Wert
-`ec2:CreateAction=CreateNetworkInterface` auf allen vier Ressourcen jeweils
-zu `implicitDeny` führt. Die Boundary gab die Ressourcen viermal frei,
-während die Foundation-Bedingung nicht erfüllt war; daher wurde kein
-Foundation-Statement getroffen. Die rohen fehlenden Kontextwerte stammen
-ausschließlich aus fachlich unbeteiligten Statements. Alle für
-`ec2:CreateTags` relevanten Request-Tag-, TagKeys- und CreateAction-Werte
-waren vollständig, und kein Ergebnis war trunkiert.
+SIM-128 bestätigt dieselben Aktionen gegen drei unabhängige Scope-Grenzen:
+falscher Project-Wert, falsche Region und fremdes Konto. Alle 21
+Gesamtentscheidungen und alle 30 Ressourcenentscheidungen sind
+`implicitDeny`. Es traf kein Foundation-Statement zu, und die Boundary gab
+keine Ressource frei. Die rohen fehlenden Kontextwerte stammen
+ausschließlich aus fachlich unbeteiligten Statements; der für dieses Paar
+relevante ResourceTag-Kontext war vollständig. Kein Ergebnis war trunkiert.
 
-Die beiden vorherigen Ausführungen wurden wegen der beschriebenen reinen
-Harness-Fehler nicht gewertet. Die erfolgreiche Wiederholung prüfte
-unverändert dieselben vollständigen vier Policy-Dokumente. Keine
-Policy-Änderung war erforderlich. Vor dem nächsten Testpaar werden der neue
-PR-Head und die verbleibenden noch nicht abgedeckten
-CloudFormation-Service-Role-Aktionen erneut live abgeglichen.
+Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen vier
+Policy-Dokumente. Keine Policy-Änderung war erforderlich. Vor dem nächsten
+Testpaar werden der neue PR-Head und die verbleibenden acht noch nicht
+abgedeckten EC2-Abbau- und Löschaktionen der CloudFormation-Service-Rolle
+erneut live abgeglichen.
 
 ## Fortsetzungsregel
 
@@ -1199,3 +1250,8 @@ Quelle für SIM-125 und SIM-126: vom Nutzer am 17. August 2026 ausdrücklich
 gemeldete Terminalausgaben der vollständig bestandenen, zweimal ausschließlich
 am Harness korrigierten Wiederholung auf dem geprüften Ausgangsstand
 `19fba93cdff254fae2d5150087d11123dab1fd1f`.
+
+Quelle für SIM-127 und SIM-128: vom Nutzer am 18. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`1932ec9601693eff6e9fa2abfa339ba150891ebc`.
