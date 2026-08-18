@@ -2,7 +2,7 @@
 
 Stand: 18. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `258d01c176396d1cafd36080225ffdc61c5f04b2`
+Zuletzt geprüfter Ausgangsstand: `dcf3285eef0a97c5367947793735720cd77a9600`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **134**
+- Bestätigte nummerierte Simulatorfälle: **136**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -168,9 +168,11 @@ nicht.
 | SIM-129 | CloudFormation-Service-Rolle | acht EC2-Abbau- und Löschaktionen: `ec2:DeleteInternetGateway`, `ec2:DeleteRoute`, `ec2:DeleteRouteTable`, `ec2:DeleteSubnet`, `ec2:DeleteTags`, `ec2:DeleteVpc`, `ec2:DetachInternetGateway` und `ec2:DisassociateRouteTable` | richtige Region, richtiges Konto und `ec2:ResourceTag/Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, acht atomare Evaluationen und 13 aktionsgenaue `ResourceSpecificResults`; keine fehlenden Kontextwerte; 13 passende Statements; Boundary 13-mal freigebend; keine Trunkierung | `allowed` × 8 | bestanden |
 | SIM-130 | CloudFormation-Service-Rolle | dieselben acht EC2-Abbau- und Löschaktionen | falscher Project-Wert, falsche Region und fremdes Konto; 24 atomare Evaluationen und 39 aktionsgenaue `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 24 | bestanden |
 | SIM-131 | CloudFormation-Service-Rolle | `ecs:CreateExpressGatewayService`, servicebezogenes `ecs:TagResource`, `secretsmanager:CreateSecret` und `secretsmanager:TagResource` | jeweils exakte Referenzressource, richtige Region, fünf feste Request-Tags und exakt fünf zulässige Tag-Schlüssel; vier vollständige Policy-Dokumente, vier atomare Evaluationen und vier `ResourceSpecificResults`; keine fehlenden Kontextwerte; vier passende Statements; Boundary viermal freigebend; keine Trunkierung | `allowed` × 4 | bestanden |
-| SIM-132 | CloudFormation-Service-Rolle | dieselben vier ECS-/Secrets-Manager-Create-/Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner`, falscher Project-Wert und falsche Region jeweils auf den vier korrekten Action-/Ressourcen-Paaren sowie vier fremde ECS-/Secret-Ressourcen; 16 atomare Evaluationen und 16 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary bei den zwölf Condition-Gegenfällen freigebend und bei den vier fremden Ressourcen niemals freigebend; keine Trunkierung | `implicitDeny` × 16 | bestanden |
+| SIM-132 | CloudFormation-Service-Rolle | dieselben vier ECS-/Secrets-Manager-Create-/Tag-Aktionen | unzulässiger Tag-Schlüssel `Owner`, falscher Project-Wert und falsche Region jeweils auf den vier korrekten Action-/Ressourcen-Paaren sowie vier fremde ECS-/Secret-Ressourcen; 16 atomare Evaluationen und 16 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary bei den zwölf Condition-Gegenfällen freigebend und bei den vier fremden Ressourcen niemals freigebend | `implicitDeny` × 16 | bestanden |
 | SIM-133 | CloudFormation-Service-Rolle | `secretsmanager:DescribeSecret`, `secretsmanager:GetSecretValue`, `secretsmanager:UntagResource` und `secretsmanager:UpdateSecret` | synthetisches Referenz-Secret; vier vollständige Policy-Dokumente, vier atomare Evaluationen und vier `ResourceSpecificResults`; keine fehlenden Kontextwerte; vier passende Statements; Boundary viermal freigebend; keine Trunkierung | `allowed` × 4 | bestanden |
 | SIM-134 | CloudFormation-Service-Rolle | dieselben vier Secrets-Manager-Read-/Update-Aktionen | falsches Secret, festes Secret in `eu-west-1` und gleichnamiges Secret in fremdem Konto; zwölf atomare Evaluationen und zwölf `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 12 | bestanden |
+| SIM-135 | CloudFormation-Service-Rolle | `secretsmanager:DeleteSecret` | synthetisches Referenz-Secret mit `secretsmanager:ForceDeleteWithoutRecovery=true`; vier vollständige Policy-Dokumente, eine atomare Evaluation und ein `ResourceSpecificResult`; keine fehlenden Kontextwerte; ein passendes Statement; Boundary freigebend; keine Trunkierung | `allowed` | bestanden |
+| SIM-136 | CloudFormation-Service-Rolle | `secretsmanager:DeleteSecret` | `ForceDeleteWithoutRecovery=false`, falsches Secret, festes Secret in `eu-west-1` und gleichnamiges Secret in fremdem Konto; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -299,7 +301,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-134
+## Ausführungsnachweise SIM-031 bis SIM-136
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -1016,6 +1018,66 @@ SIM-134  CFN_SERVICE_ROLE_SECRET_LIFECYCLE_WRONG_SECRET=implicitDeny implicitDen
          CFN_SERVICE_ROLE_SECRET_LIFECYCLE_NEGATIVE_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_SECRET_LIFECYCLE_NEGATIVE_BOUNDARY_ALLOWED=0
          CFN_SERVICE_ROLE_SECRET_LIFECYCLE_NEGATIVE=passed
+SIM-135  CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_UNIQUE_ACTIONS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_IDENTITY_ACTION_OCCURRENCES=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_BOUNDARY_ACTION_OCCURRENCES=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_ACTION_DOCUMENT_PAIRS=2
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_CONDITIONED_STATEMENTS=2
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_SERVICE_FORCE_STATEMENTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_BOUNDARY_FORCE_STATEMENTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_SECRET_DELETE=allowed
+         CFN_SERVICE_ROLE_SECRET_DELETE_TOTAL=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_RESOURCE_SPECIFIC_RESULTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_MATCHED_STATEMENTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_BOUNDARY_ALLOWED=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_TRUNCATED=false
+         CFN_SERVICE_ROLE_SECRET_DELETE_POSITIVE=passed
+SIM-136  CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE=implicitDeny
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_TOTAL=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_RESOURCE_SPECIFIC_RESULTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_TRUNCATED=false
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_FORCE_NEGATIVE=passed
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET=implicitDeny
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_TOTAL=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_RESOURCE_SPECIFIC_RESULTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_TRUNCATED=false
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_SECRET_NEGATIVE=passed
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION=implicitDeny
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_TOTAL=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_SECRET_DELETE_WRONG_REGION_NEGATIVE=passed
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT=implicitDeny
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_TOTAL=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_RESOURCE_SPECIFIC_RESULTS=1
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_TRUNCATED=false
+         CFN_SERVICE_ROLE_SECRET_DELETE_FOREIGN_ACCOUNT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_SECRET_DELETE_NEGATIVE_TOTAL=4
+         CFN_SERVICE_ROLE_SECRET_DELETE_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=4
+         CFN_SERVICE_ROLE_SECRET_DELETE_NEGATIVE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_NEGATIVE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_SECRET_DELETE_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -1180,7 +1242,7 @@ SIM-134  CFN_SERVICE_ROLE_SECRET_LIFECYCLE_WRONG_SECRET=implicitDeny implicitDen
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-133/134
+## Stand nach SIM-135/136
 
 SIM-129 bestätigt die acht verbliebenen EC2-Abbau- und Löschaktionen
 `DeleteInternetGateway`, `DeleteRoute`, `DeleteRouteTable`, `DeleteSubnet`,
@@ -1237,6 +1299,28 @@ kein Identity-Statement traf zu und die Boundary gab keine Ressource frei. Die
 rohen fehlenden Kontextwerte stammen ausschließlich aus fachlich
 unbeteiligten Statements; für den getesteten Secret-Lifecycle war der relevante
 Kontext vollständig. Kein Ergebnis war trunkiert.
+
+SIM-135 bestätigt anschließend `secretsmanager:DeleteSecret` auf dem
+synthetischen Referenz-Secret mit
+`secretsmanager:ForceDeleteWithoutRecovery=true`. Die Gesamt- und
+Ressourcenentscheidung ist `allowed`; es fehlte kein Kontextwert, genau ein
+Identity-Statement traf zu, die Boundary gab die Ressource frei und das
+Ergebnis war nicht trunkiert. Der statische Vorcheck bestätigt je genau ein
+Delete-Vorkommen in Identity-Policy und Boundary sowie die zugehörige
+Force-Delete-Bedingung in beiden Policy-Pfaden.
+
+SIM-136 bestätigt denselben Delete-Pfad mit
+`ForceDeleteWithoutRecovery=false`, auf einem falschen Secret, in
+`eu-west-1` und in einem fremden Konto. Alle vier Gesamt- und
+Ressourcenentscheidungen sind `implicitDeny`; kein Identity-Statement traf zu
+und die Boundary gab keine Ressource frei. Die rohen fehlenden Kontextwerte
+stammen ausschließlich aus fachlich unbeteiligten Statements; für
+`DeleteSecret` war der relevante Force-Delete-Kontext vollständig. Kein
+Ergebnis war trunkiert.
+
+Damit sind auch die Secrets-Manager-Read-, Update- und Delete-Pfade der
+CloudFormation-Service-Rolle durch SIM-133 bis SIM-136 positiv und adversarial
+abgedeckt. Eine Policy-Änderung war für SIM-135/136 nicht erforderlich.
 
 Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen vier
 Policy-Dokumente; eine Policy-Änderung war nicht erforderlich. Vor dem nächsten
@@ -1477,3 +1561,8 @@ Quelle für SIM-133 und SIM-134: vom Nutzer am 18. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `258d01c176396d1cafd36080225ffdc61c5f04b2`.
+
+Quelle für SIM-135 und SIM-136: vom Nutzer am 18. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`dcf3285eef0a97c5367947793735720cd77a9600`.
