@@ -2,7 +2,7 @@
 
 Stand: 18. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `1932ec9601693eff6e9fa2abfa339ba150891ebc`
+Zuletzt geprüfter Ausgangsstand: `22de86733bcd12661ad331abc9277c111d084e2b`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **128**
+- Bestätigte nummerierte Simulatorfälle: **130**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -165,6 +165,8 @@ nicht.
 | SIM-126 | CloudFormation-Service-Rolle | `ec2:CreateTags` auf denselben vier EC2-Ressourcentypen | nicht freigegebener Wert `ec2:CreateAction=CreateNetworkInterface`; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary viermal freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 | SIM-127 | CloudFormation-Service-Rolle | sieben EC2-Lifecycle-Mutationen: `ec2:AssociateRouteTable`, `ec2:AttachInternetGateway`, `ec2:CreateRoute`, `ec2:ModifySubnetAttribute`, `ec2:ModifyVpcAttribute`, `ec2:ReplaceRoute` und `ec2:ReplaceRouteTableAssociation` | richtige Region, richtiges Konto und `ec2:ResourceTag/Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, sieben atomare Evaluationen und zehn aktionsgenaue `ResourceSpecificResults`; keine fehlenden Kontextwerte; zehn passende Statements; Boundary zehnmal freigebend; keine Trunkierung | `allowed` × 7 | bestanden |
 | SIM-128 | CloudFormation-Service-Rolle | dieselben sieben EC2-Lifecycle-Mutationen | falscher Project-Wert, falsche Region und fremdes Konto; 21 atomare Evaluationen und 30 aktionsgenaue `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 21 | bestanden |
+| SIM-129 | CloudFormation-Service-Rolle | acht EC2-Abbau- und Löschaktionen: `ec2:DeleteInternetGateway`, `ec2:DeleteRoute`, `ec2:DeleteRouteTable`, `ec2:DeleteSubnet`, `ec2:DeleteTags`, `ec2:DeleteVpc`, `ec2:DetachInternetGateway` und `ec2:DisassociateRouteTable` | richtige Region, richtiges Konto und `ec2:ResourceTag/Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, acht atomare Evaluationen und 13 aktionsgenaue `ResourceSpecificResults`; keine fehlenden Kontextwerte; 13 passende Statements; Boundary 13-mal freigebend; keine Trunkierung | `allowed` × 8 | bestanden |
+| SIM-130 | CloudFormation-Service-Rolle | dieselben acht EC2-Abbau- und Löschaktionen | falscher Project-Wert, falsche Region und fremdes Konto; 24 atomare Evaluationen und 39 aktionsgenaue `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 24 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -293,7 +295,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-128
+## Ausführungsnachweise SIM-031 bis SIM-130
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -846,6 +848,55 @@ SIM-128  CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT=implicitDeny × 7
          CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE_BOUNDARY_ALLOWED=0
          CFN_SERVICE_ROLE_EC2_MUTATIONS_NEGATIVE=passed
+SIM-129  CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_FOUNDATION_ACTIONS=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_BOUNDARY_ACTIONS=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_ACTION_DOCUMENT_PAIRS=16
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_FOUNDATION_STATEMENT_ACTIONS=15
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_BOUNDARY_STATEMENT_ACTIONS=15
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_FOUNDATION_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_BOUNDARY_RESOURCES=4
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_CONDITIONED_STATEMENTS=2
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_EC2_TEARDOWN=allowed × 8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_TOTAL=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_RESOURCE_SPECIFIC_RESULTS=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_MATCHED_STATEMENTS=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_BOUNDARY_ALLOWED=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_POSITIVE=passed
+SIM-130  CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT=implicitDeny × 8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_TOTAL=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_RESOURCE_SPECIFIC_RESULTS=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_PROJECT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION=implicitDeny × 8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_TOTAL=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_WRONG_REGION_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT=implicitDeny × 8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_TOTAL=8
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_RESOURCE_SPECIFIC_RESULTS=13
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_TRUNCATED=false
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_FOREIGN_ACCOUNT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_NEGATIVE_TOTAL=24
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=39
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_NEGATIVE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_NEGATIVE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_EC2_TEARDOWN_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -1010,30 +1061,32 @@ SIM-128  CFN_SERVICE_ROLE_EC2_MUTATIONS_WRONG_PROJECT=implicitDeny × 7
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-127/128
+## Stand nach SIM-129/130
 
-SIM-127 bestätigt die sieben nicht destruktiven EC2-Lifecycle-Mutationen
-`AssociateRouteTable`, `AttachInternetGateway`, `CreateRoute`,
-`ModifySubnetAttribute`, `ModifyVpcAttribute`, `ReplaceRoute` und
-`ReplaceRouteTableAssociation` für die aktionsgenauen Route-Table-, Subnet-,
-Internet-Gateway- und VPC-Ressourcen im Referenzkonto und in
+SIM-129 bestätigt die acht verbliebenen EC2-Abbau- und Löschaktionen
+`DeleteInternetGateway`, `DeleteRoute`, `DeleteRouteTable`, `DeleteSubnet`,
+`DeleteTags`, `DeleteVpc`, `DetachInternetGateway` und
+`DisassociateRouteTable` für die aktionsgenauen Internet-Gateway-,
+Route-Table-, Subnet- und VPC-Ressourcen im Referenzkonto und in
 `eu-central-1`. Mit `ec2:ResourceTag/Project=steuerberater-copilot` sind alle
-sieben Gesamtentscheidungen und alle zehn Ressourcenentscheidungen
-`allowed`; zehn Foundation-Statements trafen zu, die Boundary gab alle zehn
-Ressourcen frei, es fehlte kein Kontextwert und kein Ergebnis war trunkiert.
+acht Gesamtentscheidungen und alle 13 Ressourcenentscheidungen `allowed`;
+13 Foundation-Statements trafen zu, die Boundary gab alle 13 Ressourcen
+frei, es fehlte kein Kontextwert und kein Ergebnis war trunkiert.
 
-SIM-128 bestätigt dieselben Aktionen gegen drei unabhängige Scope-Grenzen:
-falscher Project-Wert, falsche Region und fremdes Konto. Alle 21
-Gesamtentscheidungen und alle 30 Ressourcenentscheidungen sind
-`implicitDeny`. Es traf kein Foundation-Statement zu, und die Boundary gab
-keine Ressource frei. Die rohen fehlenden Kontextwerte stammen
-ausschließlich aus fachlich unbeteiligten Statements; der für dieses Paar
-relevante ResourceTag-Kontext war vollständig. Kein Ergebnis war trunkiert.
+SIM-130 bestätigt dieselben Aktionen gegen falschen Project-Wert, falsche
+Region und fremdes Konto. Alle 24 Gesamtentscheidungen und alle 39
+Ressourcenentscheidungen sind `implicitDeny`. Es traf kein
+Foundation-Statement zu, und die Boundary gab keine Ressource frei. Die
+rohen fehlenden Kontextwerte stammen ausschließlich aus fachlich
+unbeteiligten Statements; der relevante ResourceTag-Kontext war vollständig.
+Kein Ergebnis war trunkiert.
 
-Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen vier
-Policy-Dokumente. Keine Policy-Änderung war erforderlich. Vor dem nächsten
-Testpaar werden der neue PR-Head und die verbleibenden acht noch nicht
-abgedeckten EC2-Abbau- und Löschaktionen der CloudFormation-Service-Rolle
+Damit sind alle 15 Aktionen des gemeinsam mit
+`ec2:ResourceTag/Project=steuerberater-copilot` gebundenen
+EC2-Lifecycle-Statements durch SIM-127 bis SIM-130 positiv und adversarial
+abgedeckt. Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen
+vier Policy-Dokumente; eine Policy-Änderung war nicht erforderlich. Vor dem
+nächsten Testpaar werden der neue PR-Head und die verbleibende Pflichtmatrix
 erneut live abgeglichen.
 
 ## Fortsetzungsregel
@@ -1255,3 +1308,8 @@ Quelle für SIM-127 und SIM-128: vom Nutzer am 18. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `1932ec9601693eff6e9fa2abfa339ba150891ebc`.
+
+Quelle für SIM-129 und SIM-130: vom Nutzer am 18. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`22de86733bcd12661ad331abc9277c111d084e2b`.
