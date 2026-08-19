@@ -1,4 +1,4 @@
-# AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll – Teil 2
+# AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll - Teil 2
 
 Stand: 19. August 2026  
 Repository: `tomtomson556/steuerberater-copilot`  
@@ -34,7 +34,7 @@ Nur tatsächlich ausgeführte und vollständig bestandene Simulatorfälle werden
 nummeriert. Fehlgeschlagene Harness-Versuche oder reine Diagnoseläufe erhalten
 keine SIM-Nummer.
 
-## Bestätigte Simulatorfälle – Teil 2
+## Bestätigte Simulatorfälle - Teil 2
 
 | ID | Identität / Bereich | Aktion und Gegenstand | Kontext / Gegenfall | Entscheidung | Status |
 |---|---|---|---|---|---|
@@ -81,7 +81,7 @@ CFN_SERVICE_ROLE_ECS_READS_TRUNCATED=false
 CFN_SERVICE_ROLE_ECS_READS_POSITIVE=passed
 ```
 
-SIM-142 – falscher Service:
+SIM-142 - falscher Service:
 
 ```text
 CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
@@ -94,7 +94,7 @@ CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_TRUNCATED=false
 CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_NEGATIVE=passed
 ```
 
-SIM-142 – falsche Region:
+SIM-142 - falsche Region:
 
 ```text
 CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
@@ -107,7 +107,7 @@ CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_TRUNCATED=false
 CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_NEGATIVE=passed
 ```
 
-SIM-142 – fremdes Konto:
+SIM-142 - fremdes Konto:
 
 ```text
 CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
