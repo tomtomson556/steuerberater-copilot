@@ -6,6 +6,7 @@ Branch: `agent/add-iam-simulator-test-protocol`
 Fortsetzung von: `docs/09-operations/aws-reference-demo-iam-simulator-test-protocol.md`  
 Letzter in Teil 1 bestätigter Fall: `SIM-140`  
 Zuletzt für dieses Testpaar geprüfter Ausgangsstand: `aa1b052033281796a63eafaaa411f252c67c1b6c`  
+Zuletzt diagnostisch geprüfter Ausgangsstand: `ca096ec74431857eea4776faf1505d40fe16a156`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -157,6 +158,115 @@ CloudFormation-Service-Rolle positiv sowie gegen Servicebezug, Region und
 Konto adversarial abgedeckt. Eine Policy-Änderung war für SIM-141/142 nicht
 erforderlich.
 
+## Nicht nummerierter Diagnoseblock nach SIM-141/142
+
+Der danach untersuchte Restblock bestand aus
+`ecs:UpdateExpressGatewayService` und
+`ecs:DeleteExpressGatewayService` auf dem exakten Referenzservice. Die
+Service-Policy bindet beide Aktionen mit
+`ecs:ResourceTag/Project=steuerberater-copilot`; die Boundary erlaubt beide
+Aktionen auf derselben Ressource.
+
+Der erste positive Harness-Versuch auf dem Ausgangsstand
+`ca096ec74431857eea4776faf1505d40fe16a156` ergab trotz vollständig
+bereitgestelltem `ecs:ResourceTag/Project`-Kontext zweimal `implicitDeny`:
+
+```text
+TESTED_HEAD=ca096ec74431857eea4776faf1505d40fe16a156
+HEAD_CHECK=passed
+POLICY_WORKTREE_CHECK=passed
+ACCOUNT_ID_CHECK=passed
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_CHECK=passed
+CFN_SERVICE_ROLE_ECS_MUTATIONS=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TOTAL=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RESOURCE_SPECIFIC_RESULTS=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_MUTATIONS_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_ALLOWED=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_MUTATIONS_POSITIVE=failed
+```
+
+Dieser Versuch erhielt keine SIM-Nummer. Ein anschließender unnummerierter
+Diagnoselauf verglich die unveränderte Policy mit isolierten und ausschließlich
+im Speicher erzeugten Kontrollvarianten. Die Context-Key-Ermittlung erkannte
+den in der Repository-Policy verwendeten service-spezifischen Schlüssel:
+
+```text
+DIAG_ECS_MUTATIONS_CURRENT_TARGET_CONDITION=[{"StringEquals":{"ecs:ResourceTag/Project":"steuerberater-copilot"}}]
+DIAG_ECS_MUTATIONS_GLOBAL_TARGET_CONDITION=[{"StringEquals":{"aws:ResourceTag/Project":"steuerberater-copilot"}}]
+DIAG_ECS_MUTATIONS_UNCONDITIONED_TARGET_CONDITION_COUNT=0
+DIAG_ECS_MUTATIONS_IN_MEMORY_VARIANTS_CHECK=passed
+DIAG_ECS_MUTATIONS_CURRENT_CONTEXT_KEYS=aws:RequestTag/Component aws:RequestTag/Environment aws:RequestTag/Lifecycle aws:RequestTag/ManagedBy aws:RequestTag/Project aws:RequestedRegion aws:TagKeys ecs:ResourceTag/Project secretsmanager:ForceDeleteWithoutRecovery
+```
+
+Die unveränderte Policy blieb sowohl mit vollständigem Policy-Satz als auch
+isoliert mit dem service-spezifischen Kontextwert und mit beiden Tag-Kontexten
+bei `implicitDeny`. Die Boundary gab die Ressource in allen Fällen frei; das
+Identity-Statement traf jedoch nicht zu:
+
+```text
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_RELEVANT_MISSING_CONTEXT=ecs:ResourceTag/Project
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_TRUNCATED=false
+```
+
+Eine nur im Speicher erzeugte, ansonsten identische Kontrollvariante mit dem
+ebenfalls von AWS für beide Aktionen dokumentierten globalen Schlüssel
+`aws:ResourceTag/Project` wurde dagegen zweimal erlaubt. Auch die
+unbedingte Kontrollvariante wurde zweimal erlaubt:
+
+```text
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS=allowed allowed
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_TOTAL=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_MATCHED_STATEMENTS=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE=allowed allowed
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_TOTAL=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_MATCHED_STATEMENTS=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_TRUNCATED=false
+DIAG_ECS_MUTATIONS_COMPLETE=passed
+```
+
+Die AWS Service Authorization Reference führt für beide Aktionen auf dem
+Ressourcentyp `service` sowohl `aws:ResourceTag/${TagKey}` als auch
+`ecs:ResourceTag/${TagKey}` als unterstützte Condition Keys auf. Der
+Diagnoselauf isoliert daher eine Abweichung der Simulatorauswertung für den
+bereitgestellten service-spezifischen Tag-Kontext; er weist keinen Action-,
+Ressourcen- oder Boundary-Fehler nach. Ohne einen vollständig erfolgreichen
+Lauf der unveränderten Repository-Policy werden diese beiden Aktionen nicht
+als SIM-143/144 gezählt.
+
+Es erfolgte keine IAM-Policyänderung. Eine reale AWS-Ausführung bleibt bis zum
+Abschluss der vorgesehenen Gates weiterhin **No-Go**.
+
 ## Fortsetzungsregel
 
 Für alle weiteren Testpaare wird weiterhin dieselbe temporäre Datei
@@ -201,3 +311,9 @@ Quelle für SIM-141 und SIM-142: vom Nutzer am 19. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `aa1b052033281796a63eafaaa411f252c67c1b6c`.
+
+Quelle für den nicht nummerierten Diagnoseblock: vom Nutzer am 19. August 2026
+gemeldete Terminalausgaben auf dem geprüften Ausgangsstand
+`ca096ec74431857eea4776faf1505d40fe16a156` sowie die AWS Service Authorization
+Reference für Amazon ECS:
+<https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecs.html>.
