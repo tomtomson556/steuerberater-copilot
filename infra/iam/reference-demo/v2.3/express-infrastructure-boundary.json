@@ -4,16 +4,20 @@
     {
       "Effect": "Allow",
       "Action": "iam:CreateServiceLinkedRole",
-      "Resource": [
-        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
-        "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
-      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService",
       "Condition": {
         "StringEquals": {
-          "iam:AWSServiceName": [
-            "ecs.application-autoscaling.amazonaws.com",
-            "elasticloadbalancing.amazonaws.com"
-          ]
+          "iam:AWSServiceName": "ecs.application-autoscaling.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
         }
       }
     },
@@ -91,7 +95,6 @@
       }
     },
     {
-      "Sid": "ModifySecurityGroupOperations",
       "Effect": "Allow",
       "Action": [
         "ec2:AuthorizeSecurityGroupEgress",
@@ -111,7 +114,6 @@
       }
     },
     {
-      "Sid": "TagOnCreateEC2Resources",
       "Effect": "Allow",
       "Action": "ec2:CreateTags",
       "Resource": [
@@ -129,13 +131,11 @@
       }
     },
     {
-      "Sid": "CertificateOperations",
       "Effect": "Allow",
       "Action": [
         "acm:AddTagsToCertificate",
         "acm:DeleteCertificate",
-        "acm:DescribeCertificate",
-        "acm:RequestCertificate"
+        "acm:DescribeCertificate"
       ],
       "Resource": "arn:aws:acm:eu-central-1:<ACCOUNT_ID>:certificate/*",
       "Condition": {
@@ -145,7 +145,17 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingCreateOperations",
+      "Effect": "Allow",
+      "Action": "acm:RequestCertificate",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/AmazonECSManaged": "true",
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DeregisterScalableTarget",
@@ -160,7 +170,6 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingPolicyOperations",
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DeleteScalingPolicy",
@@ -174,7 +183,6 @@
       }
     },
     {
-      "Sid": "ApplicationAutoscalingReadOperations",
       "Effect": "Allow",
       "Action": [
         "application-autoscaling:DescribeScalableTargets",
@@ -184,7 +192,6 @@
       "Resource": "arn:aws:application-autoscaling:eu-central-1:<ACCOUNT_ID>:scalable-target/*"
     },
     {
-      "Sid": "CloudWatchAlarmCreateOperations",
       "Effect": "Allow",
       "Action": [
         "cloudwatch:PutMetricAlarm",
@@ -198,7 +205,6 @@
       }
     },
     {
-      "Sid": "CloudWatchAlarmOperations",
       "Effect": "Allow",
       "Action": [
         "cloudwatch:DeleteAlarms",
@@ -212,7 +218,6 @@
       }
     },
     {
-      "Sid": "ELBReadOperations",
       "Effect": "Allow",
       "Action": [
         "elasticloadbalancing:DescribeListeners",
@@ -229,7 +234,6 @@
       }
     },
     {
-      "Sid": "VPCReadOperations",
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeRouteTables",
@@ -245,7 +249,6 @@
       }
     },
     {
-      "Sid": "CloudWatchLogsCreateOperations",
       "Effect": "Allow",
       "Action": [
         "logs:CreateLogGroup",
@@ -259,7 +262,6 @@
       }
     },
     {
-      "Sid": "CloudWatchLogsReadOperations",
       "Effect": "Allow",
       "Action": "logs:DescribeLogGroups",
       "Resource": "*",

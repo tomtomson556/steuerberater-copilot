@@ -91,6 +91,12 @@ POLICIES = (
         "/steuerberater-copilot/reference-demo/",
     ),
     PolicyArtifact(
+        "express-infrastructure-acm-request-policy",
+        "express-infrastructure-acm-request-policy.json",
+        "express-infrastructure-acm-request-policy",
+        "/steuerberater-copilot/reference-demo/",
+    ),
+    PolicyArtifact(
         "cloudformation-service-foundation-policy",
         "cloudformation-service-role-foundation-policy.json",
         "reference-demo-cfn-foundation-policy",
@@ -767,6 +773,7 @@ def bootstrap(config: Config, client: IamClient) -> None:
     initial_policy_keys = (
         "task-execution-boundary",
         "express-infrastructure-boundary",
+        "express-infrastructure-acm-request-policy",
         "cloudformation-service-foundation-policy",
         "cloudformation-service-iam-lifecycle-policy",
         "cloudformation-service-policy",
@@ -914,6 +921,7 @@ def teardown(config: Config, client: IamClient) -> None:
         "cloudformation-service-boundary",
         "task-execution-boundary",
         "express-infrastructure-boundary",
+        "express-infrastructure-acm-request-policy",
         *OPERATOR_POLICY_KEYS,
         "operator-boundary",
     )
@@ -931,6 +939,7 @@ def _plan_steps(operation: str, config: Config) -> list[dict[str, Any]]:
         keys_before_role = (
             "task-execution-boundary",
             "express-infrastructure-boundary",
+            "express-infrastructure-acm-request-policy",
             "cloudformation-service-foundation-policy",
             "cloudformation-service-iam-lifecycle-policy",
             "cloudformation-service-policy",
@@ -1026,6 +1035,7 @@ def _plan_steps(operation: str, config: Config) -> list[dict[str, Any]]:
         "cloudformation-service-boundary",
         "task-execution-boundary",
         "express-infrastructure-boundary",
+        "express-infrastructure-acm-request-policy",
         *OPERATOR_POLICY_KEYS,
         "operator-boundary",
     )

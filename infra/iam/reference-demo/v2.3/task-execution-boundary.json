@@ -29,7 +29,7 @@
         "logs:CreateLogStream",
         "logs:PutLogEvents"
       ],
-      "Resource": "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application:log-stream:*"
+      "Resource": "arn:aws:logs:eu-central-1:<ACCOUNT_ID>:log-group:/steuerberater-copilot/reference-demo/application:*"
     },
     {
       "Sid": "ReadOnlyReferenceSyntheticSecret",

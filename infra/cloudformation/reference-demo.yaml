@@ -218,6 +218,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy
 
   ManagedSecret:
     Type: AWS::SecretsManager::Secret

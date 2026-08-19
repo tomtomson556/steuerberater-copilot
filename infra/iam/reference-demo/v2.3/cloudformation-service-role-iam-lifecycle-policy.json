@@ -138,7 +138,10 @@
       "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
       "Condition": {
         "ArnEquals": {
-          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+          "iam:PolicyARN": [
+            "arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices",
+            "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy"
+          ]
         }
       }
     },

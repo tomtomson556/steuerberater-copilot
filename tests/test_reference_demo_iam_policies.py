@@ -27,6 +27,7 @@ EXPECTED_FILES = {
     "cloudformation-service-role-policy.json",
     "cloudformation-service-role-trust-policy.json",
     "express-infrastructure-boundary.json",
+    "express-infrastructure-acm-request-policy.json",
     "operator-boundary.json",
     "operator-cloudformation-policy.json",
     "operator-ecr-publisher-policy.json",
@@ -179,6 +180,10 @@ CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS = {
     ),
     (
         f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/reference-demo/"
+        "express-infrastructure-acm-request-policy"
+    ),
+    (
+        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/reference-demo/"
         "task-execution-boundary"
     ),
 }
@@ -271,7 +276,7 @@ def test_task_execution_boundary_is_the_fixed_runtime_ceiling() -> None:
     )
     assert statement_for_action(filename, "logs:PutLogEvents")["Resource"] == (
         f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:"
-        "/steuerberater-copilot/reference-demo/application:log-stream:*"
+        "/steuerberater-copilot/reference-demo/application:*"
     )
     assert statement_for_action(filename, "secretsmanager:GetSecretValue")[
         "Resource"
@@ -336,11 +341,40 @@ def test_express_boundary_freezes_v6_service_names_and_reference_region() -> Non
         "logs:DescribeLogGroups",
         "logs:TagResource",
     }
-    create_slr = statement_for_action(filename, "iam:CreateServiceLinkedRole")
-    assert create_slr["Condition"]["StringEquals"]["iam:AWSServiceName"] == [
-        "ecs.application-autoscaling.amazonaws.com",
-        "elasticloadbalancing.amazonaws.com",
-    ]
+    create_slr_statements = statements_for_action(
+        filename,
+        "iam:CreateServiceLinkedRole",
+    )
+    assert len(create_slr_statements) == 2
+    assert all(
+        actions(statement) == {"iam:CreateServiceLinkedRole"}
+        and isinstance(statement["Resource"], str)
+        and isinstance(
+            statement["Condition"]["StringEquals"]["iam:AWSServiceName"],
+            str,
+        )
+        for statement in create_slr_statements
+    )
+    assert {
+        (
+            statement["Resource"],
+            statement["Condition"]["StringEquals"]["iam:AWSServiceName"],
+        )
+        for statement in create_slr_statements
+    } == {
+        (
+            f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+            "ecs.application-autoscaling.amazonaws.com/"
+            "AWSServiceRoleForApplicationAutoScaling_ECSService",
+            "ecs.application-autoscaling.amazonaws.com",
+        ),
+        (
+            f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+            "elasticloadbalancing.amazonaws.com/"
+            "AWSServiceRoleForElasticLoadBalancing",
+            "elasticloadbalancing.amazonaws.com",
+        ),
+    }
     assert all(
         f":{REGION}:" in resource
         for statement in statements(filename)
@@ -358,13 +392,78 @@ def test_express_boundary_freezes_v6_service_names_and_reference_region() -> Non
     assert "application-autoscaling:RegisterScalableTarget" in all_actions(filename)
     assert "cloudwatch:PutMetricAlarm" in all_actions(filename)
     for action in (
-        "acm:RequestCertificate",
         "application-autoscaling:RegisterScalableTarget",
         "elasticloadbalancing:CreateLoadBalancer",
     ):
         assert statement_for_action(filename, action)["Condition"]["StringEquals"][
             "aws:ResourceTag/AmazonECSManaged"
         ] == "true"
+
+    certificate = statement_for_action(filename, "acm:DescribeCertificate")
+    assert actions(certificate) == {
+        "acm:AddTagsToCertificate",
+        "acm:DeleteCertificate",
+        "acm:DescribeCertificate",
+    }
+    assert resources(certificate) == {
+        f"arn:aws:acm:{REGION}:{ACCOUNT}:certificate/*"
+    }
+    assert certificate["Condition"] == {
+        "StringEquals": {
+            "aws:ResourceTag/AmazonECSManaged": "true",
+        },
+    }
+
+    request = statement_for_action(filename, "acm:RequestCertificate")
+    assert actions(request) == {"acm:RequestCertificate"}
+    assert resources(request) == {"*"}
+    assert request["Condition"] == {
+        "StringEquals": {
+            "aws:RequestTag/AmazonECSManaged": "true",
+            "aws:RequestedRegion": REGION,
+        },
+    }
+
+
+def test_express_acm_request_supplement_is_minimal_and_attachable() -> None:
+    filename = "express-infrastructure-acm-request-policy.json"
+    assert all_actions(filename) == {"acm:RequestCertificate"}
+
+    request = statement_for_action(filename, "acm:RequestCertificate")
+    assert resources(request) == {"*"}
+    assert request["Condition"] == {
+        "StringEquals": {
+            "aws:RequestTag/AmazonECSManaged": "true",
+            "aws:RequestedRegion": REGION,
+        },
+    }
+
+    expected_policy_arns = {
+        (
+            "arn:aws:iam::aws:policy/service-role/"
+            "AmazonECSInfrastructureRoleforExpressGatewayServices"
+        ),
+        (
+            f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/"
+            "reference-demo/express-infrastructure-acm-request-policy"
+        ),
+    }
+
+    for lifecycle_file in (
+        "cloudformation-service-role-iam-lifecycle-policy.json",
+        "cloudformation-service-role-boundary.json",
+    ):
+        matches = [
+            statement
+            for statement in statements(lifecycle_file)
+            if actions(statement)
+            == {"iam:AttachRolePolicy", "iam:DetachRolePolicy"}
+            and resources(statement) == {EXPRESS_INFRASTRUCTURE_ROLE_ARN}
+        ]
+        assert len(matches) == 1
+        policy_arns = matches[0]["Condition"]["ArnEquals"]["iam:PolicyARN"]
+        assert isinstance(policy_arns, list)
+        assert set(policy_arns) == expected_policy_arns
 
 
 def test_service_role_create_role_is_split_by_exact_role_and_boundary() -> None:
@@ -566,6 +665,41 @@ def test_operator_never_receives_secret_read_or_direct_infrastructure_writes() -
         "ecr:CreateRepository",
         "ecr:DeleteRepository",
     } & operator_actions
+
+
+def test_operator_secrets_manager_statements_are_region_bound() -> None:
+    expected_resource = (
+        f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:"
+        "steuerberater-copilot/reference-demo/synthetic-*"
+    )
+    expected_condition = {
+        "StringEquals": {
+            "aws:RequestedRegion": REGION,
+        },
+    }
+
+    verifier = statement_for_action(
+        "operator-verifier-policy.json",
+        "secretsmanager:DescribeSecret",
+    )
+    assert actions(verifier) == {
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+    }
+    assert resources(verifier) == {expected_resource}
+    assert verifier["Condition"] == expected_condition
+
+    boundary = statement_for_action(
+        "operator-boundary.json",
+        "secretsmanager:PutSecretValue",
+    )
+    assert actions(boundary) == {
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:PutSecretValue",
+    }
+    assert resources(boundary) == {expected_resource}
+    assert boundary["Condition"] == expected_condition
 
 
 def test_verifier_is_read_only_and_exactly_scopes_express_description() -> None:
