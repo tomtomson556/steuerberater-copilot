@@ -2,7 +2,7 @@
 
 Stand: 18. August 2026\
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `c128a30a3cd6c298303cfe9e8411f078c30f0dc3`
+Zuletzt geprüfter Ausgangsstand: `28ce7cc4375136e9a15fd0d2510bcff2d1f6a61f`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -23,7 +23,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **138**
+- Bestätigte nummerierte Simulatorfälle: **140**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -175,6 +175,8 @@ nicht.
 | SIM-136 | CloudFormation-Service-Rolle | `secretsmanager:DeleteSecret` | `ForceDeleteWithoutRecovery=false`, falsches Secret, festes Secret in `eu-west-1` und gleichnamiges Secret in fremdem Konto; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 | SIM-137 | CloudFormation-Service-Rolle | `ecs:CreateCluster` | exakter Cluster `default` in `eu-central-1`; vier vollständige Policy-Dokumente, eine atomare Evaluation und ein `ResourceSpecificResult`; keine fehlenden Kontextwerte; ein passendes Identity-Statement; Boundary freigebend; keine Trunkierung | `allowed` | bestanden |
 | SIM-138 | CloudFormation-Service-Rolle | `ecs:CreateCluster` | korrekter Cluster-ARN mit `aws:RequestedRegion=eu-west-1`, falscher Clustername sowie `cluster/default` in fremdem Konto; drei atomare Evaluationen und drei `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Identity-Statements; Boundary nur beim reinen Regions-Gegenfall freigebend; keine Trunkierung | `implicitDeny` × 3 | bestanden |
+| SIM-139 | CloudFormation-Service-Rolle | `ecs:RegisterTaskDefinition` und task-definition-bezogenes `ecs:TagResource` | konkrete synthetische Task Definition im Referenzkonto und in `eu-central-1`; vier vollständige Policy-Dokumente, zwei atomare Evaluationen und zwei `ResourceSpecificResults`; keine fehlenden Kontextwerte; zwei passende Identity-Statements; Boundary zweimal freigebend; keine Trunkierung | `allowed` × 2 | bestanden |
+| SIM-140 | CloudFormation-Service-Rolle | dieselben beiden Task-Definition-Aktionen | dieselbe synthetische Task Definition in `eu-west-1` sowie im fremden Konto; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Identity-Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -303,7 +305,7 @@ zusätzliche nummerierte Simulatorfälle gezählt.
 | GRP-001 | `OPERATOR_WRONG_SERVICE_NEGATIVE=passed` | Operator darf die feste CloudFormation-Service-Rolle nicht an einen falschen Service übergeben. | bestanden |
 | GRP-002 | `OPERATOR_WRONG_ROLE_NEGATIVE=passed` | Operator darf keine andere Rolle an CloudFormation übergeben. | bestanden |
 
-## Ausführungsnachweise SIM-031 bis SIM-138
+## Ausführungsnachweise SIM-031 bis SIM-140
 
 ```text
 SIM-031  OPERATOR_ECR_PUSH=allowed × 9
@@ -1131,6 +1133,50 @@ SIM-138  CFN_SERVICE_ROLE_ECS_CLUSTER_CREATE_WRONG_REGION=implicitDeny
          CFN_SERVICE_ROLE_ECS_CLUSTER_CREATE_NEGATIVE_MATCHED_STATEMENTS=0
          CFN_SERVICE_ROLE_ECS_CLUSTER_CREATE_NEGATIVE_BOUNDARY_ALLOWED=1
          CFN_SERVICE_ROLE_ECS_CLUSTER_CREATE_NEGATIVE=passed
+SIM-139  CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_DOCUMENTS=4
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_UNIQUE_ACTIONS=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_IDENTITY_ACTION_OCCURRENCES=3
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_BOUNDARY_ACTION_OCCURRENCES=3
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_ACTION_DOCUMENT_PAIRS=4
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_SERVICE_REGISTER_TASKDEF_STATEMENTS=1
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_SERVICE_TAG_TASKDEF_STATEMENTS=1
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_BOUNDARY_REGISTER_TASKDEF_STATEMENTS=1
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_BOUNDARY_TAG_TASKDEF_STATEMENTS=1
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_TASKDEF_CONDITIONED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_ACTION_WILDCARDS=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_STATIC_CHECK=passed
+         CFN_SERVICE_ROLE_ECS_TASKDEF=allowed allowed
+         CFN_SERVICE_ROLE_ECS_TASKDEF_TOTAL=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_RESOURCE_SPECIFIC_RESULTS=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECS_TASKDEF_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECS_TASKDEF_MATCHED_STATEMENTS=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_BOUNDARY_ALLOWED=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECS_TASKDEF_POSITIVE=passed
+SIM-140  CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION=implicitDeny implicitDeny
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_TOTAL=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION_NEGATIVE=passed
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT=implicitDeny implicitDeny
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_TOTAL=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_RESOURCE_SPECIFIC_RESULTS=2
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_MISSING_CONTEXT=aws:RequestTag/Component|aws:RequestTag/Environment|aws:RequestTag/Lifecycle|aws:RequestTag/ManagedBy|aws:RequestTag/Project|aws:RequestedRegion|aws:TagKeys|ec2:CreateAction|ec2:ResourceTag/Project|ecs:ResourceTag/Project|iam:PassedToService|iam:PermissionsBoundary|iam:PolicyARN|iam:ResourceTag/Project|secretsmanager:ForceDeleteWithoutRecovery
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_RELEVANT_MISSING_CONTEXT=none
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_TRUNCATED=false
+         CFN_SERVICE_ROLE_ECS_TASKDEF_FOREIGN_ACCOUNT_NEGATIVE=passed
+         CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE_TOTAL=4
+         CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=4
+         CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE_MATCHED_STATEMENTS=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE_BOUNDARY_ALLOWED=0
+         CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE=passed
 ```
 
 ## Nicht gewertete Versuche
@@ -1295,7 +1341,7 @@ SIM-138  CFN_SERVICE_ROLE_ECS_CLUSTER_CREATE_WRONG_REGION=implicitDeny
 - Erwartungswerte aus vorgeschlagenen, aber noch nicht ausgeführten Blöcken
   werden nicht als Ergebnis protokolliert.
 
-## Stand nach SIM-137/138
+## Stand nach SIM-139/140
 
 SIM-129 bestätigt die acht verbliebenen EC2-Abbau- und Löschaktionen
 `DeleteInternetGateway`, `DeleteRoute`, `DeleteRouteTable`, `DeleteSubnet`,
@@ -1400,6 +1446,27 @@ Damit ist der bewusst separat und ohne spekulative Request-Tag-Bedingungen
 modellierte `ecs:CreateCluster`-Pfad positiv sowie gegen Region, Clustername
 und Konto abgedeckt. Eine Policy-Änderung war für SIM-137/138 nicht
 erforderlich.
+
+SIM-139 bestätigt `ecs:RegisterTaskDefinition` und das task-definition-bezogene
+`ecs:TagResource` auf einer konkreten synthetischen Task Definition im
+Referenzkonto und in `eu-central-1`. Beide Gesamt- und Ressourcenentscheidungen
+sind `allowed`; es fehlte kein Kontextwert, zwei Identity-Statements trafen zu,
+die Boundary gab beide Ressourcenentscheidungen frei und kein Ergebnis war
+trunkiert. Der statische Vorcheck bestätigt die jeweils getrennten
+Task-Definition-Statements in Service-Policy und Boundary ohne Conditions und
+ohne Action-Wildcards.
+
+SIM-140 bestätigt dieselben beiden Aktionen gegen die entsprechende
+Task-Definition-ARN in `eu-west-1` und in einem fremden Konto. Alle vier Gesamt-
+und Ressourcenentscheidungen sind `implicitDeny`; kein Identity-Statement traf
+zu und die Boundary gab keine Ressource frei. Die rohen fehlenden Kontextwerte
+stammen ausschließlich aus fachlich unbeteiligten Statements; die vier exakt
+task-definition-bezogenen Statements benötigen selbst keinen Context Key. Kein
+Ergebnis war trunkiert.
+
+Damit ist auch der auf `task-definition/*` begrenzte Register-/Tag-Pfad positiv
+und gegen Region sowie Konto adversarial abgedeckt. Eine Policy-Änderung war
+für SIM-139/140 nicht erforderlich.
 
 Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen vier
 Policy-Dokumente; eine Policy-Änderung war nicht erforderlich. Vor dem nächsten
@@ -1650,3 +1717,8 @@ Quelle für SIM-137 und SIM-138: vom Nutzer am 18. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `c128a30a3cd6c298303cfe9e8411f078c30f0dc3`.
+
+Quelle für SIM-139 und SIM-140: vom Nutzer am 19. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`28ce7cc4375136e9a15fd0d2510bcff2d1f6a61f`.
