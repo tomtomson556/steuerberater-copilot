@@ -649,8 +649,10 @@ Status: Aktueller Abschnitt. Referenz-Cloud ist AWS laut ADR-004. Die konkrete
 AWS-Laufzeit ist als Amazon ECS Express Mode in
 `docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert. Der
 minimale CloudFormation-Referenz-Stack liegt unter
-`infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Strukturierte
-Runtime-Logs und Basis-Metriken stehen noch aus.
+`infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Die
+IAM-Control-Plane v2.3 liegt unter `infra/iam/reference-demo/v2.3/`.
+Template, Guard-Regeln und Runbook werden an das IAM-/Lifecycle-Modell v2.3
+gebunden. Strukturierte Runtime-Logs und Basis-Metriken stehen noch aus.
 
 Minimaler Cloud-Scope:
 
@@ -970,11 +972,12 @@ Architekturentscheidungen.
 
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
-ADR-004. Die AWS-Referenzarchitektur ist dokumentiert. Der minimale
-CloudFormation-Referenz-Stack wird in `feat/add-reference-cloud-infrastructure`
-ergaenzt. Nach dem Merge dieses Infra-Branches ist der naechste sinnvolle
-Produktionsbranch `feat/add-structured-runtime-logging`. Basis-Metriken bleiben
-danach `feat/add-basic-runtime-metrics`.
+ADR-004. Die AWS-Referenzarchitektur, der minimale CloudFormation-Referenz-Stack
+und die IAM-Control-Plane v2.3 sind vorhanden. Der naechste sinnvolle
+Produktionsbranch nach der Template-/Runbook-Haertung an das IAM-/Lifecycle-
+Modell v2.3 ist `feat/add-structured-runtime-logging`. Basis-Metriken bleiben
+danach `feat/add-basic-runtime-metrics`. Ein AWS-Live-Test ist weiterhin nicht
+freigegeben.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1266,3 +1269,19 @@ danach `feat/add-basic-runtime-metrics`.
   Standardtests bleiben offline und netzwerkfrei. Manuelle AWS-Verifikation
   im Account bleibt ausstehend. Naechster Produktionsbranch nach Merge ist
   `feat/add-structured-runtime-logging`.
+
+### Aktualisierung vom 19. August 2026 (Template-/Runbook-Haertung v2.3)
+
+- Datum: 19. August 2026
+- Aenderung: CloudFormation-Template, Guard-Regeln und Betriebs-Runbook werden
+  an das vorhandene IAM-/Lifecycle-Modell v2.3 angebunden: feste Namen, Pfade
+  und Tags, Runtime-Role-Boundaries, statische Secret-Lesepolicy ab Stage 1,
+  gehaerteter Task-Execution-Trust, `ServiceName`/`Cpu=256`/`Memory=512`,
+  Secret-Delete-Attribute, `TaskRoleArn`-Verbot, Change-Set-only mit
+  `CAPABILITY_NAMED_IAM`. Die IAM-Policy-JSON-Dateien bleiben unveraendert.
+- Begruendung: Enge ARN-Grenzen der bereits geprueften IAM-Artefakte setzen
+  berechenbare Template-Namen und einen Change-Set-only-Betrieb voraus.
+- Auswirkung: Keine App-, Dockerfile-, Provider- oder IAM-Policyaenderung.
+  Standardtests bleiben offline und netzwerkfrei. Kein AWS-Live-Test, kein
+  Simulatorlauf und kein Logging-/Metrics-Branch. Naechster sinnvoller
+  Produktionsbranch nach Merge bleibt `feat/add-structured-runtime-logging`.

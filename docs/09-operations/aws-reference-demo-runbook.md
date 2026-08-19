@@ -4,6 +4,12 @@ Betriebs- und Deployment-Anleitung für den minimalen AWS-Referenz-Stack
 (`infra/cloudformation/reference-demo.yaml`). Synthetische Portfolio-Demo
 nur; keine echten Mandanten-, Kanzlei- oder Steuerdaten.
 
+Das Runbook bindet Template, Guard-Regeln und Betrieb an das IAM-/Lifecycle-
+Modell v2.3 und die Artefakte unter `infra/iam/reference-demo/v2.3/`. Create
+und Update laufen ausschließlich über geprüfte Change Sets mit der festen
+CloudFormation-Service-Rolle. Direkte `create-stack`- und `update-stack`-
+Aufrufe sind nicht Teil dieses Pfads.
+
 ```text
 KI bereitet vor.
 Die Kanzlei prüft.
@@ -14,66 +20,208 @@ Der Steuerberater entscheidet.
 
 - AWS-Konto und Zielregion `eu-central-1` (keine Default-VPC erforderlich; der
   Stack erzeugt seine eigene öffentliche IPv4-VPC mit zwei Subnetzen)
-- lokale Docker-Build-Fähigkeit und AWS-CLI mit Rechten für CloudFormation,
-  ECR, ECS, EC2 (VPC), IAM, Logs und Secrets Manager
+- IAM-Control-Plane v2.3 bereits gebootstrappt (Operator-Policies, Boundaries,
+  Service-Rolle). Bootstrap und Teardown liegen bei
+  `tools/aws_reference_demo_iam_control_plane.py` und sind kein Bestandteil
+  dieses Stack-Laufs.
+- lokale Docker-Build-Fähigkeit für `linux/amd64` und AWS-CLI als Operator
+  mit den v2.3-Operator-Policies
 - Billing-Budget oder Kostenalarm im Account
 - keine Credentials, Secret-Werte oder Access Keys im Repository
+- `cfn-guard` ist optional für den Operator; die Offline-Tests prüfen dieselben
+  Invarianten ohne AWS-Netzwerkzugriff
 
 Dieses Runbook wird manuell ausgeführt. CI und Standardtests deployen keinen
-Stack und benötigen kein AWS-Konto.
+Stack und benötigen kein AWS-Konto. Ein AWS-Live-Test bleibt ein separates
+Go-/No-Go und ist durch dieses Runbook nicht freigegeben.
 
-## 1. Stack-Create ohne Service
+## Verbindliche Konstanten
+
+| Größe | Wert |
+|---|---|
+| Region | `eu-central-1` |
+| Stack | `steuerberater-copilot-reference-demo` |
+| Change-Set-Präfix | `steuerberater-copilot-reference-demo-` |
+| Capabilities | ausschließlich `CAPABILITY_NAMED_IAM` |
+| Service-Rolle | `arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role` |
+| ECR | `steuerberater-copilot-reference-demo` |
+| Log Group | `/steuerberater-copilot/reference-demo/application` |
+| Express Service | Cluster `default`, Name `steuerberater-copilot-reference-demo` |
+| Taskgröße | `Cpu=256`, `Memory=512` |
+| Task Execution Role | Pfad `/steuerberater-copilot/reference-demo/`, Name `task-execution` |
+| Express Infrastructure Role | Pfad `/steuerberater-copilot/reference-demo/`, Name `express-infrastructure` |
+| optionales Secret | `steuerberater-copilot/reference-demo/synthetic` |
+
+Feste Stack- und Ressource-Tags, bei jedem `CreateChangeSet` ausdrücklich
+mitzusenden:
+
+```text
+Project=steuerberater-copilot
+Component=reference-demo
+Environment=portfolio-test
+ManagedBy=cloudformation
+Lifecycle=ephemeral
+```
+
+`cloudformation:ResourceTypes` wird nicht gesetzt. `CAPABILITY_NAMED_IAM` und
+diese API-Option sind nicht gemeinsam verwendbar; die Ressourcentypgrenze
+liegt bei Template-Hash, Guard-Allowlist, manuell geprüftem Change Set und
+der Service-Rollen-Boundary.
+
+## 0. Offline-Freeze vor jedem Change Set
+
+Im Repository-Root, gegen den geprüften Review-Commit:
 
 ```bash
-aws cloudformation create-stack \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo \
-  --template-body file://infra/cloudformation/reference-demo.yaml \
-  --capabilities CAPABILITY_IAM \
+git rev-parse HEAD
+sha256sum infra/cloudformation/reference-demo.yaml
+sha256sum infra/cloudformation/guards/reference-demo.guard
+```
+
+Die Hashes müssen zum eingefrorenen Reviewstand passen. Abweichung ist ein
+No-Go: kein Change Set erstellen oder ausführen.
+
+Optionale Guard-Ausführung, falls `cfn-guard` lokal vorhanden ist:
+
+```bash
+cfn-guard validate \
+  --data infra/cloudformation/reference-demo.yaml \
+  --rules infra/cloudformation/guards/reference-demo.guard
+```
+
+Unabhängig davon gelten die Offline-Regressionstests:
+
+```bash
+ruff check .
+pytest -q
+python tools/policy_claim_check.py
+```
+
+Guard und Tests müssen unter anderem sichern: feste Namen/Pfade/Boundaries,
+statische Secret-Lesepolicy ab Stage 1, `Cpu=256`, `Memory=512`,
+`DeletionPolicy`/`UpdateReplacePolicy=Delete` am Secret und die Abwesenheit
+von `TaskRoleArn`.
+
+Gemeinsame Operator-Variablen für die folgenden Schritte:
+
+```bash
+REGION=eu-central-1
+STACK_NAME=steuerberater-copilot-reference-demo
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+SERVICE_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+TEMPLATE="file://infra/cloudformation/reference-demo.yaml"
+```
+
+## 1. Stage-1-Change-Set ohne Service
+
+Change-Set-Typ `CREATE`. Erwartung: genau die 13 Stage-1-Ressourcen (ECR, Log
+Group, VPC-Netzwerkbasis, beide Runtime-Rollen). Kein Express Service, kein
+Secret. Beide Rollen mit fester Boundary und statischer Secret-Lesepolicy.
+
+```bash
+CHANGE_SET_NAME=steuerberater-copilot-reference-demo-stage-1
+
+aws cloudformation create-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME" \
+  --change-set-type CREATE \
+  --template-body "$TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn "$SERVICE_ROLE_ARN" \
+  --tags \
+    Key=Project,Value=steuerberater-copilot \
+    Key=Component,Value=reference-demo \
+    Key=Environment,Value=portfolio-test \
+    Key=ManagedBy,Value=cloudformation \
+    Key=Lifecycle,Value=ephemeral \
   --parameters \
     ParameterKey=DeployService,ParameterValue=false \
     ParameterKey=CreateManagedSecret,ParameterValue=false \
     ParameterKey=InjectManagedSecret,ParameterValue=false
 
+aws cloudformation wait change-set-create-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation describe-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+```
+
+Change Set nicht ausführen, bis Resource Changes, Tags und Parameter gegen
+die 13 Stage-1-Ressourcen und die Runtime-Role-Boundaries geprüft sind. Ein
+CREATE-Change-Set kann einen leeren Stack im Status `REVIEW_IN_PROGRESS`
+anlegen. Ein verworfenes Change Set und dieser leere Stack werden gelöscht:
+
+```bash
+aws cloudformation delete-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation delete-stack \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --role-arn "$SERVICE_ROLE_ARN"
+```
+
+Nach der Prüfung ausführen:
+
+```bash
+aws cloudformation execute-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
 aws cloudformation wait stack-create-complete \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo
+  --region "$REGION" \
+  --stack-name "$STACK_NAME"
 
 aws cloudformation describe-stacks \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
   --query 'Stacks[0].Outputs'
 ```
 
 Erwartete Outputs: `EcrRepositoryUri`, `LogGroupName`. Kein Service-Endpoint.
 Stage 1 legt bereits die stackeigene öffentliche VPC-Netzwerkbasis an
-(VPC, zwei öffentliche Subnetze, Internet Gateway, öffentliche Route).
+(VPC, zwei öffentliche Subnetze, Internet Gateway, öffentliche Route) sowie
+die unveränderlichen Runtime-Rollen.
 
 ## 2. Docker-Build und ECR-Push
 
+Image ausdrücklich für `linux/amd64` bauen. Ein nur für ARM64 gebautes
+Host-Image ist unzulässig.
+
 ```bash
-ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-REGION=eu-central-1
 ECR_URI="$(aws cloudformation describe-stacks \
   --region "$REGION" \
-  --stack-name steuerberater-copilot-reference-demo \
+  --stack-name "$STACK_NAME" \
   --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
   --output text)"
+ECR_REPO_NAME=steuerberater-copilot-reference-demo
 
 aws ecr get-login-password --region "$REGION" \
   | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-docker build -t steuerberater-copilot:reference .
+docker build --platform linux/amd64 -t steuerberater-copilot:reference .
+docker image inspect steuerberater-copilot:reference \
+  --format '{{.Os}}/{{.Architecture}}'
 docker tag steuerberater-copilot:reference "${ECR_URI}:bootstrap"
 docker push "${ECR_URI}:bootstrap"
 ```
+
+Erwartung der Inspect-Ausgabe: `linux/amd64`.
 
 ## 3. Digest-Ermittlung
 
 ```bash
 IMAGE_DIGEST="$(aws ecr describe-images \
   --region "$REGION" \
-  --repository-name "$(basename "$ECR_URI")" \
+  --repository-name "$ECR_REPO_NAME" \
   --image-ids imageTag=bootstrap \
   --query 'imageDetails[0].imageDigest' \
   --output text)"
@@ -84,27 +232,74 @@ echo "$IMAGE_URI"
 
 Nur Digest-URIs (`…@sha256:…`) sind für `DeployService=true` zulässig.
 
-## 4. Stack-Update mit Service
+## 4. Stage-2-Change-Set mit Service
+
+Change-Set-Typ `UPDATE`. Dieselben fünf Stack-Tags erneut mitsenden.
+`Task Execution Role` und `Express Infrastructure Role` dürfen weder als
+`Modify` noch als `Replace` erscheinen. `ServiceName`,
+`InfrastructureRoleArn` und Express-Tags sind create-only; eine
+Tag-Änderung wäre Replacement und ist ein No-Go.
 
 ```bash
-aws cloudformation update-stack \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo \
-  --template-body file://infra/cloudformation/reference-demo.yaml \
-  --capabilities CAPABILITY_IAM \
+CHANGE_SET_NAME=steuerberater-copilot-reference-demo-stage-2
+
+aws cloudformation create-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME" \
+  --change-set-type UPDATE \
+  --template-body "$TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn "$SERVICE_ROLE_ARN" \
+  --tags \
+    Key=Project,Value=steuerberater-copilot \
+    Key=Component,Value=reference-demo \
+    Key=Environment,Value=portfolio-test \
+    Key=ManagedBy,Value=cloudformation \
+    Key=Lifecycle,Value=ephemeral \
   --parameters \
     ParameterKey=DeployService,ParameterValue=true \
     ParameterKey=ImageUri,ParameterValue="$IMAGE_URI" \
     ParameterKey=CreateManagedSecret,ParameterValue=false \
     ParameterKey=InjectManagedSecret,ParameterValue=false
 
+aws cloudformation wait change-set-create-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation describe-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+```
+
+Prüfen: Express Service mit `ServiceName`, `Cluster=default`, `Cpu=256`,
+`Memory=512`, ohne `TaskRoleArn`. Bei unerwarteter Ressource, Replacement oder
+Rollenänderung das Change Set nicht ausführen und stattdessen löschen:
+
+```bash
+aws cloudformation delete-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+```
+
+Nach der Prüfung:
+
+```bash
+aws cloudformation execute-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
 aws cloudformation wait stack-update-complete \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo
+  --region "$REGION" \
+  --stack-name "$STACK_NAME"
 
 ENDPOINT="$(aws cloudformation describe-stacks \
-  --region eu-central-1 \
-  --stack-name steuerberater-copilot-reference-demo \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
   --query "Stacks[0].Outputs[?OutputKey=='ServiceEndpoint'].OutputValue" \
   --output text)"
 echo "$ENDPOINT"
@@ -129,9 +324,17 @@ Kein Secret-Wert gehört ins Repository, Template, Parameter, Output oder CI.
 Im Runbook steht deshalb **kein** `--secret-string`-Literal und kein Shell-
 Literal mit Secret-Inhalt.
 
-1. Stack mit `CreateManagedSecret=true` und weiterhin
-   `InjectManagedSecret=false` aktualisieren.
-2. ARN aus Output `ManagedSecretArn` lesen.
+Die Task Execution Role und ihre statische Secret-Lesepolicy bleiben in beiden
+Secret-Change-Sets unverändert. `DeletionPolicy: Delete` und
+`UpdateReplacePolicy: Delete` am Secret erzwingen den CloudFormation-Löschpfad
+mit `secretsmanager:ForceDeleteWithoutRecovery=true`. Ein Delete mit Recovery
+Window ist nicht Teil dieses Pfads.
+
+1. UPDATE-Change-Set mit `CreateManagedSecret=true` und weiterhin
+   `InjectManagedSecret=false` erstellen. Prüfen, dass ausschließlich das
+   Secret und abhängige Outputs erscheinen; keine IAM-Rolle als `Modify` oder
+   `Replace`.
+2. Nach `UPDATE_COMPLETE` ARN aus Output `ManagedSecretArn` lesen.
 3. **Außerhalb des Repositorys** einen synthetischen Demo-Wert über eine
    temporäre Datei in einer **Subshell** setzen. Sofort bereinigt werden nur die
    **lokale Variable** und die **temporäre Datei** - nicht der soeben in AWS
@@ -141,10 +344,55 @@ Literal mit Secret-Inhalt.
    Non-zero-Status.
 
 ```bash
-REGION=eu-central-1
+CHANGE_SET_NAME=steuerberater-copilot-reference-demo-secret-create
+
+aws cloudformation create-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME" \
+  --change-set-type UPDATE \
+  --template-body "$TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn "$SERVICE_ROLE_ARN" \
+  --tags \
+    Key=Project,Value=steuerberater-copilot \
+    Key=Component,Value=reference-demo \
+    Key=Environment,Value=portfolio-test \
+    Key=ManagedBy,Value=cloudformation \
+    Key=Lifecycle,Value=ephemeral \
+  --parameters \
+    ParameterKey=DeployService,ParameterValue=true \
+    ParameterKey=ImageUri,ParameterValue="$IMAGE_URI" \
+    ParameterKey=CreateManagedSecret,ParameterValue=true \
+    ParameterKey=InjectManagedSecret,ParameterValue=false
+
+aws cloudformation wait change-set-create-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation describe-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+```
+
+Rollen als `Modify`/`Replace` sind ein No-Go. Nach der Prüfung ausführen und
+den Secret-Wert setzen:
+
+```bash
+aws cloudformation execute-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation wait stack-update-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME"
+
 MANAGED_SECRET_ARN="$(aws cloudformation describe-stacks \
   --region "$REGION" \
-  --stack-name steuerberater-copilot-reference-demo \
+  --stack-name "$STACK_NAME" \
   --query "Stacks[0].Outputs[?OutputKey=='ManagedSecretArn'].OutputValue" \
   --output text)"
 
@@ -175,11 +423,60 @@ Der `trap` in der Subshell entfernt die temporäre Datei auch dann, wenn
 `put-secret-value` fehlschlägt. Der AWS-Secret-Wert selbst bleibt bis zum
 späteren Stack-Delete bzw. Secret-Lifecycle bestehen.
 
-4. Erst danach Stack mit `InjectManagedSecret=true` und
-   `DeployService=true` aktualisieren (Digest-`ImageUri` beibehalten).
+4. Erst danach UPDATE-Change-Set mit `InjectManagedSecret=true` und
+   `DeployService=true` (Digest-`ImageUri` beibehalten). Prüfen, dass nur
+   Express-Service-/Task-Definition-Konfiguration geändert wird und keine
+   IAM-Rolle erscheint.
 5. Injection anhand der Task-Definition / Container-Secret-Verdrahtung prüfen
    (`REFERENCE_DEMO_SECRET` → Managed-Secret-ARN). Secret-Werte nicht in Logs
    oder Tickets schreiben.
+
+```bash
+CHANGE_SET_NAME=steuerberater-copilot-reference-demo-secret-inject
+
+aws cloudformation create-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME" \
+  --change-set-type UPDATE \
+  --template-body "$TEMPLATE" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn "$SERVICE_ROLE_ARN" \
+  --tags \
+    Key=Project,Value=steuerberater-copilot \
+    Key=Component,Value=reference-demo \
+    Key=Environment,Value=portfolio-test \
+    Key=ManagedBy,Value=cloudformation \
+    Key=Lifecycle,Value=ephemeral \
+  --parameters \
+    ParameterKey=DeployService,ParameterValue=true \
+    ParameterKey=ImageUri,ParameterValue="$IMAGE_URI" \
+    ParameterKey=CreateManagedSecret,ParameterValue=true \
+    ParameterKey=InjectManagedSecret,ParameterValue=true
+
+aws cloudformation wait change-set-create-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation describe-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+```
+
+Rollenänderung oder Replacement ist ein No-Go. Nach der Prüfung:
+
+```bash
+aws cloudformation execute-change-set \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --change-set-name "$CHANGE_SET_NAME"
+
+aws cloudformation wait stack-update-complete \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME"
+```
 
 Ungültige Kombinationen (Injection ohne Create, Injection ohne Deploy,
 Deploy ohne Digest-URI) lehnt CloudFormation per Rules bzw. AllowedPattern ab.
@@ -187,12 +484,11 @@ Deploy ohne Digest-URI) lehnt CloudFormation per Rules bzw. AllowedPattern ab.
 ## 7. Stack-Delete
 
 Vor dem Delete Resource-IDs **außerhalb des Repositorys** sichern. Sonst sind
-Express-ALB-, Target-Group-, Security-Group- und stackeigene VPC-Prüfungen nach
-dem Löschen nicht reproduzierbar.
+Express-ALB-, Target-Group-, Security-Group-, Rollen- und stackeigene
+VPC-Prüfungen nach dem Löschen nicht reproduzierbar. Bloßes Verringern der
+Task-Anzahl ist keine Abschaltung.
 
 ```bash
-REGION=eu-central-1
-STACK_NAME=steuerberater-copilot-reference-demo
 VERIFY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sbc-reference-demo-verify.XXXXXX")"
 chmod 700 "$VERIFY_DIR"
 echo "Verify artifacts: $VERIFY_DIR"
@@ -222,8 +518,10 @@ MANAGED_SECRET_ARN="$(aws cloudformation describe-stacks \
 printf '%s\n' "$ECR_URI" > "$VERIFY_DIR/ecr-uri.txt"
 printf '%s\n' "$LOG_GROUP_NAME" > "$VERIFY_DIR/log-group-name.txt"
 printf '%s\n' "$MANAGED_SECRET_ARN" > "$VERIFY_DIR/managed-secret-arn.txt"
-ECR_REPO_NAME="$(basename "$ECR_URI")"
+ECR_REPO_NAME=steuerberater-copilot-reference-demo
 printf '%s\n' "$ECR_REPO_NAME" > "$VERIFY_DIR/ecr-repository-name.txt"
+printf '%s\n' "task-execution" > "$VERIFY_DIR/task-execution-role-name.txt"
+printf '%s\n' "express-infrastructure" > "$VERIFY_DIR/express-infrastructure-role-name.txt"
 
 # Stackeigene VPC-Netzwerkbasis (Physical Resource IDs)
 VPC_ID="$(aws cloudformation describe-stack-resource \
@@ -256,6 +554,14 @@ IGW_ID="$(aws cloudformation describe-stack-resource \
   --query 'StackResourceDetail.PhysicalResourceId' \
   --output text)"
 printf '%s\n' "$IGW_ID" > "$VERIFY_DIR/internet-gateway-id.txt"
+
+ROUTE_TABLE_ID="$(aws cloudformation describe-stack-resource \
+  --region "$REGION" \
+  --stack-name "$STACK_NAME" \
+  --logical-resource-id PublicRouteTable \
+  --query 'StackResourceDetail.PhysicalResourceId' \
+  --output text)"
+printf '%s\n' "$ROUTE_TABLE_ID" > "$VERIFY_DIR/route-table-id.txt"
 
 # Express Gateway Service Physical Resource ID (= Service-ARN)
 EXPRESS_SERVICE_ARN="$(aws cloudformation describe-stack-resource \
@@ -322,12 +628,14 @@ aws ecs describe-service-revisions \
   --output text > "$VERIFY_DIR/express-log-group-names.txt"
 ```
 
-Danach den Stack löschen:
+Danach den Stack über dieselbe Service-Rolle löschen. CloudFormation löscht
+das optionale Secret mit `ForceDeleteWithoutRecovery=true`.
 
 ```bash
 aws cloudformation delete-stack \
   --region "$REGION" \
-  --stack-name "$STACK_NAME"
+  --stack-name "$STACK_NAME" \
+  --role-arn "$SERVICE_ROLE_ARN"
 
 aws cloudformation wait stack-delete-complete \
   --region "$REGION" \
@@ -336,7 +644,8 @@ aws cloudformation wait stack-delete-complete \
 
 `EmptyOnDelete: true` leert das ECR-Repository beim Löschen. Die
 stackverwaltete Log Group mit 14 Tagen Retention wird mit dem Stack entfernt.
-Bloßes Verringern der Task-Anzahl ist keine Abschaltung.
+Die Runtime-Rollen werden mit dem Stack entfernt; die IAM-Control-Plane
+außerhalb des Stacks bleibt bis zum späteren Teardown bestehen.
 
 ## 8. Prüfung auf verbliebene Ressourcen
 
@@ -347,9 +656,11 @@ Harte Fehler (`FAIL`, Non-zero), wenn noch existieren:
 - Express Gateway Service
 - stackeigenes ECR
 - stackeigene Log Group
-- stackeigenes Managed Secret (falls zuvor angelegt)
-- stackeigene VPC, öffentliche Subnetze, Internet Gateway und öffentliche
-  Route Table
+- stackeigenes Managed Secret (falls zuvor angelegt) oder ein Secret in
+  Löschwartestellung
+- stackeigene Task Execution Role und Express Infrastructure Role
+- stackeigene VPC, öffentliche Subnetze, Internet Gateway, Route Table und
+  öffentliche Route
 - eindeutig serviceeigene Target Groups
 - `serviceSecurityGroups` dieser Demo
 
@@ -358,6 +669,10 @@ Nicht automatisch als harter Fehler behandeln (`WARN`):
 - ein geteilter Application Load Balancer
 - zugehörige `loadBalancerSecurityGroups`
 - von Express Mode zurückbehaltene Log Groups
+- der geteilte ECS-Cluster `default`
+- accountweite Service-Linked Roles
+- projektbezogene `STOPPED`-Tasks und Task Definitions in dokumentierten
+  AWS-Löschfenstern
 
 Vor manueller Löschung von ALB- oder ALB-Security-Group-Resten die Zuordnung zu
 anderen Express-Services bzw. dem geteilten ALB prüfen. Nicht alle Einträge aus
@@ -375,10 +690,13 @@ EXPRESS_SERVICE_ARN="$(cat "$VERIFY_DIR/express-service-arn.txt")"
 ECR_REPO_NAME="$(cat "$VERIFY_DIR/ecr-repository-name.txt")"
 LOG_GROUP_NAME="$(cat "$VERIFY_DIR/log-group-name.txt")"
 MANAGED_SECRET_ARN="$(cat "$VERIFY_DIR/managed-secret-arn.txt")"
+TASK_EXECUTION_ROLE_NAME="$(cat "$VERIFY_DIR/task-execution-role-name.txt")"
+EXPRESS_INFRASTRUCTURE_ROLE_NAME="$(cat "$VERIFY_DIR/express-infrastructure-role-name.txt")"
 VPC_ID="$(cat "$VERIFY_DIR/vpc-id.txt")"
 PUBLIC_SUBNET_A_ID="$(cat "$VERIFY_DIR/public-subnet-a-id.txt")"
 PUBLIC_SUBNET_B_ID="$(cat "$VERIFY_DIR/public-subnet-b-id.txt")"
 IGW_ID="$(cat "$VERIFY_DIR/internet-gateway-id.txt")"
+ROUTE_TABLE_ID="$(cat "$VERIFY_DIR/route-table-id.txt")"
 ALB_ARN="$(cat "$VERIFY_DIR/alb-arn.txt")"
 TARGET_GROUP_ARNS="$(cat "$VERIFY_DIR/target-group-arns.txt")"
 ALB_SG_ARNS="$(cat "$VERIFY_DIR/alb-security-group-arns.txt")"
@@ -485,6 +803,18 @@ if [ -n "$MANAGED_SECRET_ARN" ] && [ "$MANAGED_SECRET_ARN" != "None" ]; then
 fi
 
 assert_aws_absent \
+  "Task Execution Role ${TASK_EXECUTION_ROLE_NAME}" \
+  'NoSuchEntity' \
+  aws iam get-role \
+    --role-name "$TASK_EXECUTION_ROLE_NAME"
+
+assert_aws_absent \
+  "Express Infrastructure Role ${EXPRESS_INFRASTRUCTURE_ROLE_NAME}" \
+  'NoSuchEntity' \
+  aws iam get-role \
+    --role-name "$EXPRESS_INFRASTRUCTURE_ROLE_NAME"
+
+assert_aws_absent \
   "stackeigene VPC ${VPC_ID}" \
   'InvalidVpcID\.NotFound' \
   aws ec2 describe-vpcs \
@@ -511,6 +841,13 @@ assert_aws_absent \
   aws ec2 describe-internet-gateways \
     --region "$REGION" \
     --internet-gateway-ids "$IGW_ID"
+
+assert_aws_absent \
+  "Public Route Table ${ROUTE_TABLE_ID}" \
+  'InvalidRouteTableID\.NotFound' \
+  aws ec2 describe-route-tables \
+    --region "$REGION" \
+    --route-table-ids "$ROUTE_TABLE_ID"
 
 for tg_arn in $TARGET_GROUP_ARNS; do
   [ -z "$tg_arn" ] || [ "$tg_arn" = "None" ] && continue
@@ -577,11 +914,12 @@ for lg_name in $EXPRESS_LOG_GROUPS; do
   fi
 done
 
-echo "Harte Post-delete-Checks für Service/ECR/stack-Log/Secret/VPC/TG/serviceSecurityGroups bestanden."
-echo "WARN-Fälle (geteilter ALB, ALB-Security-Groups, zurückbehaltene Express-Log-Groups) ggf. manuell bereinigen."
+echo "Harte Post-delete-Checks für Service/ECR/stack-Log/Secret/IAM-Rollen/VPC/TG/serviceSecurityGroups bestanden."
+echo "WARN-Fälle (geteilter ALB, ALB-Security-Groups, zurückbehaltene Express-Log-Groups, Default-Cluster) ggf. manuell bereinigen."
 rm -rf "$VERIFY_DIR"
 unset VERIFY_DIR EXPRESS_SERVICE_ARN ECR_REPO_NAME LOG_GROUP_NAME \
-  MANAGED_SECRET_ARN VPC_ID PUBLIC_SUBNET_A_ID PUBLIC_SUBNET_B_ID IGW_ID \
+  MANAGED_SECRET_ARN TASK_EXECUTION_ROLE_NAME EXPRESS_INFRASTRUCTURE_ROLE_NAME \
+  VPC_ID PUBLIC_SUBNET_A_ID PUBLIC_SUBNET_B_ID IGW_ID ROUTE_TABLE_ID \
   ALB_ARN TARGET_GROUP_ARNS ALB_SG_ARNS SERVICE_SG_ARNS \
   EXPRESS_LOG_GROUPS AWS_PRESENCE AWS_PRESENCE_OUTPUT
 ```
@@ -589,8 +927,8 @@ unset VERIFY_DIR EXPRESS_SERVICE_ARN ECR_REPO_NAME LOG_GROUP_NAME \
 Hinweise zum erwarteten Ergebnis:
 
 - Express Gateway Service, stackeigenes ECR, stackeigene Log Group,
-  Managed Secret und die stackeigene VPC-Netzwerkbasis sind weg (`FAIL`, falls
-  nicht oder bei AWS-Fehlern jenseits Not-found).
+  Managed Secret, Runtime-Rollen und die stackeigene VPC-Netzwerkbasis sind
+  weg (`FAIL`, falls nicht oder bei AWS-Fehlern jenseits Not-found).
 - Eindeutig serviceeigene Target Groups und `serviceSecurityGroups` sind weg
   (`FAIL`, falls nicht).
 - Ein geteilter Application Load Balancer, zugehörige
@@ -598,8 +936,13 @@ Hinweise zum erwarteten Ergebnis:
   sind möglich und werden als `WARN` behandelt; Cleanup erst nach manueller
   Attribution zu anderen Express-Services bzw. dem geteilten ALB.
 - Automatisch erzeugte **accountweite Service-Linked Roles** (z. B. für ECS
-  Application Auto Scaling oder Elastic Load Balancing) sind **kein Fehler**
-  dieses Stack-Deletes und müssen nicht entfernt werden.
+  Application Auto Scaling oder Elastic Load Balancing) und der Cluster
+  `default` sind **kein Fehler** dieses Stack-Deletes und müssen nicht
+  entfernt werden.
+- Der IAM-Control-Plane-Abbau folgt erst nach erfolgreicher
+  Post-Delete-Verifikation mit
+  `python tools/aws_reference_demo_iam_control_plane.py teardown` und ist
+  kein Stack-Schritt.
 
 ## 9. Kosten- und Budgetkontrolle
 
@@ -614,7 +957,9 @@ Hinweise zum erwarteten Ergebnis:
   Multi-Cloud
 - keine Default-VPC-Abhängigkeit; Netzwerkbasis ist stackeigen und öffentlich
 - keine Unterstützung einer vorhandenen externen Secret-ARN in diesem Stack
+- keine Task Role; Anwendungscode hat keine AWS-Rechte
 - manuelle AWS-Verifikation bleibt ausstehend, bis ein Operator den Stack
-  bewusst im eigenen Account durchspielt
+  bewusst im eigenen Account durchspielt und das Go-/No-Go-Gate aus dem
+  IAM-/Lifecycle-Modell v2.3 erfüllt ist
 - strukturierte Runtime-Logs und Basis-Metriken folgen in späteren
   Phase-5-Branches

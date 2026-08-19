@@ -1,0 +1,134 @@
+#
+# CloudFormation Guard allowlist for the synthetic AWS reference demo.
+# Offline pytest encodes the same invariants; operators re-run these rules
+# before every change set when cfn-guard is available.
+#
+
+let allowed_resource_types = [
+  "AWS::ECR::Repository",
+  "AWS::Logs::LogGroup",
+  "AWS::EC2::VPC",
+  "AWS::EC2::Subnet",
+  "AWS::EC2::InternetGateway",
+  "AWS::EC2::VPCGatewayAttachment",
+  "AWS::EC2::RouteTable",
+  "AWS::EC2::Route",
+  "AWS::EC2::SubnetRouteTableAssociation",
+  "AWS::IAM::Role",
+  "AWS::SecretsManager::Secret",
+  "AWS::ECS::ExpressGatewayService"
+]
+
+let forbidden_resource_types = [
+  "AWS::EC2::NatGateway",
+  "AWS::EC2::EIP",
+  "AWS::EC2::VPCEndpoint",
+  "AWS::EC2::SecurityGroup",
+  "AWS::EC2::SecurityGroupIngress",
+  "AWS::EC2::SecurityGroupEgress",
+  "AWS::ElasticLoadBalancingV2::LoadBalancer",
+  "AWS::ElasticLoadBalancingV2::TargetGroup",
+  "AWS::RDS::DBInstance",
+  "AWS::ApiGateway::RestApi",
+  "AWS::EKS::Cluster"
+]
+
+rule parameters_remain_the_approved_set {
+  Parameters.DeployService exists
+  Parameters.ImageUri exists
+  Parameters.CreateManagedSecret exists
+  Parameters.InjectManagedSecret exists
+  Parameters.DeployService.Default == "false"
+  Parameters.CreateManagedSecret.Default == "false"
+  Parameters.InjectManagedSecret.Default == "false"
+}
+
+rule resources_are_allowlisted {
+  Resources.* {
+    Type IN %allowed_resource_types
+  }
+}
+
+rule forbidden_resource_types_are_absent {
+  Resources.* {
+    Type not IN %forbidden_resource_types
+  }
+}
+
+rule ecr_and_log_group_use_fixed_names {
+  Resources.ReferenceDemoRepository.Type == "AWS::ECR::Repository"
+  Resources.ReferenceDemoRepository.Properties.RepositoryName == "steuerberater-copilot-reference-demo"
+  Resources.ReferenceDemoRepository.Properties.EmptyOnDelete == true
+  Resources.ApplicationLogGroup.Type == "AWS::Logs::LogGroup"
+  Resources.ApplicationLogGroup.Properties.LogGroupName == "/steuerberater-copilot/reference-demo/application"
+  Resources.ApplicationLogGroup.Properties.RetentionInDays == 14
+}
+
+rule runtime_roles_use_fixed_names_paths_and_boundaries {
+  Resources.TaskExecutionRole.Type == "AWS::IAM::Role"
+  Resources.TaskExecutionRole.Properties.RoleName == "task-execution"
+  Resources.TaskExecutionRole.Properties.Path == "/steuerberater-copilot/reference-demo/"
+  Resources.TaskExecutionRole.Properties.PermissionsBoundary == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/task-execution-boundary" or
+    Resources.TaskExecutionRole.Properties.PermissionsBoundary["Fn::Sub"] == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/task-execution-boundary" or
+    Resources.TaskExecutionRole.Properties.PermissionsBoundary.Sub == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/task-execution-boundary"
+
+  Resources.ExpressInfrastructureRole.Type == "AWS::IAM::Role"
+  Resources.ExpressInfrastructureRole.Properties.RoleName == "express-infrastructure"
+  Resources.ExpressInfrastructureRole.Properties.Path == "/steuerberater-copilot/reference-demo/"
+  Resources.ExpressInfrastructureRole.Properties.PermissionsBoundary == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary" or
+    Resources.ExpressInfrastructureRole.Properties.PermissionsBoundary["Fn::Sub"] == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary" or
+    Resources.ExpressInfrastructureRole.Properties.PermissionsBoundary.Sub == "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary"
+}
+
+rule task_execution_secret_policy_is_static {
+  Resources.TaskExecutionRole.Properties.Policies exists
+  Resources.TaskExecutionRole.Properties.Policies is_list
+  Resources.TaskExecutionRole.Properties.Policies[0].PolicyName == "ManagedSecretGetSecretValue"
+  Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Action == "secretsmanager:GetSecretValue"
+  Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource["Fn::Sub"] == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*" or
+    Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource.Sub == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*"
+}
+
+rule task_execution_trust_is_hardened {
+  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Principal.Service == "ecs-tasks.amazonaws.com"
+  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Action == "sts:AssumeRole"
+  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals["aws:SourceAccount"] exists
+  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Condition.ArnLike["aws:SourceArn"] exists
+}
+
+rule express_infrastructure_trust_is_ecs_only {
+  Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement[0].Principal.Service == "ecs.amazonaws.com"
+  Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement[0].Action == "sts:AssumeRole"
+}
+
+rule taggable_resources_carry_fixed_tags {
+  Resources.ReferenceDemoRepository.Properties.Tags !empty
+  Resources.ApplicationLogGroup.Properties.Tags !empty
+  Resources.DemoVpc.Properties.Tags !empty
+  Resources.PublicSubnetA.Properties.Tags !empty
+  Resources.PublicSubnetB.Properties.Tags !empty
+  Resources.InternetGateway.Properties.Tags !empty
+  Resources.PublicRouteTable.Properties.Tags !empty
+  Resources.TaskExecutionRole.Properties.Tags !empty
+  Resources.ExpressInfrastructureRole.Properties.Tags !empty
+  Resources.ManagedSecret.Properties.Tags !empty
+  Resources.ExpressGatewayService.Properties.Tags !empty
+}
+
+rule express_service_fixed_identity_cpu_memory_and_no_task_role {
+  Resources.ExpressGatewayService.Type == "AWS::ECS::ExpressGatewayService"
+  Resources.ExpressGatewayService.Properties.Cluster == "default"
+  Resources.ExpressGatewayService.Properties.ServiceName == "steuerberater-copilot-reference-demo"
+  Resources.ExpressGatewayService.Properties.Cpu == "256"
+  Resources.ExpressGatewayService.Properties.Memory == "512"
+  Resources.ExpressGatewayService.Properties.TaskRoleArn not exists
+}
+
+rule secret_deletes_immediately {
+  Resources.ManagedSecret.Type == "AWS::SecretsManager::Secret"
+  Resources.ManagedSecret.Properties.Name == "steuerberater-copilot/reference-demo/synthetic"
+  Resources.ManagedSecret.DeletionPolicy == "Delete"
+  Resources.ManagedSecret.UpdateReplacePolicy == "Delete"
+  Resources.ManagedSecret.Properties.SecretString not exists
+  Resources.ManagedSecret.Properties.GenerateSecretString not exists
+}

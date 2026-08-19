@@ -4,7 +4,10 @@ Description: >
   Synthetic-data portfolio demo only. Default DeployService=false for
   two-stage bootstrap (ECR/IAM/LogGroup/VPC first, Express service after
   digest push). Stack-owned public IPv4 VPC (no default-VPC dependency).
+  Fixed names, paths, tags, and runtime-role boundaries per IAM/lifecycle
+  model v2.3. Static secret-read policy from stage 1. No TaskRoleArn.
   No secret values in this template. Region expectation: eu-central-1.
+  Create and update only via reviewed change sets with CAPABILITY_NAMED_IAM.
 
 Parameters:
   DeployService:
@@ -45,8 +48,9 @@ Parameters:
       - "false"
     Description: >
       When true with CreateManagedSecret=true and DeployService=true, inject the
-      managed secret into the Express container and grant ARN-scoped
-      secretsmanager:GetSecretValue on the task execution role.
+      managed secret into the Express container. The task execution role already
+      has a static, ARN-pattern-scoped secretsmanager:GetSecretValue policy
+      from stage 1.
 
 Conditions:
   DeployExpressService:
@@ -113,13 +117,27 @@ Resources:
   ReferenceDemoRepository:
     Type: AWS::ECR::Repository
     Properties:
+      RepositoryName: steuerberater-copilot-reference-demo
       EmptyOnDelete: true
       ImageTagMutability: MUTABLE
+      Tags: &ReferenceDemoTags
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   ApplicationLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      LogGroupName: /steuerberater-copilot/reference-demo/application
       RetentionInDays: 14
+      Tags: *ReferenceDemoTags
 
   DemoVpc:
     Type: AWS::EC2::VPC
@@ -127,6 +145,7 @@ Resources:
       CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
+      Tags: *ReferenceDemoTags
 
   PublicSubnetA:
     Type: AWS::EC2::Subnet
@@ -137,6 +156,7 @@ Resources:
         - !GetAZs ""
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: true
+      Tags: *ReferenceDemoTags
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -147,9 +167,12 @@ Resources:
         - !GetAZs ""
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: true
+      Tags: *ReferenceDemoTags
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: *ReferenceDemoTags
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -161,6 +184,7 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref DemoVpc
+      Tags: *ReferenceDemoTags
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -185,6 +209,9 @@ Resources:
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: task-execution
+      Path: /steuerberater-copilot/reference-demo/
+      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/task-execution-boundary
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -192,43 +219,55 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      Policies: !If
-        - InjectManagedSecretEnabled
-        - - PolicyName: ManagedSecretGetSecretValue
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - secretsmanager:GetSecretValue
-                  Resource: !Ref ManagedSecret
-        - !Ref AWS::NoValue
+      Policies:
+        - PolicyName: ManagedSecretGetSecretValue
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*
+      Tags: *ReferenceDemoTags
 
   ExpressInfrastructureRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: express-infrastructure
+      Path: /steuerberater-copilot/reference-demo/
+      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Effect: Allow
+          - Sid: AllowAccessToECSForInfrastructureManagement
+            Effect: Allow
             Principal:
               Service: ecs.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices
         - !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy
+      Tags: *ReferenceDemoTags
 
   ManagedSecret:
     Type: AWS::SecretsManager::Secret
     Condition: CreateManagedSecretEnabled
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
+      Name: steuerberater-copilot/reference-demo/synthetic
       Description: >
         Empty stack-managed secret for the reference-demo opt-in path.
         Set the value outside the repository with PutSecretValue before
         enabling InjectManagedSecret. No SecretString and no
         GenerateSecretString in this template.
+      Tags: *ReferenceDemoTags
 
   ExpressGatewayService:
     Type: AWS::ECS::ExpressGatewayService
@@ -238,6 +277,10 @@ Resources:
       - PublicSubnetARouteTableAssociation
       - PublicSubnetBRouteTableAssociation
     Properties:
+      Cluster: default
+      ServiceName: steuerberater-copilot-reference-demo
+      Cpu: "256"
+      Memory: "512"
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
       InfrastructureRoleArn: !GetAtt ExpressInfrastructureRole.Arn
       HealthCheckPath: /health
@@ -259,6 +302,7 @@ Resources:
       ScalingTarget:
         MinTaskCount: 1
         MaxTaskCount: 1
+      Tags: *ReferenceDemoTags
 
 Outputs:
   EcrRepositoryUri:
