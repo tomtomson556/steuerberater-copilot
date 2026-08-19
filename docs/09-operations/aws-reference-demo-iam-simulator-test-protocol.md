@@ -1,8 +1,10 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 18. August 2026\
+Stand: 19. August 2026
 Repository: `tomtomson556/steuerberater-copilot`  
-Zuletzt geprüfter Ausgangsstand: `28ce7cc4375136e9a15fd0d2510bcff2d1f6a61f`
+Branch: `agent/add-iam-simulator-test-protocol`
+Zuletzt für ein bestätigtes Testpaar geprüfter Ausgangsstand: `aa1b052033281796a63eafaaa411f252c67c1b6c`
+Zuletzt diagnostisch geprüfter Ausgangsstand: `ca096ec74431857eea4776faf1505d40fe16a156`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
 Simulatorprofil: `administrator`
@@ -10,9 +12,9 @@ Simulatorprofil: `administrator`
 ## Zweck und Status
 
 Dieses Protokoll hält die bestätigten Ergebnisse der vorbereitenden
-IAM-Policy-Simulator-Prüfung für die AWS-Referenzdemo fest. Es ist die
-Fortsetzungsgrundlage für spätere Sitzungen und verhindert doppelte oder
-vergessene Tests.
+IAM-Policy-Simulator-Prüfung für die AWS-Referenzdemo fest. Es bildet die
+konsolidierte Evidenzquelle für SIM-001 bis SIM-142 sowie die dokumentierten
+nicht gewerteten Versuche und Diagnoseläufe.
 
 Bisher wurde ausschließlich `aws iam simulate-custom-policy` verwendet. Die
 Simulationen haben keine AWS-Ressourcen erstellt, verändert, zurückgesetzt oder
@@ -23,7 +25,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **140**
+- Bestätigte nummerierte Simulatorfälle: **142**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -31,7 +33,8 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 Nur vom Nutzer ausdrücklich gemeldete Entscheidungen oder bestandene
 Gruppenmarker werden als bestätigt geführt. Erwartete Ergebnisse allein zählen
-nicht.
+nicht. Fehlgeschlagene Harness-Versuche und reine Diagnoseläufe erhalten keine
+SIM-Nummer.
 
 ## Bestätigte Simulatorfälle
 
@@ -177,6 +180,8 @@ nicht.
 | SIM-138 | CloudFormation-Service-Rolle | `ecs:CreateCluster` | korrekter Cluster-ARN mit `aws:RequestedRegion=eu-west-1`, falscher Clustername sowie `cluster/default` in fremdem Konto; drei atomare Evaluationen und drei `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Identity-Statements; Boundary nur beim reinen Regions-Gegenfall freigebend; keine Trunkierung | `implicitDeny` × 3 | bestanden |
 | SIM-139 | CloudFormation-Service-Rolle | `ecs:RegisterTaskDefinition` und task-definition-bezogenes `ecs:TagResource` | konkrete synthetische Task Definition im Referenzkonto und in `eu-central-1`; vier vollständige Policy-Dokumente, zwei atomare Evaluationen und zwei `ResourceSpecificResults`; keine fehlenden Kontextwerte; zwei passende Identity-Statements; Boundary zweimal freigebend; keine Trunkierung | `allowed` × 2 | bestanden |
 | SIM-140 | CloudFormation-Service-Rolle | dieselben beiden Task-Definition-Aktionen | dieselbe synthetische Task Definition in `eu-west-1` sowie im fremden Konto; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Identity-Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
+| SIM-141 | CloudFormation-Service-Rolle | sechs ECS-Service-Leseaktionen: `ecs:DescribeExpressGatewayService`, `ecs:DescribeServiceDeployments`, `ecs:DescribeServiceRevisions`, `ecs:DescribeServices`, `ecs:ListServiceDeployments`, `ecs:ListTagsForResource` | exakter Referenzservice sowie zugehörige synthetische Deployment-/Revision-ARNs; sechs atomare Evaluationen und sechs `ResourceSpecificResults`; keine fehlenden Kontextwerte; sechs passende Statements; Boundary sechsmal freigebend; keine Trunkierung | `allowed` × 6 | bestanden |
+| SIM-142 | CloudFormation-Service-Rolle | dieselben sechs ECS-Service-Leseaktionen | falscher Servicename, dieselben Referenzpfade in `eu-west-1` und im fremden Konto; 18 atomare Evaluationen und 18 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 18 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -1179,6 +1184,96 @@ SIM-140  CFN_SERVICE_ROLE_ECS_TASKDEF_WRONG_REGION=implicitDeny implicitDeny
          CFN_SERVICE_ROLE_ECS_TASKDEF_NEGATIVE=passed
 ```
 
+## Ausführungsnachweis SIM-141/142
+
+Geprüfter Ausgangsstand:
+
+```text
+TESTED_HEAD=aa1b052033281796a63eafaaa411f252c67c1b6c
+HEAD_CHECK=passed
+POLICY_WORKTREE_CHECK=passed
+ACCOUNT_ID_CHECK=passed
+```
+
+Statischer Vorcheck:
+
+```text
+CFN_SERVICE_ROLE_ECS_READS_STATIC_DOCUMENTS=4
+CFN_SERVICE_ROLE_ECS_READS_STATIC_ACTIONS=6
+CFN_SERVICE_ROLE_ECS_READS_STATIC_IDENTITY_ACTION_OCCURRENCES=6
+CFN_SERVICE_ROLE_ECS_READS_STATIC_BOUNDARY_ACTION_OCCURRENCES=6
+CFN_SERVICE_ROLE_ECS_READS_STATIC_ACTION_DOCUMENT_PAIRS=12
+CFN_SERVICE_ROLE_ECS_READS_STATIC_CONDITIONED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_READS_STATIC_SERVICE_EXACT_STATEMENTS=1
+CFN_SERVICE_ROLE_ECS_READS_STATIC_BOUNDARY_CONTAINER_STATEMENTS=1
+CFN_SERVICE_ROLE_ECS_READS_STATIC_ACTION_WILDCARDS=0
+CFN_SERVICE_ROLE_ECS_READS_STATIC_CHECK=passed
+```
+
+SIM-141:
+
+```text
+CFN_SERVICE_ROLE_ECS_READS=allowed allowed allowed allowed allowed allowed
+CFN_SERVICE_ROLE_ECS_READS_TOTAL=6
+CFN_SERVICE_ROLE_ECS_READS_RESOURCE_SPECIFIC_RESULTS=6
+CFN_SERVICE_ROLE_ECS_READS_MISSING_CONTEXT=none|none|none|none|none|none
+CFN_SERVICE_ROLE_ECS_READS_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_READS_MATCHED_STATEMENTS=6
+CFN_SERVICE_ROLE_ECS_READS_BOUNDARY_ALLOWED=6
+CFN_SERVICE_ROLE_ECS_READS_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_READS_POSITIVE=passed
+```
+
+SIM-142 - falscher Service:
+
+```text
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_TOTAL=6
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_RESOURCE_SPECIFIC_RESULTS=6
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_BOUNDARY_ALLOWED=0
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_READS_WRONG_SERVICE_NEGATIVE=passed
+```
+
+SIM-142 - falsche Region:
+
+```text
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_TOTAL=6
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_RESOURCE_SPECIFIC_RESULTS=6
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_BOUNDARY_ALLOWED=0
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_READS_WRONG_REGION_NEGATIVE=passed
+```
+
+SIM-142 - fremdes Konto:
+
+```text
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT=implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_TOTAL=6
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_RESOURCE_SPECIFIC_RESULTS=6
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_BOUNDARY_ALLOWED=0
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_READS_FOREIGN_ACCOUNT_NEGATIVE=passed
+CFN_SERVICE_ROLE_ECS_READS_NEGATIVE_TOTAL=18
+CFN_SERVICE_ROLE_ECS_READS_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=18
+CFN_SERVICE_ROLE_ECS_READS_NEGATIVE_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_READS_NEGATIVE_BOUNDARY_ALLOWED=0
+CFN_SERVICE_ROLE_ECS_READS_NEGATIVE=passed
+```
+
+Die rohen `MissingContextValues` der drei Negativgruppen enthielten mehrfach
+Context Keys aus fachlich unbeteiligten Statements der vier vollständig
+eingereichten Policy-Dokumente. Für den getesteten unbedingten ECS-Read-Block
+war kein Context Key erforderlich; der Harness bestätigte deshalb jeweils
+`RELEVANT_MISSING_CONTEXT=none`.
+
 ## Nicht gewertete Versuche
 
 - Die ersten beiden vorgesehenen SIM-125/126-Läufe auf Commit
@@ -1469,30 +1564,154 @@ und gegen Region sowie Konto adversarial abgedeckt. Eine Policy-Änderung war
 für SIM-139/140 nicht erforderlich.
 
 Der erfolgreiche Lauf prüfte unverändert dieselben vollständigen vier
-Policy-Dokumente; eine Policy-Änderung war nicht erforderlich. Vor dem nächsten
-Testpaar werden der neue PR-Head und die verbleibende Pflichtmatrix erneut live
-abgeglichen.
+Policy-Dokumente; eine Policy-Änderung war nicht erforderlich.
 
-## Fortsetzungsregel
+## Stand nach SIM-141/142
 
-Für alle weiteren Testpaare wird dieselbe temporäre Datei
-`/workspaces/exports/sim-065-066.sh` wiederverwendet. Vor jedem neuen Paar wird
-ihr bisheriger Inhalt im Editor vollständig durch den neuen kontrollierten
-Block ersetzt.
+SIM-141 bestätigt die sechs unbedingten ECS-Service-Leseaktionen
+`DescribeExpressGatewayService`, `DescribeServiceDeployments`,
+`DescribeServiceRevisions`, `DescribeServices`, `ListServiceDeployments` und
+`ListTagsForResource` auf dem exakten Referenzservice sowie den zugehörigen
+synthetischen Service-Deployment- und Service-Revision-ARNs. Alle sechs
+Gesamt- und Ressourcenentscheidungen sind `allowed`; es fehlte kein relevanter
+Kontextwert, sechs Identity-Statements trafen zu, die Boundary gab alle sechs
+Ressourcen frei und kein Ergebnis war trunkiert.
 
-1. Immer genau zwei fachlich zusammengehörige Simulatorfälle (Positiv- und
-   Negativfall) in einem kontrollierten Block ausführen.
-2. Beide tatsächlichen Terminalergebnisse einzeln prüfen.
-3. Nur bei Übereinstimmung mit dem jeweiligen Soll beide Fälle als `bestanden`
-   markieren.
-4. Nach jedem bestandenen Testpaar beide Entscheidungen und Pass-Marker
-   gemeinsam in diesem Dokument ergänzen und auf den PR-Branch committen.
-5. Das nächste offene Testpaar erst nach Abgleich mit dem aktuellen
-   Repository-Stand und der verbleibenden Pflichtmatrix eindeutig benennen.
-6. Bei jeder Abweichung stoppen; während eines späteren Deployments niemals
-   Berechtigungen reaktiv ergänzen.
-7. Nach einem neuen Commit den geprüften Referenz-Commit in diesem Dokument
-   aktualisieren oder eine neue klar abgegrenzte Prüfrunde beginnen.
+Der statische Vorcheck bestätigt je genau ein Action-Vorkommen in der
+Service-Policy und der Boundary, insgesamt zwölf Action-Dokument-Paare, ein
+gemeinsames unbedingtes Read-Statement pro Policy-Pfad und keine
+Action-Wildcards.
+
+SIM-142 bestätigt denselben Read-Block gegen einen falschen Servicenamen,
+dieselben Referenzpfade in `eu-west-1` und im fremden Konto. Alle 18 Gesamt-
+und Ressourcenentscheidungen sind `implicitDeny`; kein Identity-Statement traf
+zu und die Boundary gab keine Ressource frei. Kein Ergebnis war trunkiert.
+
+Damit ist der vollständige unbedingte ECS-Service-Read-Pfad der
+CloudFormation-Service-Rolle positiv sowie gegen Servicebezug, Region und
+Konto adversarial abgedeckt. Eine Policy-Änderung war für SIM-141/142 nicht
+erforderlich.
+
+## Nicht nummerierter Diagnoseblock nach SIM-141/142
+
+Der danach untersuchte Restblock bestand aus
+`ecs:UpdateExpressGatewayService` und
+`ecs:DeleteExpressGatewayService` auf dem exakten Referenzservice. Die
+Service-Policy bindet beide Aktionen mit
+`ecs:ResourceTag/Project=steuerberater-copilot`; die Boundary erlaubt beide
+Aktionen auf derselben Ressource.
+
+Der erste positive Harness-Versuch auf dem Ausgangsstand
+`ca096ec74431857eea4776faf1505d40fe16a156` ergab trotz vollständig
+bereitgestelltem `ecs:ResourceTag/Project`-Kontext zweimal `implicitDeny`:
+
+```text
+TESTED_HEAD=ca096ec74431857eea4776faf1505d40fe16a156
+HEAD_CHECK=passed
+POLICY_WORKTREE_CHECK=passed
+ACCOUNT_ID_CHECK=passed
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_CHECK=passed
+CFN_SERVICE_ROLE_ECS_MUTATIONS=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TOTAL=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RESOURCE_SPECIFIC_RESULTS=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_MUTATIONS_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_ALLOWED=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_MUTATIONS_POSITIVE=failed
+```
+
+Dieser Versuch erhielt keine SIM-Nummer. Ein anschließender unnummerierter
+Diagnoselauf verglich die unveränderte Policy mit isolierten und ausschließlich
+im Speicher erzeugten Kontrollvarianten. Die Context-Key-Ermittlung erkannte
+den in der Repository-Policy verwendeten service-spezifischen Schlüssel:
+
+```text
+DIAG_ECS_MUTATIONS_CURRENT_TARGET_CONDITION=[{"StringEquals":{"ecs:ResourceTag/Project":"steuerberater-copilot"}}]
+DIAG_ECS_MUTATIONS_GLOBAL_TARGET_CONDITION=[{"StringEquals":{"aws:ResourceTag/Project":"steuerberater-copilot"}}]
+DIAG_ECS_MUTATIONS_UNCONDITIONED_TARGET_CONDITION_COUNT=0
+DIAG_ECS_MUTATIONS_IN_MEMORY_VARIANTS_CHECK=passed
+DIAG_ECS_MUTATIONS_CURRENT_CONTEXT_KEYS=aws:RequestTag/Component aws:RequestTag/Environment aws:RequestTag/Lifecycle aws:RequestTag/ManagedBy aws:RequestTag/Project aws:RequestedRegion aws:TagKeys ecs:ResourceTag/Project secretsmanager:ForceDeleteWithoutRecovery
+```
+
+Die unveränderte Policy blieb sowohl mit vollständigem Policy-Satz als auch
+isoliert mit dem service-spezifischen Kontextwert und mit beiden Tag-Kontexten
+bei `implicitDeny`. Die Boundary gab die Ressource in allen Fällen frei; das
+Identity-Statement traf jedoch nicht zu:
+
+```text
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_FULL_ECS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_ECS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_BOTH_TRUNCATED=false
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS=implicitDeny implicitDeny
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_RELEVANT_MISSING_CONTEXT=ecs:ResourceTag/Project
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_MATCHED_STATEMENTS=0
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_CURRENT_ISOLATED_AWS_TRUNCATED=false
+```
+
+Eine nur im Speicher erzeugte, ansonsten identische Kontrollvariante mit dem
+ebenfalls von AWS für beide Aktionen dokumentierten globalen Schlüssel
+`aws:ResourceTag/Project` wurde dagegen zweimal erlaubt. Auch die
+unbedingte Kontrollvariante wurde zweimal erlaubt:
+
+```text
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS=allowed allowed
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_TOTAL=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_MATCHED_STATEMENTS=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_GLOBAL_KEY_CONTROL_AWS_TRUNCATED=false
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE=allowed allowed
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_TOTAL=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_RESOURCE_SPECIFIC_RESULTS=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_RELEVANT_MISSING_CONTEXT=none
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_MATCHED_STATEMENTS=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_BOUNDARY_ALLOWED=2
+DIAG_ECS_MUTATIONS_UNCONDITIONED_CONTROL_NONE_TRUNCATED=false
+DIAG_ECS_MUTATIONS_COMPLETE=passed
+```
+
+Die AWS Service Authorization Reference führt für beide Aktionen auf dem
+Ressourcentyp `service` sowohl `aws:ResourceTag/${TagKey}` als auch
+`ecs:ResourceTag/${TagKey}` als unterstützte Condition Keys auf. Der
+Diagnoselauf isoliert daher eine Abweichung der Simulatorauswertung für den
+bereitgestellten service-spezifischen Tag-Kontext; er weist keinen Action-,
+Ressourcen- oder Boundary-Fehler nach. Ohne einen vollständig erfolgreichen
+Lauf der unveränderten Repository-Policy werden diese beiden Aktionen nicht
+als SIM-143/144 gezählt.
+
+Es erfolgte keine IAM-Policyänderung. Eine reale AWS-Ausführung bleibt bis zum
+Abschluss der vorgesehenen Gates weiterhin **No-Go**.
+
+## Abschlussstand der Simulatorreihe
+
+Die bestätigte nummerierte IAM-Policy-Simulator-Testreihe endet bei
+`SIM-142`. Für `ecs:UpdateExpressGatewayService` und
+`ecs:DeleteExpressGatewayService` wurden wegen des dokumentierten
+Simulatorgrenzfalls keine SIM-Nummern vergeben. Ein weiterer Simulator-Harness
+ist nicht vorgesehen.
+
+Eine spätere reale Validierung oder eine fachlich begründete Änderung des
+verwendeten Condition Keys wäre eine separate, erneut vollständig zu prüfende
+Arbeitsphase und ist nicht Bestandteil dieser abgeschlossenen Simulatorreihe.
 
 ## Noch ausstehende Gates außerhalb dieses Simulatorprotokolls
 
@@ -1504,6 +1723,8 @@ Dieses Dokument ersetzt nicht:
 - unabhängige Reviews
 - kontrollierte Live-Lifecycle-Tests
 - Post-Delete-Restressourcenprüfung
+
+## Quellen
 
 Quelle für SIM-001 bis SIM-030: Repository-Datei aus Draft-PR #138,
 Branch `agent/add-iam-simulator-test-protocol`, Blob
@@ -1722,3 +1943,14 @@ Quelle für SIM-139 und SIM-140: vom Nutzer am 19. August 2026 ausdrücklich
 gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
 geprüften Ausgangsstand
 `28ce7cc4375136e9a15fd0d2510bcff2d1f6a61f`.
+
+Quelle für SIM-141 und SIM-142: vom Nutzer am 19. August 2026 ausdrücklich
+gemeldete Terminalausgaben des vollständig bestandenen Harnesses auf dem
+geprüften Ausgangsstand
+`aa1b052033281796a63eafaaa411f252c67c1b6c`.
+
+Quelle für den nicht nummerierten Diagnoseblock: vom Nutzer am 19. August 2026
+gemeldete Terminalausgaben auf dem geprüften Ausgangsstand
+`ca096ec74431857eea4776faf1505d40fe16a156` sowie die AWS Service Authorization
+Reference für Amazon ECS:
+<https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecs.html>.
