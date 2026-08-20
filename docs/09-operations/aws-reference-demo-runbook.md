@@ -28,8 +28,10 @@ Der Steuerberater entscheidet.
   mit den v2.3-Operator-Policies
 - Billing-Budget oder Kostenalarm im Account
 - keine Credentials, Secret-Werte oder Access Keys im Repository
-- `cfn-guard` ist optional für den Operator; die Offline-Tests prüfen dieselben
-  Invarianten ohne AWS-Netzwerkzugriff
+- `cfn-guard` ist für den Offline-Freeze verbindlich; ein erfolgreicher Lauf
+  gegen `infra/cloudformation/guards/reference-demo.guard` ist Voraussetzung
+  für jedes Change Set. Die Offline-Tests rufen dieselbe Guard-CLI lokal auf
+  und bleiben ohne AWS-Netzwerkzugriff
 
 Dieses Runbook wird manuell ausgeführt. CI und Standardtests deployen keinen
 Stack und benötigen kein AWS-Konto. Ein AWS-Live-Test bleibt ein separates
@@ -81,13 +83,18 @@ sha256sum infra/cloudformation/guards/reference-demo.guard
 Die Hashes müssen zum eingefrorenen Reviewstand passen. Abweichung ist ein
 No-Go: kein Change Set erstellen oder ausführen.
 
-Optionale Guard-Ausführung, falls `cfn-guard` lokal vorhanden ist:
+Verbindlicher Guard-Lauf. Fehlschlag, Parser-Fehler oder Überspringen ist ein
+No-Go. CloudFormation unterstützt keine YAML-Aliases, Anker oder Hash-Merges
+([Template format](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-formats.html));
+das Template wiederholt die fünf festen Tags deshalb ausdrücklich.
 
 ```bash
 cfn-guard validate \
   --data infra/cloudformation/reference-demo.yaml \
   --rules infra/cloudformation/guards/reference-demo.guard
 ```
+
+Exit-Status muss `0` sein.
 
 Unabhängig davon gelten die Offline-Regressionstests:
 
@@ -111,6 +118,23 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 SERVICE_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
 TEMPLATE="file://infra/cloudformation/reference-demo.yaml"
 ```
+
+Read-only CloudFormation-Templatevalidierung vor dem ersten Change Set. Der
+Aufruf `validate-template` erzeugt oder ändert keine Ressourcen; er prüft, ob
+CloudFormation das YAML akzeptiert, und nennt die erforderlichen Capabilities
+([validate-template](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/validate-template.html)).
+Dieser Schritt gehört nicht zu den netzwerkfreien Standardtests und wird hier
+nicht ausgeführt.
+
+```bash
+aws cloudformation validate-template \
+  --region "$REGION" \
+  --template-body "$TEMPLATE"
+```
+
+Erwartung: die Antwort enthält `CAPABILITY_NAMED_IAM`. Validierungsfehler,
+YAML-Parserfehler oder unerwartete Capabilities sind ein No-Go. Der Aufruf
+ist kein Change Set und kein `create-stack`/`update-stack`.
 
 ## 1. Stage-1-Change-Set ohne Service
 

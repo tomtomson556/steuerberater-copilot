@@ -120,7 +120,7 @@ Resources:
       RepositoryName: steuerberater-copilot-reference-demo
       EmptyOnDelete: true
       ImageTagMutability: MUTABLE
-      Tags: &ReferenceDemoTags
+      Tags:
         - Key: Project
           Value: steuerberater-copilot
         - Key: Component
@@ -137,7 +137,17 @@ Resources:
     Properties:
       LogGroupName: /steuerberater-copilot/reference-demo/application
       RetentionInDays: 14
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   DemoVpc:
     Type: AWS::EC2::VPC
@@ -145,7 +155,17 @@ Resources:
       CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   PublicSubnetA:
     Type: AWS::EC2::Subnet
@@ -156,7 +176,17 @@ Resources:
         - !GetAZs ""
       CidrBlock: 10.0.0.0/24
       MapPublicIpOnLaunch: true
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -167,12 +197,32 @@ Resources:
         - !GetAZs ""
       CidrBlock: 10.0.1.0/24
       MapPublicIpOnLaunch: true
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -184,7 +234,17 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref DemoVpc
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -234,7 +294,17 @@ Resources:
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   ExpressInfrastructureRole:
     Type: AWS::IAM::Role
@@ -253,7 +323,17 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices
         - !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   ManagedSecret:
     Type: AWS::SecretsManager::Secret
@@ -267,7 +347,17 @@ Resources:
         Set the value outside the repository with PutSecretValue before
         enabling InjectManagedSecret. No SecretString and no
         GenerateSecretString in this template.
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
   ExpressGatewayService:
     Type: AWS::ECS::ExpressGatewayService
@@ -302,7 +392,17 @@ Resources:
       ScalingTarget:
         MinTaskCount: 1
         MaxTaskCount: 1
-      Tags: *ReferenceDemoTags
+      Tags:
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
 
 Outputs:
   EcrRepositoryUri:

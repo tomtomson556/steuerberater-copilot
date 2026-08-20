@@ -64,12 +64,19 @@ def test_runbook_requires_offline_hash_guard_and_change_set_review() -> None:
     assert "infra/cloudformation/reference-demo.yaml" in text
     assert "infra/cloudformation/guards/reference-demo.guard" in text
     assert GUARD_PATH.is_file()
-    assert "cfn-guard" in text
+    assert "cfn-guard validate" in text
+    assert "optional für den Operator" not in text
+    assert "Optionale Guard-Ausführung" not in text
+    assert "aws cloudformation validate-template" in text
+    assert "--template-body" in text
+    assert "CAPABILITY_NAMED_IAM" in text
     assert "TaskRoleArn" in text
     assert "Modify" in text
     assert "Replace" in text
     assert "CREATE_COMPLETE" in text or "stack-create-complete" in text
     assert "13" in text
+    assert "aws cloudformation create-stack" not in text
+    assert "aws cloudformation update-stack" not in text
 
 
 def test_runbook_documents_secret_force_delete_and_x86_image() -> None:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +111,25 @@ FIXED_RESOURCE_TAGS = {
     "Lifecycle": "ephemeral",
 }
 
+EXPLICIT_FIXED_RESOURCE_TAGS = """\
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
+"""
+
+# CloudFormation YAML does not support anchors, aliases, or hash merges.
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-formats.html
+CFN_INCOMPATIBLE_YAML_ANCHOR = re.compile(r"(?:^|[\s,{])&[A-Za-z_][\w-]*", re.MULTILINE)
+CFN_INCOMPATIBLE_YAML_ALIAS = re.compile(r"(?:^|[\s,{])\*[A-Za-z_][\w-]*", re.MULTILINE)
+CFN_INCOMPATIBLE_YAML_MERGE = re.compile(r"(?:^|[\s])<<\s*:", re.MULTILINE)
+
 SECRET_ARN_PATTERN = (
     "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:"
     "steuerberater-copilot/reference-demo/synthetic-*"
@@ -204,6 +225,52 @@ def _sub_value(node: Any) -> str:
         value = node["Fn::Sub"]
     assert isinstance(value, str)
     return value
+
+
+def cloudformation_incompatible_yaml_constructs(text: str) -> list[str]:
+    findings: list[str] = []
+    for pattern, label in (
+        (CFN_INCOMPATIBLE_YAML_ANCHOR, "anchor"),
+        (CFN_INCOMPATIBLE_YAML_ALIAS, "alias"),
+        (CFN_INCOMPATIBLE_YAML_MERGE, "merge"),
+    ):
+        for match in pattern.finditer(text):
+            findings.append(f"{label}:{match.group(0)!r}")
+    return findings
+
+
+def cfn_guard_executable() -> Path:
+    found = shutil.which("cfn-guard")
+    if found:
+        return Path(found)
+    fallback = Path.home() / ".local" / "bin" / "cfn-guard"
+    assert fallback.is_file(), (
+        "cfn-guard CLI is required for the offline freeze; "
+        "install AWS CloudFormation Guard and retry"
+    )
+    return fallback
+
+
+def run_cfn_guard(
+    data_path: Path, rules_path: Path = GUARD_PATH
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            str(cfn_guard_executable()),
+            "validate",
+            "--data",
+            str(data_path),
+            "--rules",
+            str(rules_path),
+            "--show-summary",
+            "fail",
+            "--type",
+            "CFNTemplate",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_template_exists_and_parses() -> None:
@@ -602,7 +669,107 @@ def test_guard_rules_encode_lifecycle_invariants() -> None:
         "ecs.amazonaws.com",
         "aws:SourceAccount",
         "aws:SourceArn",
+        "count(Parameters.*)",
+        'AllowedValues == ["true", "false"]',
+        'Parameters.ImageUri.Default == ""',
+        "AllowedPattern",
+        'count(Tags[*])',
+        'Tags[0].Key == "Project"',
+        'Tags[0].Value == "steuerberater-copilot"',
+        'Tags[1].Key == "Component"',
+        'Tags[1].Value == "reference-demo"',
+        'Tags[2].Key == "Environment"',
+        'Tags[2].Value == "portfolio-test"',
+        'Tags[3].Key == "ManagedBy"',
+        'Tags[3].Value == "cloudformation"',
+        'Tags[4].Key == "Lifecycle"',
+        'Tags[4].Value == "ephemeral"',
+        "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*",
+        'Effect == "Allow"',
+        ".Ref == \"AWS::AccountId\"",
+        "SecretString not exists",
+        "GenerateSecretString not exists",
     )
     for snippet in required_snippets:
         assert snippet in text, snippet
     assert "TaskRoleArn exists" not in text.replace("TaskRoleArn not exists", "")
+    assert "Properties.Tags !empty" not in text
+    assert 'Condition.StringEquals["aws:SourceAccount"] exists' not in text
+    assert 'Condition.ArnLike["aws:SourceArn"] exists' not in text
+
+
+def test_template_has_no_cloudformation_incompatible_yaml_aliases() -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    assert cloudformation_incompatible_yaml_constructs(raw) == []
+    assert "&ReferenceDemoTags" not in raw
+    assert "*ReferenceDemoTags" not in raw
+    assert raw.count(EXPLICIT_FIXED_RESOURCE_TAGS) == len(TAGGABLE_RESOURCE_IDS)
+
+
+def test_yaml_alias_detector_flags_anchors_aliases_and_merges() -> None:
+    sample = (
+        "Tags: &ReferenceDemoTags\n"
+        "  - Key: Project\n"
+        "Other: *ReferenceDemoTags\n"
+        "Merged:\n"
+        "  <<: *ReferenceDemoTags\n"
+    )
+    findings = cloudformation_incompatible_yaml_constructs(sample)
+    assert any(item.startswith("anchor:") for item in findings)
+    assert any(item.startswith("alias:") for item in findings)
+    assert any(item.startswith("merge:") for item in findings)
+
+
+def test_yaml_alias_detector_ignores_arn_glob_suffixes() -> None:
+    sample = (
+        "Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:"
+        "secret:steuerberater-copilot/reference-demo/synthetic-*\n"
+        'AllowedPattern: "^$|^.+@sha256:[A-Fa-f0-9]{64}$"\n'
+        "aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*\n"
+    )
+    assert cloudformation_incompatible_yaml_constructs(sample) == []
+
+
+def test_cfn_guard_cli_parses_rules_and_accepts_template() -> None:
+    parsed = subprocess.run(
+        [
+            str(cfn_guard_executable()),
+            "parse-tree",
+            "--rules",
+            str(GUARD_PATH),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert parsed.returncode == 0, parsed.stderr or parsed.stdout
+
+    completed = run_cfn_guard(TEMPLATE_PATH)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" not in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_yaml_aliases(tmp_path: Path) -> None:
+    aliased = tmp_path / "aliased-reference-demo.yaml"
+    aliased.write_text(
+        'AWSTemplateFormatVersion: "2010-09-09"\n'
+        "Resources:\n"
+        "  DemoVpc:\n"
+        "    Type: AWS::EC2::VPC\n"
+        "    Properties:\n"
+        "      CidrBlock: 10.0.0.0/16\n"
+        "      Tags: &ReferenceDemoTags\n"
+        "        - Key: Project\n"
+        "          Value: steuerberater-copilot\n"
+        "  InternetGateway:\n"
+        "    Type: AWS::EC2::InternetGateway\n"
+        "    Properties:\n"
+        "      Tags: *ReferenceDemoTags\n",
+        encoding="utf-8",
+    )
+    completed = run_cfn_guard(aliased)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Parser Error" in combined or "Error occurred" in combined

@@ -31,6 +31,18 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
+      - name: Install CloudFormation Guard
+        env:
+          CFN_GUARD_VERSION: "3.1.2"
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o /tmp/cfn-guard.tar.gz \
+            "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/${CFN_GUARD_VERSION}/cfn-guard-v3-ubuntu-latest.tar.gz"
+          tar -xzf /tmp/cfn-guard.tar.gz -C /tmp
+          install -m 0755 /tmp/cfn-guard-v3-ubuntu-latest/cfn-guard "$HOME/.local/bin/cfn-guard"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/cfn-guard" --version
+
       - name: Run tests
         run: pytest -q
 

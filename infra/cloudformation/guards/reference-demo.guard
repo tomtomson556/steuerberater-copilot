@@ -1,7 +1,7 @@
 #
 # CloudFormation Guard allowlist for the synthetic AWS reference demo.
-# Offline pytest encodes the same invariants; operators re-run these rules
-# before every change set when cfn-guard is available.
+# Offline pytest invokes the Guard CLI against this file. Operators must
+# re-run these rules successfully before every change set.
 #
 
 let allowed_resource_types = [
@@ -33,14 +33,51 @@ let forbidden_resource_types = [
   "AWS::EKS::Cluster"
 ]
 
+let taggable_resources = Resources.*[
+  Type in [
+    "AWS::ECR::Repository",
+    "AWS::Logs::LogGroup",
+    "AWS::EC2::VPC",
+    "AWS::EC2::Subnet",
+    "AWS::EC2::InternetGateway",
+    "AWS::EC2::RouteTable",
+    "AWS::IAM::Role",
+    "AWS::SecretsManager::Secret",
+    "AWS::ECS::ExpressGatewayService"
+  ]
+]
+
+let untaggable_resources = Resources.*[
+  Type in [
+    "AWS::EC2::VPCGatewayAttachment",
+    "AWS::EC2::Route",
+    "AWS::EC2::SubnetRouteTableAssociation"
+  ]
+]
+
 rule parameters_remain_the_approved_set {
+  let parameter_count = count(Parameters.*)
+  %parameter_count == 4
   Parameters.DeployService exists
   Parameters.ImageUri exists
   Parameters.CreateManagedSecret exists
   Parameters.InjectManagedSecret exists
+
+  Parameters.DeployService.Type == "String"
   Parameters.DeployService.Default == "false"
+  Parameters.DeployService.AllowedValues == ["true", "false"]
+
+  Parameters.CreateManagedSecret.Type == "String"
   Parameters.CreateManagedSecret.Default == "false"
+  Parameters.CreateManagedSecret.AllowedValues == ["true", "false"]
+
+  Parameters.InjectManagedSecret.Type == "String"
   Parameters.InjectManagedSecret.Default == "false"
+  Parameters.InjectManagedSecret.AllowedValues == ["true", "false"]
+
+  Parameters.ImageUri.Type == "String"
+  Parameters.ImageUri.Default == ""
+  Parameters.ImageUri.AllowedPattern == "^$|^.+@sha256:[A-Fa-f0-9]{64}$"
 }
 
 rule resources_are_allowlisted {
@@ -81,38 +118,95 @@ rule runtime_roles_use_fixed_names_paths_and_boundaries {
 }
 
 rule task_execution_secret_policy_is_static {
-  Resources.TaskExecutionRole.Properties.Policies exists
-  Resources.TaskExecutionRole.Properties.Policies is_list
-  Resources.TaskExecutionRole.Properties.Policies[0].PolicyName == "ManagedSecretGetSecretValue"
-  Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Action == "secretsmanager:GetSecretValue"
-  Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource["Fn::Sub"] == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*" or
-    Resources.TaskExecutionRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource.Sub == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*"
+  let policies = Resources.TaskExecutionRole.Properties.Policies
+  %policies is_list
+  let policy_count = count(%policies)
+  %policy_count == 1
+  %policies[0].PolicyName == "ManagedSecretGetSecretValue"
+  %policies[0].PolicyDocument.Version == "2012-10-17"
+  let statements = %policies[0].PolicyDocument.Statement
+  %statements is_list
+  let statement_count = count(%statements)
+  %statement_count == 1
+  %statements[0].Effect == "Allow"
+  %statements[0].Action == "secretsmanager:GetSecretValue"
+  %statements[0].Resource["Fn::Sub"] == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*" or
+    %statements[0].Resource.Sub == "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*"
 }
 
 rule task_execution_trust_is_hardened {
-  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Principal.Service == "ecs-tasks.amazonaws.com"
-  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Action == "sts:AssumeRole"
-  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals["aws:SourceAccount"] exists
-  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement[0].Condition.ArnLike["aws:SourceArn"] exists
+  Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Version == "2012-10-17"
+  let statements = Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement
+  %statements is_list
+  let statement_count = count(%statements)
+  %statement_count == 1
+  %statements[0].Effect == "Allow"
+  %statements[0].Principal.Service == "ecs-tasks.amazonaws.com"
+  %statements[0].Action == "sts:AssumeRole"
+  %statements[0].Condition.StringEquals["aws:SourceAccount"].Ref == "AWS::AccountId" or
+    %statements[0].Condition.StringEquals["aws:SourceAccount"]["Fn::Ref"] == "AWS::AccountId" or
+    %statements[0].Condition.StringEquals["aws:SourceAccount"] == "AWS::AccountId"
+  %statements[0].Condition.ArnLike["aws:SourceArn"]["Fn::Sub"] == "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*" or
+    %statements[0].Condition.ArnLike["aws:SourceArn"].Sub == "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*"
 }
 
 rule express_infrastructure_trust_is_ecs_only {
-  Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement[0].Principal.Service == "ecs.amazonaws.com"
-  Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement[0].Action == "sts:AssumeRole"
+  Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Version == "2012-10-17"
+  let statements = Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement
+  %statements is_list
+  let statement_count = count(%statements)
+  %statement_count == 1
+  %statements[0].Effect == "Allow"
+  %statements[0].Principal.Service == "ecs.amazonaws.com"
+  %statements[0].Action == "sts:AssumeRole"
+  %statements[0].Condition not exists
 }
 
 rule taggable_resources_carry_fixed_tags {
-  Resources.ReferenceDemoRepository.Properties.Tags !empty
-  Resources.ApplicationLogGroup.Properties.Tags !empty
-  Resources.DemoVpc.Properties.Tags !empty
-  Resources.PublicSubnetA.Properties.Tags !empty
-  Resources.PublicSubnetB.Properties.Tags !empty
-  Resources.InternetGateway.Properties.Tags !empty
-  Resources.PublicRouteTable.Properties.Tags !empty
-  Resources.TaskExecutionRole.Properties.Tags !empty
-  Resources.ExpressInfrastructureRole.Properties.Tags !empty
-  Resources.ManagedSecret.Properties.Tags !empty
-  Resources.ExpressGatewayService.Properties.Tags !empty
+  let taggable_count = count(%taggable_resources)
+  %taggable_count == 11
+  %taggable_resources {
+    Properties {
+      Tags is_list
+      let tag_count = count(Tags[*])
+      %tag_count == 5
+      Tags[0].Key == "Project"
+      Tags[0].Value == "steuerberater-copilot"
+      Tags[1].Key == "Component"
+      Tags[1].Value == "reference-demo"
+      Tags[2].Key == "Environment"
+      Tags[2].Value == "portfolio-test"
+      Tags[3].Key == "ManagedBy"
+      Tags[3].Value == "cloudformation"
+      Tags[4].Key == "Lifecycle"
+      Tags[4].Value == "ephemeral"
+      some Tags[*] {
+        Key == "Project"
+        Value == "steuerberater-copilot"
+      }
+      some Tags[*] {
+        Key == "Component"
+        Value == "reference-demo"
+      }
+      some Tags[*] {
+        Key == "Environment"
+        Value == "portfolio-test"
+      }
+      some Tags[*] {
+        Key == "ManagedBy"
+        Value == "cloudformation"
+      }
+      some Tags[*] {
+        Key == "Lifecycle"
+        Value == "ephemeral"
+      }
+    }
+  }
+  let untaggable_count = count(%untaggable_resources)
+  %untaggable_count == 4
+  %untaggable_resources {
+    Properties.Tags not exists
+  }
 }
 
 rule express_service_fixed_identity_cpu_memory_and_no_task_role {
