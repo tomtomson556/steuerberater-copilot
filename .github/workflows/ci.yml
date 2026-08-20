@@ -31,6 +31,25 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
+      - name: Install CloudFormation Guard from pinned source
+        env:
+          CFN_GUARD_VERSION: "3.1.2"
+          CFN_GUARD_COMMIT: "de26750fa2d97099272156238041968abeb3b95b"
+          # Matches rust-toolchain.toml at CFN_GUARD_COMMIT.
+          CFN_GUARD_RUST_TOOLCHAIN: "1.77.2"
+        run: |
+          rustup toolchain install "$CFN_GUARD_RUST_TOOLCHAIN" --profile minimal
+          cargo +"$CFN_GUARD_RUST_TOOLCHAIN" install \
+            --git https://github.com/aws-cloudformation/cloudformation-guard.git \
+            --rev "$CFN_GUARD_COMMIT" \
+            --locked \
+            --root "$HOME/.local" \
+            cfn-guard
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          actual_version="$("$HOME/.local/bin/cfn-guard" --version)"
+          test "$actual_version" = "cfn-guard ${CFN_GUARD_VERSION}"
+          printf '%s\n' "$actual_version"
+
       - name: Run tests
         run: pytest -q
 

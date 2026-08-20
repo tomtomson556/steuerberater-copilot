@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +12,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "infra" / "cloudformation" / "reference-demo.yaml"
+GUARD_PATH = ROOT / "infra" / "cloudformation" / "guards" / "reference-demo.guard"
+IAM_POLICY_DIR = ROOT / "infra" / "iam" / "reference-demo" / "v2.3"
+CI_PATH = ROOT / ".github" / "workflows" / "ci.yml"
 
 FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
     "AWS::EC2::SecurityGroup",
@@ -45,6 +50,105 @@ ALLOWED_NETWORK_RESOURCE_TYPES = (
     "AWS::EC2::Route",
     "AWS::EC2::SubnetRouteTableAssociation",
 )
+
+ALLOWED_RESOURCE_TYPES = {
+    "AWS::ECR::Repository",
+    "AWS::Logs::LogGroup",
+    "AWS::IAM::Role",
+    "AWS::SecretsManager::Secret",
+    "AWS::ECS::ExpressGatewayService",
+    *ALLOWED_NETWORK_RESOURCE_TYPES,
+}
+
+ALLOWED_PARAMETERS = {
+    "DeployService",
+    "ImageUri",
+    "CreateManagedSecret",
+    "InjectManagedSecret",
+}
+
+STAGE1_RESOURCE_IDS = (
+    "ReferenceDemoRepository",
+    "ApplicationLogGroup",
+    "DemoVpc",
+    "PublicSubnetA",
+    "PublicSubnetB",
+    "InternetGateway",
+    "AttachGateway",
+    "PublicRouteTable",
+    "PublicRoute",
+    "PublicSubnetARouteTableAssociation",
+    "PublicSubnetBRouteTableAssociation",
+    "TaskExecutionRole",
+    "ExpressInfrastructureRole",
+)
+
+TAGGABLE_RESOURCE_IDS = (
+    "ReferenceDemoRepository",
+    "ApplicationLogGroup",
+    "DemoVpc",
+    "PublicSubnetA",
+    "PublicSubnetB",
+    "InternetGateway",
+    "PublicRouteTable",
+    "TaskExecutionRole",
+    "ExpressInfrastructureRole",
+    "ManagedSecret",
+    "ExpressGatewayService",
+)
+
+UNTAGGABLE_RESOURCE_IDS = (
+    "AttachGateway",
+    "PublicRoute",
+    "PublicSubnetARouteTableAssociation",
+    "PublicSubnetBRouteTableAssociation",
+)
+
+FIXED_RESOURCE_TAGS = {
+    "Project": "steuerberater-copilot",
+    "Component": "reference-demo",
+    "Environment": "portfolio-test",
+    "ManagedBy": "cloudformation",
+    "Lifecycle": "ephemeral",
+}
+
+EXPLICIT_FIXED_RESOURCE_TAGS = """\
+        - Key: Project
+          Value: steuerberater-copilot
+        - Key: Component
+          Value: reference-demo
+        - Key: Environment
+          Value: portfolio-test
+        - Key: ManagedBy
+          Value: cloudformation
+        - Key: Lifecycle
+          Value: ephemeral
+"""
+
+IMAGE_URI_ALLOWED_PATTERN = (
+    r"^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/"
+    r"steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
+)
+
+# CloudFormation YAML does not support anchors, aliases, or hash merges.
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-formats.html
+CFN_INCOMPATIBLE_YAML_ANCHOR = re.compile(r"(?:^|[\s,{])&[A-Za-z_][\w-]*", re.MULTILINE)
+CFN_INCOMPATIBLE_YAML_ALIAS = re.compile(r"(?:^|[\s,{])\*[A-Za-z_][\w-]*", re.MULTILINE)
+CFN_INCOMPATIBLE_YAML_MERGE = re.compile(r"(?:^|[\s])<<\s*:", re.MULTILINE)
+
+SECRET_ARN_PATTERN = (
+    "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:"
+    "steuerberater-copilot/reference-demo/synthetic-*"
+)
+TASK_EXECUTION_BOUNDARY_ARN = (
+    "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/"
+    "reference-demo/task-execution-boundary"
+)
+EXPRESS_INFRASTRUCTURE_BOUNDARY_ARN = (
+    "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/"
+    "reference-demo/express-infrastructure-boundary"
+)
+ECS_SOURCE_ARN = "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*"
 
 SUSPICIOUS_CREDENTIAL_PATTERNS = (
     re.compile(r"AKIA[0-9A-Z]{16}"),
@@ -106,6 +210,75 @@ def _resource_by_type(template: dict[str, Any], type_name: str) -> list[tuple[st
     return matches
 
 
+def _tag_map(tags: Any) -> dict[str, str]:
+    assert isinstance(tags, list)
+    mapped: dict[str, str] = {}
+    for item in tags:
+        assert isinstance(item, dict)
+        key = item["Key"]
+        value = item["Value"]
+        assert isinstance(key, str)
+        assert isinstance(value, str)
+        mapped[key] = value
+    return mapped
+
+
+def _sub_value(node: Any) -> str:
+    assert isinstance(node, dict)
+    if "Sub" in node:
+        value = node["Sub"]
+    else:
+        value = node["Fn::Sub"]
+    assert isinstance(value, str)
+    return value
+
+
+def cloudformation_incompatible_yaml_constructs(text: str) -> list[str]:
+    findings: list[str] = []
+    for pattern, label in (
+        (CFN_INCOMPATIBLE_YAML_ANCHOR, "anchor"),
+        (CFN_INCOMPATIBLE_YAML_ALIAS, "alias"),
+        (CFN_INCOMPATIBLE_YAML_MERGE, "merge"),
+    ):
+        for match in pattern.finditer(text):
+            findings.append(f"{label}:{match.group(0)!r}")
+    return findings
+
+
+def cfn_guard_executable() -> Path:
+    found = shutil.which("cfn-guard")
+    if found:
+        return Path(found)
+    fallback = Path.home() / ".local" / "bin" / "cfn-guard"
+    assert fallback.is_file(), (
+        "cfn-guard CLI is required for the offline freeze; "
+        "install AWS CloudFormation Guard and retry"
+    )
+    return fallback
+
+
+def run_cfn_guard(
+    data_path: Path, rules_path: Path = GUARD_PATH
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            str(cfn_guard_executable()),
+            "validate",
+            "--data",
+            str(data_path),
+            "--rules",
+            str(rules_path),
+            "--show-summary",
+            "fail",
+            "--type",
+            "CFNTemplate",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_template_exists_and_parses() -> None:
     template = load_template()
     assert template["AWSTemplateFormatVersion"] == "2010-09-09"
@@ -118,6 +291,7 @@ def test_template_exists_and_parses() -> None:
 
 def test_parameters_defaults_and_allowed_values() -> None:
     parameters = load_template()["Parameters"]
+    assert set(parameters) == ALLOWED_PARAMETERS
     for name in ("DeployService", "CreateManagedSecret", "InjectManagedSecret"):
         param = parameters[name]
         assert param["Type"] == "String"
@@ -127,8 +301,33 @@ def test_parameters_defaults_and_allowed_values() -> None:
     image = parameters["ImageUri"]
     assert image["Type"] == "String"
     assert image["Default"] == ""
-    assert "@sha256:" in image["AllowedPattern"]
-    assert image["AllowedPattern"].startswith("^$|")
+    assert image["AllowedPattern"] == IMAGE_URI_ALLOWED_PATTERN
+
+
+def test_ci_installs_guard_from_locked_official_commit() -> None:
+    workflow = CI_PATH.read_text(encoding="utf-8")
+    install_step = workflow.split(
+        "      - name: Install CloudFormation Guard from pinned source\n", maxsplit=1
+    )[1].split("      - name: Run tests\n", maxsplit=1)[0]
+
+    assert 'CFN_GUARD_VERSION: "3.1.2"' in install_step
+    assert (
+        'CFN_GUARD_COMMIT: "de26750fa2d97099272156238041968abeb3b95b"'
+        in install_step
+    )
+    assert 'CFN_GUARD_RUST_TOOLCHAIN: "1.77.2"' in install_step
+    assert (
+        'rustup toolchain install "$CFN_GUARD_RUST_TOOLCHAIN" --profile minimal'
+        in install_step
+    )
+    assert 'cargo +"$CFN_GUARD_RUST_TOOLCHAIN" install' in install_step
+    assert "https://github.com/aws-cloudformation/cloudformation-guard.git" in install_step
+    assert '--rev "$CFN_GUARD_COMMIT"' in install_step
+    assert "--locked" in install_step
+    assert 'test "$actual_version" = "cfn-guard ${CFN_GUARD_VERSION}"' in install_step
+    assert "curl" not in install_step
+    assert "tar " not in install_step
+    assert "releases/download" not in install_step
 
 
 def test_conditions_and_rules_cover_bootstrap_and_secret_guards() -> None:
@@ -147,20 +346,41 @@ def test_conditions_and_rules_cover_bootstrap_and_secret_guards() -> None:
 def test_digest_required_for_service_deployment() -> None:
     template = load_template()
     image_pattern = template["Parameters"]["ImageUri"]["AllowedPattern"]
+    digest = "a" * 64
+    approved_image_uri = (
+        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+        f"steuerberater-copilot-reference-demo@sha256:{digest}"
+    )
+    rejected_image_uris = (
+        f"docker.io/library/demo@sha256:{digest}",
+        f"ghcr.io/example/demo@sha256:{digest}",
+        f"registry.example.com/demo@sha256:{digest}",
+        (
+            "123456789012.dkr.ecr.eu-west-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+        (
+            "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"other-repository@sha256:{digest}"
+        ),
+        (
+            "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+            "steuerberater-copilot-reference-demo:bootstrap"
+        ),
+        (
+            "12345678901.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+        (
+            "ABCDEFGHIJKL.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+    )
+
     assert re.fullmatch(image_pattern, "")
-    assert re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo@sha256:"
-        + ("a" * 64),
-    )
-    assert not re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo:latest",
-    )
-    assert not re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo:bootstrap",
-    )
+    assert re.fullmatch(image_pattern, approved_image_uri)
+    for rejected in rejected_image_uris:
+        assert re.fullmatch(image_pattern, rejected) is None, rejected
 
     service = _resource_by_type(template, "AWS::ECS::ExpressGatewayService")
     assert len(service) == 1
@@ -177,43 +397,80 @@ def test_express_service_port_health_scaling_and_logs() -> None:
     assert container["ContainerPort"] == 8000
     assert props["HealthCheckPath"] == "/health"
     assert props["ScalingTarget"] == {"MinTaskCount": 1, "MaxTaskCount": 1}
+    assert props["Cluster"] == "default"
+    assert props["ServiceName"] == "steuerberater-copilot-reference-demo"
+    assert props["Cpu"] == "256"
+    assert props["Memory"] == "512"
 
     logs = container["AwsLogsConfiguration"]
     assert logs["LogStreamPrefix"] == "ecs"
     assert "LogGroup" in logs
     assert "Image" in container
     assert "TaskRoleArn" not in props
+    assert "TaskDefinitionArn" not in props
 
 
 def test_log_group_retention_and_ecr_empty_on_delete() -> None:
     template = load_template()
     _, log_group = _resource_by_type(template, "AWS::Logs::LogGroup")[0]
     assert log_group["Properties"]["RetentionInDays"] == 14
+    assert log_group["Properties"]["LogGroupName"] == (
+        "/steuerberater-copilot/reference-demo/application"
+    )
 
     _, repository = _resource_by_type(template, "AWS::ECR::Repository")[0]
     assert repository["Properties"]["EmptyOnDelete"] is True
+    assert repository["Properties"]["RepositoryName"] == "steuerberater-copilot-reference-demo"
 
 
-def test_iam_trusts_and_managed_policies() -> None:
+def test_stage1_resources_are_unconditional_and_complete() -> None:
+    resources = load_template()["Resources"]
+    assert len(STAGE1_RESOURCE_IDS) == 13
+    for logical_id in STAGE1_RESOURCE_IDS:
+        assert "Condition" not in resources[logical_id]
+    assert resources["ManagedSecret"]["Condition"] == "CreateManagedSecretEnabled"
+    assert resources["ExpressGatewayService"]["Condition"] == "DeployExpressService"
+    assert set(resources) == set(STAGE1_RESOURCE_IDS) | {
+        "ManagedSecret",
+        "ExpressGatewayService",
+    }
+
+
+def test_iam_trusts_boundaries_and_managed_policies() -> None:
     template = load_template()
     roles = {
         logical_id: resource
         for logical_id, resource in _resource_by_type(template, "AWS::IAM::Role")
     }
-    assert "TaskExecutionRole" in roles
-    assert "ExpressInfrastructureRole" in roles
-    assert "RoleName" not in roles["TaskExecutionRole"]["Properties"]
-    assert "RoleName" not in roles["ExpressInfrastructureRole"]["Properties"]
+    assert set(roles) == {"TaskExecutionRole", "ExpressInfrastructureRole"}
 
-    execution_trust = roles["TaskExecutionRole"]["Properties"]["AssumeRolePolicyDocument"]
-    assert execution_trust["Statement"][0]["Principal"]["Service"] == "ecs-tasks.amazonaws.com"
-    assert roles["TaskExecutionRole"]["Properties"]["ManagedPolicyArns"] == [
+    execution_props = roles["TaskExecutionRole"]["Properties"]
+    assert execution_props["RoleName"] == "task-execution"
+    assert execution_props["Path"] == "/steuerberater-copilot/reference-demo/"
+    assert _sub_value(execution_props["PermissionsBoundary"]) == TASK_EXECUTION_BOUNDARY_ARN
+
+    execution_trust = execution_props["AssumeRolePolicyDocument"]["Statement"][0]
+    assert execution_trust["Principal"] == {"Service": "ecs-tasks.amazonaws.com"}
+    assert execution_trust["Action"] == "sts:AssumeRole"
+    assert execution_trust["Condition"]["StringEquals"]["aws:SourceAccount"] == {
+        "Ref": "AWS::AccountId"
+    }
+    assert _sub_value(execution_trust["Condition"]["ArnLike"]["aws:SourceArn"]) == ECS_SOURCE_ARN
+    assert execution_props["ManagedPolicyArns"] == [
         "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
     ]
 
-    infra_trust = roles["ExpressInfrastructureRole"]["Properties"]["AssumeRolePolicyDocument"]
-    assert infra_trust["Statement"][0]["Principal"]["Service"] == "ecs.amazonaws.com"
-    assert roles["ExpressInfrastructureRole"]["Properties"]["ManagedPolicyArns"] == [
+    infra_props = roles["ExpressInfrastructureRole"]["Properties"]
+    assert infra_props["RoleName"] == "express-infrastructure"
+    assert infra_props["Path"] == "/steuerberater-copilot/reference-demo/"
+    assert _sub_value(infra_props["PermissionsBoundary"]) == EXPRESS_INFRASTRUCTURE_BOUNDARY_ARN
+    assert "Policies" not in infra_props
+
+    infra_trust = infra_props["AssumeRolePolicyDocument"]["Statement"][0]
+    assert infra_trust["Principal"] == {"Service": "ecs.amazonaws.com"}
+    assert infra_trust["Action"] == "sts:AssumeRole"
+    assert "Condition" not in infra_trust
+    assert infra_props["ManagedPolicyArns"] == [
         "arn:aws:iam::aws:policy/service-role/"
         "AmazonECSInfrastructureRoleforExpressGatewayServices",
         {
@@ -226,40 +483,41 @@ def test_iam_trusts_and_managed_policies() -> None:
     ]
 
 
-def test_secret_permissions_are_conditional_and_arn_scoped() -> None:
+def test_secret_read_policy_is_static_from_stage1_and_arn_pattern_scoped() -> None:
     template = load_template()
     secrets = _resource_by_type(template, "AWS::SecretsManager::Secret")
     assert len(secrets) == 1
     logical_id, secret = secrets[0]
+    assert logical_id == "ManagedSecret"
     assert secret["Condition"] == "CreateManagedSecretEnabled"
+    assert secret["DeletionPolicy"] == "Delete"
+    assert secret["UpdateReplacePolicy"] == "Delete"
     props = secret.get("Properties", {})
+    assert props["Name"] == "steuerberater-copilot/reference-demo/synthetic"
     assert "SecretString" not in props
     assert "GenerateSecretString" not in props
 
     execution_roles = _resource_by_type(template, "AWS::IAM::Role")
     _, execution_role = next(item for item in execution_roles if item[0] == "TaskExecutionRole")
-    policies_if = execution_role["Properties"]["Policies"]
-    assert "If" in policies_if
-    assert policies_if["If"][0] == "InjectManagedSecretEnabled"
-    inline_policies = policies_if["If"][1]
-    statement = inline_policies[0]["PolicyDocument"]["Statement"][0]
-    assert statement["Action"] == ["secretsmanager:GetSecretValue"]
-    assert statement["Resource"] == {"Ref": logical_id}
-    assert statement["Resource"] != "*"
+    policies = execution_role["Properties"]["Policies"]
+    assert isinstance(policies, list)
+    assert len(policies) == 1
+    assert "If" not in policies[0]
+    assert policies[0]["PolicyName"] == "ManagedSecretGetSecretValue"
+    statements = policies[0]["PolicyDocument"]["Statement"]
+    assert len(statements) == 1
+    statement = statements[0]
+    assert statement["Action"] == "secretsmanager:GetSecretValue"
+    assert _sub_value(statement["Resource"]) == SECRET_ARN_PATTERN
+    assert statement["Resource"] != {"Ref": logical_id}
+    assert "Ref" not in statement["Resource"]
 
     raw = TEMPLATE_PATH.read_text(encoding="utf-8")
     assert 'Resource: "*"' not in raw
     assert "Resource: '*'" not in raw
-    get_secret_blocks = [
-        block
-        for block in raw.split("secretsmanager:GetSecretValue")
-        if "Resource:" in block[:200]
-    ]
-    assert get_secret_blocks
-    for block in get_secret_blocks:
-        nearby = block[:200]
-        assert 'Resource: "*"' not in nearby
-        assert "Resource: '*'" not in nearby
+    role_block = raw.split("TaskExecutionRole:")[1].split("ExpressInfrastructureRole:")[0]
+    assert "!Ref ManagedSecret" not in role_block
+    assert "InjectManagedSecretEnabled" not in role_block
 
 
 def test_no_task_role_and_no_forbidden_resources() -> None:
@@ -271,6 +529,7 @@ def test_no_task_role_and_no_forbidden_resources() -> None:
     assert "AWS::SecretsManager::Secret" in raw_types
     for allowed in ALLOWED_NETWORK_RESOURCE_TYPES:
         assert allowed in raw_types
+    assert set(raw_types) <= ALLOWED_RESOURCE_TYPES
 
     for type_name in raw_types:
         assert not type_name.startswith(FORBIDDEN_RESOURCE_TYPE_PREFIXES)
@@ -279,6 +538,18 @@ def test_no_task_role_and_no_forbidden_resources() -> None:
     assert not _find_keys(template, "TaskRoleArn")
     assert "AWS::ElasticLoadBalancingV2::LoadBalancer" not in raw_types
     assert "AWS::ElasticLoadBalancingV2::TargetGroup" not in raw_types
+
+
+def test_taggable_resources_have_exactly_the_five_fixed_tags() -> None:
+    resources = load_template()["Resources"]
+    assert set(TAGGABLE_RESOURCE_IDS) | set(UNTAGGABLE_RESOURCE_IDS) == set(resources)
+    for logical_id in TAGGABLE_RESOURCE_IDS:
+        tags = resources[logical_id]["Properties"]["Tags"]
+        assert _tag_map(tags) == FIXED_RESOURCE_TAGS
+        assert [item["Key"] for item in tags] == list(FIXED_RESOURCE_TAGS)
+    for logical_id in UNTAGGABLE_RESOURCE_IDS:
+        properties = resources[logical_id].get("Properties", {})
+        assert "Tags" not in properties
 
 
 def test_stack_owned_public_vpc_routing_and_network_configuration() -> None:
@@ -403,3 +674,198 @@ def test_outputs_are_minimal_and_conditional() -> None:
     assert outputs["ManagedSecretArn"]["Condition"] == "CreateManagedSecretEnabled"
     assert "Condition" not in outputs["EcrRepositoryUri"]
     assert "Condition" not in outputs["LogGroupName"]
+
+
+def test_template_names_match_iam_v23_arn_patterns() -> None:
+    task_boundary = (IAM_POLICY_DIR / "task-execution-boundary.json").read_text(
+        encoding="utf-8"
+    )
+    assert "repository/steuerberater-copilot-reference-demo" in task_boundary
+    assert "/steuerberater-copilot/reference-demo/application" in task_boundary
+    assert "steuerberater-copilot/reference-demo/synthetic-*" in task_boundary
+
+    lifecycle_path = IAM_POLICY_DIR / "cloudformation-service-role-iam-lifecycle-policy.json"
+    lifecycle = lifecycle_path.read_text(encoding="utf-8")
+    assert "role/steuerberater-copilot/reference-demo/task-execution" in lifecycle
+    assert "role/steuerberater-copilot/reference-demo/express-infrastructure" in lifecycle
+    assert "policy/steuerberater-copilot/reference-demo/task-execution-boundary" in lifecycle
+    assert (
+        "policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary"
+        in lifecycle
+    )
+
+
+def test_guard_rules_encode_lifecycle_invariants() -> None:
+    assert GUARD_PATH.is_file()
+    text = GUARD_PATH.read_text(encoding="utf-8")
+    required_snippets = (
+        "steuerberater-copilot-reference-demo",
+        "/steuerberater-copilot/reference-demo/",
+        "task-execution",
+        "express-infrastructure",
+        "task-execution-boundary",
+        "express-infrastructure-boundary",
+        "ManagedSecretGetSecretValue",
+        "secretsmanager:GetSecretValue",
+        "steuerberater-copilot/reference-demo/synthetic-*",
+        'ServiceName == "steuerberater-copilot-reference-demo"',
+        'Cpu == "256"',
+        'Memory == "512"',
+        "TaskRoleArn not exists",
+        'DeletionPolicy == "Delete"',
+        'UpdateReplacePolicy == "Delete"',
+        "AWS::EC2::NatGateway",
+        "AWS::EC2::SecurityGroup",
+        "AWS::ElasticLoadBalancingV2::LoadBalancer",
+        "ecs-tasks.amazonaws.com",
+        "ecs.amazonaws.com",
+        "count(%statements[0].Principal.*)",
+        "%principal_count == 1",
+        "aws:SourceAccount",
+        "aws:SourceArn",
+        "count(Parameters.*)",
+        'AllowedValues == ["true", "false"]',
+        'Parameters.ImageUri.Default == ""',
+        f'Parameters.ImageUri.AllowedPattern == "{IMAGE_URI_ALLOWED_PATTERN}"',
+        'count(Tags[*])',
+        'Tags[0].Key == "Project"',
+        'Tags[0].Value == "steuerberater-copilot"',
+        'Tags[1].Key == "Component"',
+        'Tags[1].Value == "reference-demo"',
+        'Tags[2].Key == "Environment"',
+        'Tags[2].Value == "portfolio-test"',
+        'Tags[3].Key == "ManagedBy"',
+        'Tags[3].Value == "cloudformation"',
+        'Tags[4].Key == "Lifecycle"',
+        'Tags[4].Value == "ephemeral"',
+        "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*",
+        'Effect == "Allow"',
+        ".Ref == \"AWS::AccountId\"",
+        "SecretString not exists",
+        "GenerateSecretString not exists",
+    )
+    for snippet in required_snippets:
+        assert snippet in text, snippet
+    assert "TaskRoleArn exists" not in text.replace("TaskRoleArn not exists", "")
+    assert "Properties.Tags !empty" not in text
+    assert 'Condition.StringEquals["aws:SourceAccount"] exists' not in text
+    assert 'Condition.ArnLike["aws:SourceArn"] exists' not in text
+
+
+def test_template_has_no_cloudformation_incompatible_yaml_aliases() -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    assert cloudformation_incompatible_yaml_constructs(raw) == []
+    assert "&ReferenceDemoTags" not in raw
+    assert "*ReferenceDemoTags" not in raw
+    assert raw.count(EXPLICIT_FIXED_RESOURCE_TAGS) == len(TAGGABLE_RESOURCE_IDS)
+
+
+def test_yaml_alias_detector_flags_anchors_aliases_and_merges() -> None:
+    sample = (
+        "Tags: &ReferenceDemoTags\n"
+        "  - Key: Project\n"
+        "Other: *ReferenceDemoTags\n"
+        "Merged:\n"
+        "  <<: *ReferenceDemoTags\n"
+    )
+    findings = cloudformation_incompatible_yaml_constructs(sample)
+    assert any(item.startswith("anchor:") for item in findings)
+    assert any(item.startswith("alias:") for item in findings)
+    assert any(item.startswith("merge:") for item in findings)
+
+
+def test_yaml_alias_detector_ignores_arn_glob_suffixes() -> None:
+    sample = (
+        "Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:"
+        "secret:steuerberater-copilot/reference-demo/synthetic-*\n"
+        f"AllowedPattern: '{IMAGE_URI_ALLOWED_PATTERN}'\n"
+        "aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*\n"
+    )
+    assert cloudformation_incompatible_yaml_constructs(sample) == []
+
+
+def test_cfn_guard_cli_parses_rules_and_accepts_template() -> None:
+    parsed = subprocess.run(
+        [
+            str(cfn_guard_executable()),
+            "parse-tree",
+            "--rules",
+            str(GUARD_PATH),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert parsed.returncode == 0, parsed.stderr or parsed.stdout
+
+    completed = run_cfn_guard(TEMPLATE_PATH)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" not in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_yaml_aliases(tmp_path: Path) -> None:
+    aliased = tmp_path / "aliased-reference-demo.yaml"
+    aliased.write_text(
+        'AWSTemplateFormatVersion: "2010-09-09"\n'
+        "Resources:\n"
+        "  DemoVpc:\n"
+        "    Type: AWS::EC2::VPC\n"
+        "    Properties:\n"
+        "      CidrBlock: 10.0.0.0/16\n"
+        "      Tags: &ReferenceDemoTags\n"
+        "        - Key: Project\n"
+        "          Value: steuerberater-copilot\n"
+        "  InternetGateway:\n"
+        "    Type: AWS::EC2::InternetGateway\n"
+        "    Properties:\n"
+        "      Tags: *ReferenceDemoTags\n",
+        encoding="utf-8",
+    )
+    completed = run_cfn_guard(aliased)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Parser Error" in combined or "Error occurred" in combined
+
+
+def test_cfn_guard_cli_rejects_broadened_image_uri_pattern(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    approved_pattern = f"    AllowedPattern: '{IMAGE_URI_ALLOWED_PATTERN}'\n"
+    broadened_pattern = "    AllowedPattern: '^$|^.+@sha256:[A-Fa-f0-9]{64}$'\n"
+    assert raw.count(approved_pattern) == 1
+    mutated = tmp_path / "broadened-image-uri-pattern.yaml"
+    mutated.write_text(
+        raw.replace(approved_pattern, broadened_pattern, 1),
+        encoding="utf-8",
+    )
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "parameters_remain_the_approved_set" in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_additional_aws_star_principal(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    exclusive_principal = (
+        "            Principal:\n"
+        "              Service: ecs-tasks.amazonaws.com\n"
+    )
+    widened_principal = (
+        "            Principal:\n"
+        "              Service: ecs-tasks.amazonaws.com\n"
+        '              AWS: "*"\n'
+    )
+    assert raw.count(exclusive_principal) == 1
+    mutated = tmp_path / "widened-principal.yaml"
+    mutated.write_text(raw.replace(exclusive_principal, widened_principal, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "task_execution_trust_is_hardened" in combined
+    assert "Parser Error" not in combined

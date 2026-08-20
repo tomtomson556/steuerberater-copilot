@@ -28,6 +28,7 @@ INVISIBLE_CONTROL_CHARACTERS = {
     0x2060: "remove word joiner",
 }
 TEXT_SUFFIXES = {
+    ".guard",
     ".json",
     ".md",
     ".mdc",
