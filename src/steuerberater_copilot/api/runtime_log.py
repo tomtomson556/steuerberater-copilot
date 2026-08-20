@@ -48,6 +48,7 @@ ERROR_CLASS_PARSE = "parse_error"
 ERROR_CLASS_VALIDATION = "validation_error"
 ERROR_CLASS_PROVIDER = "provider_error"
 ERROR_CLASS_INTERNAL = "internal_error"
+ERROR_CLASS_REQUEST_VALIDATION = "request_validation_error"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,21 @@ def unknown_case_log_fields() -> RuntimeLogFields:
         parse_status=STAGE_STATUS_NOT_RUN,
         validation_status=STAGE_STATUS_NOT_RUN,
         error_class=ERROR_CLASS_UNKNOWN_CASE,
+    )
+
+
+def request_validation_log_fields() -> RuntimeLogFields:
+    """Fields for a request rejected by HTTP body validation before the workflow."""
+    return RuntimeLogFields(
+        workflow_status=WORKFLOW_STATUS_NOT_RUN,
+        gateway_decision=None,
+        review_gate_status=None,
+        provider_name=None,
+        model_name=None,
+        prompt_version=None,
+        parse_status=STAGE_STATUS_NOT_RUN,
+        validation_status=STAGE_STATUS_NOT_RUN,
+        error_class=ERROR_CLASS_REQUEST_VALIDATION,
     )
 
 

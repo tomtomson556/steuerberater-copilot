@@ -13,6 +13,7 @@ from steuerberater_copilot.ai import ModelResponse
 from steuerberater_copilot.api import ai_draft as ai_draft_module
 from steuerberater_copilot.api import create_app
 from steuerberater_copilot.api.runtime_log import (
+    ERROR_CLASS_REQUEST_VALIDATION,
     EVENT_NAME,
     RUNTIME_EVENT_KEYS,
     STAGE_STATUS_ERROR,
@@ -52,6 +53,19 @@ FORBIDDEN_LOG_SNIPPETS = (
     "CASE_005",
     "CASE_006",
     "CASE_999",
+    "client_note",
+    "extra_forbidden",
+    "Field required",
+    "Extra inputs are not permitted",
+    "must not accept free-form fachdata",
+)
+REQUEST_VALIDATION_LEAK_SNIPPETS = (
+    '"case_id"',
+    '"loc"',
+    '"msg"',
+    '"input"',
+    '"detail"',
+    "missing",
 )
 
 
@@ -294,6 +308,61 @@ def test_ai_draft_provider_error_classifies_without_exception_text(
     _assert_no_log_content_leak(event, captured)
 
 
+def test_ai_draft_missing_case_id_emits_request_validation_event(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _block_network(monkeypatch)
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/ai/draft",
+        json={},
+        headers={"X-Request-ID": "client-supplied-id"},
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert "detail" in payload
+    assert any(item.get("type") == "missing" for item in payload["detail"])
+    request_id = response.headers["x-request-id"]
+    assert request_id != "client-supplied-id"
+    uuid.UUID(request_id)
+    event, captured = _single_runtime_event(capsys)
+    _assert_request_validation_event(event, request_id)
+    _assert_no_log_content_leak(event, captured)
+    _assert_no_request_validation_leak(event, captured)
+
+
+def test_ai_draft_extra_fields_emits_request_validation_event(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    _block_network(monkeypatch)
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/ai/draft",
+        json={
+            "case_id": "CASE_002",
+            "client_note": "must not accept free-form fachdata",
+        },
+        headers={"X-Request-ID": "client-supplied-id"},
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert "detail" in payload
+    assert any(item.get("type") == "extra_forbidden" for item in payload["detail"])
+    request_id = response.headers["x-request-id"]
+    assert request_id != "client-supplied-id"
+    uuid.UUID(request_id)
+    event, captured = _single_runtime_event(capsys)
+    _assert_request_validation_event(event, request_id)
+    _assert_no_log_content_leak(event, captured)
+    _assert_no_request_validation_leak(event, captured)
+
+
 def test_ai_draft_emits_exactly_one_event_per_call(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -303,16 +372,19 @@ def test_ai_draft_emits_exactly_one_event_per_call(
 
     first = client.post("/ai/draft", json={"case_id": "CASE_002"})
     second = client.post("/ai/draft", json={"case_id": "CASE_005"})
+    rejected = client.post("/ai/draft", json={})
     health = client.get("/health")
 
     assert first.status_code == 200
     assert second.status_code == 200
+    assert rejected.status_code == 422
     assert health.status_code == 200
     events, captured = _runtime_events(capsys)
-    assert len(events) == 2
+    assert len(events) == 3
     assert events[0]["workflow_status"] == WORKFLOW_STATUS_COMPLETED
     assert events[1]["workflow_status"] == WORKFLOW_STATUS_BLOCKED
-    assert events[0]["request_id"] != events[1]["request_id"]
+    assert events[2]["error_class"] == ERROR_CLASS_REQUEST_VALIDATION
+    assert len({event["request_id"] for event in events}) == 3
     for event in events:
         _assert_no_log_content_leak(event, captured)
 
@@ -388,7 +460,28 @@ def _assert_schema(event: dict[str, object]) -> None:
     assert event["duration_ms"] >= 0
 
 
+def _assert_request_validation_event(event: dict[str, object], request_id: str) -> None:
+    _assert_schema(event)
+    assert event["request_id"] == request_id
+    assert event["http_status"] == 422
+    assert event["workflow_status"] == WORKFLOW_STATUS_NOT_RUN
+    assert event["gateway_decision"] is None
+    assert event["review_gate_status"] is None
+    assert event["provider_name"] is None
+    assert event["model_name"] is None
+    assert event["prompt_version"] is None
+    assert event["parse_status"] == STAGE_STATUS_NOT_RUN
+    assert event["validation_status"] == STAGE_STATUS_NOT_RUN
+    assert event["error_class"] == ERROR_CLASS_REQUEST_VALIDATION
+
+
 def _assert_no_log_content_leak(event: dict[str, object], captured: str) -> None:
     combined = json.dumps(event) + captured
     for snippet in FORBIDDEN_LOG_SNIPPETS:
+        assert snippet not in combined
+
+
+def _assert_no_request_validation_leak(event: dict[str, object], captured: str) -> None:
+    combined = json.dumps(event) + captured
+    for snippet in REQUEST_VALIDATION_LEAK_SNIPPETS:
         assert snippet not in combined
