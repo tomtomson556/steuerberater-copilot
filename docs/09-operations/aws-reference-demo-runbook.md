@@ -979,6 +979,12 @@ Hinweise zum erwarteten Ergebnis:
 - `MinTaskCount`/`MaxTaskCount` bleiben `1`
 - Billing-Budget oder Kostenalarm im Account aktiv halten
 - keine Dauerbetriebsannahme für diesen Portfolio-Stack
+- `POST /ai/draft` emittiert CloudWatch-Embedded-Metric-Format-Events über
+  den bestehenden awslogs-Pfad (`logs:PutLogEvents`, ohne `PutMetricData`).
+  Benutzerdefinierte CloudWatch-Metriken können zusätzliche Kosten
+  verursachen
+  ([CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)).
+  Es gibt kein verwaltetes Dashboard und keine Alarme in diesem Stand.
 
 ## Bekannte Grenzen
 
@@ -990,6 +996,12 @@ Hinweise zum erwarteten Ergebnis:
 - manuelle AWS-Verifikation bleibt ausstehend, bis ein Operator den Stack
   bewusst im eigenen Account durchspielt und das Go-/No-Go-Gate aus dem
   IAM-/Lifecycle-Modell v2.3 erfüllt ist
-- strukturierte Runtime-Logs für `POST /ai/draft` sind vorhanden (genau ein
-  JSON-Event je Aufruf auf stdout, serverseitige `X-Request-ID`);
-  Basis-Metriken folgen in `feat/add-basic-runtime-metrics`
+- strukturierte Runtime-Logs und Basic Runtime Metrics für `POST /ai/draft`
+  sind vorhanden (genau ein CloudWatch-Embedded-Metric-Format-JSON-Event je
+  Aufruf auf stdout, serverseitige `X-Request-ID`). EMF wird mindestens
+  einmal verarbeitet; gelegentliche doppelte Metrikwerte sind möglich
+  ([EMF-Spezifikation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html),
+  [Embedding metrics within logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)).
+  Die reale EMF-Extraktion bleibt bis zur bewussten AWS-Verifikation
+  unbestätigt. Kein AWS-Live-Test, kein Dashboard und keine Alarme in diesem
+  Stand. `/health` und `/version` erzeugen keine Runtime-Metriken.

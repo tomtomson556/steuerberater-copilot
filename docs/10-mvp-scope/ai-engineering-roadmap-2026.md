@@ -113,14 +113,17 @@ ai -> offline_mvp
 Als HTTP-Systemrand ist eine minimale FastAPI-Basis mit App Factory,
 `/health`, `/version` und dem kontrollierten synthetischen Endpunkt
 `POST /ai/draft` vorhanden. Jeder `POST /ai/draft`-Aufruf erzeugt genau ein
-einzeiliges JSON-Runtime-Event auf stdout und eine serverseitige
-`X-Request-ID`. Die Ausgabe ist mit dem bestehenden awslogs-Pfad kompatibel
-und enthaelt keine Request-/Response-Bodys, Prompts, Modellantworten,
-Exception-Texte, Secrets oder personenbezogenen Daten. Die lokale
-Docker-Laufzeit fuer diese Demo ist ebenfalls vorhanden. Noch nicht vorhanden
-sind insbesondere Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenzaehlung
-oder Tokenizer, Provider- oder Modell-Allowlist, produktive Evaluation,
-Persistenz, Authentifizierung und aggregierte Runtime-Metriken.
+einzeiliges JSON-Runtime-Event im CloudWatch Embedded Metric Format auf
+stdout und eine serverseitige `X-Request-ID`. Die Ausgabe ist mit dem
+bestehenden awslogs-Pfad kompatibel und enthaelt keine Request-/Response-
+Bodys, Prompts, Modellantworten, Exception-Texte, Secrets oder
+personenbezogenen Daten. Die lokale Docker-Laufzeit fuer diese Demo ist
+ebenfalls vorhanden. Noch nicht vorhanden sind insbesondere Retry-Policy,
+Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder
+Modell-Allowlist, produktive Evaluation, Persistenz, Authentifizierung sowie
+ein verwaltetes CloudWatch-Dashboard oder Alarme. Geschaetzte Modellkosten
+sind nicht implementiert; `model_cost_usd` ist `0.0` oder `null`. Die reale
+CloudWatch-Extraktion der EMF-Events bleibt ohne AWS-Live-Test unbestaetigt.
 Eine erfolgreiche Live-Verbindung zum Provider ist ohne expliziten opt-in
 Smoke-Test nicht behauptet. Eine Prompt Registry ist bewusst aufgeschoben und
 aktuell nicht benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding-,
@@ -656,8 +659,9 @@ minimale CloudFormation-Referenz-Stack liegt unter
 `infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Die
 IAM-Control-Plane v2.3 liegt unter `infra/iam/reference-demo/v2.3/`.
 Template, Guard-Regeln und Runbook werden an das IAM-/Lifecycle-Modell v2.3
-gebunden. Strukturierte Runtime-Logs fuer `POST /ai/draft` sind vorhanden.
-Basis-Metriken bleiben der naechste Branch `feat/add-basic-runtime-metrics`.
+gebunden. Strukturierte Runtime-Logs und Basic Runtime Metrics (CloudWatch
+Embedded Metric Format) fuer `POST /ai/draft` sind vorhanden. Ein AWS-Live-Test,
+ein verwaltetes Dashboard und Alarme sind nicht Teil dieses Stands.
 
 Minimaler Cloud-Scope:
 
@@ -702,17 +706,22 @@ Nicht geloggt werden:
 - vollstaendige Modellantworten
 - reale personenbezogene Daten
 
-Grundlegende Metriken:
+Grundlegende Metriken fuer `POST /ai/draft` (Namespace
+`SteuerberaterCopilot/Runtime`, Dimensionen nur `service` und `operation`):
 
-- Requestzahl
-- Erfolgsquote
-- Fehlerquote
-- P95-Latenz
-- Providerfehler
-- Parsefehler
-- Validierungsfehler
-- Abstention Rate
-- gemeldete oder geschaetzte Modellkosten
+- Requestzahl: `SUM(request_count)`
+- Erfolgsquote: `SUM(success_count) / SUM(request_count)`
+- Fehlerquote: `SUM(error_count) / SUM(request_count)`
+- P95-Latenz: p95-Statistik von `duration_ms`
+- Providerfehler, Parsefehler und Validierungsfehler jeweils als Sum
+- Abstention Rate: `SUM(abstention_count) / SUM(request_count)`
+- Modellkosten nur ueber vorhandene numerische `model_cost_usd`-Werte;
+  geschaetzte Kosten sind nicht implementiert
+
+Erfolgs- und Fehlerquote sind technische HTTP-Quoten. Kontrollierter Block und
+Abstention mit HTTP 200 zaehlen technisch als erfolgreicher HTTP-Aufruf; die
+fachliche Bedeutung bleibt in `workflow_status`. HTTP 422
+(`request_validation_error`) zaehlt nicht als semantischer Validierungsfehler.
 
 Keine Pflicht besteht fuer:
 
@@ -978,10 +987,11 @@ Architekturentscheidungen.
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
 ADR-004. Die AWS-Referenzarchitektur, der minimale CloudFormation-Referenz-Stack
-und die IAM-Control-Plane v2.3 sind vorhanden. Strukturierte Runtime-Logs fuer
-`POST /ai/draft` sind vorhanden. Der naechste sinnvolle Produktionsbranch ist
-`feat/add-basic-runtime-metrics`. Ein AWS-Live-Test ist weiterhin nicht
-freigegeben.
+und die IAM-Control-Plane v2.3 sind vorhanden. Strukturierte Runtime-Logs und
+Basic Runtime Metrics (CloudWatch Embedded Metric Format) fuer `POST /ai/draft`
+sind vorhanden. Ein AWS-Live-Test, ein verwaltetes Dashboard und Alarme sind
+weiterhin nicht freigegeben. Der Phase-6-Portfolio-Hardening-Umfang bleibt
+ausstehend.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1308,3 +1318,30 @@ freigegeben.
 - Auswirkung: Strukturierte Runtime-Logs sind vorhanden. Naechster
   Produktionsbranch ist `feat/add-basic-runtime-metrics`. Kein AWS-Live-Test,
   keine Metrikaggregation und keine CloudWatch- oder IAM-Aenderung.
+
+### Aktualisierung vom 20. August 2026 (Basic Runtime Metrics)
+
+- Datum: 20. August 2026
+- Aenderung: Das vorhandene einzeilige Runtime-Event fuer `POST /ai/draft`
+  wird um ein CloudWatch-Embedded-Metric-Format-Event erweitert. Es bleibt
+  genau eine stdout-Zeile. Metriken liegen im Namespace
+  `SteuerberaterCopilot/Runtime` mit den statischen Dimensionen
+  `service=steuerberater-copilot` und `operation=POST /ai/draft`.
+  `request_id`, `provider_name`, `model_name` und `prompt_version` sind keine
+  CloudWatch-Dimensionen. `model_cost_usd` ist `0.0` ohne kostenpflichtigen
+  Aufruf beziehungsweise beim `FakeModelProvider`, sonst `null`; `null` wird
+  nicht als EMF-MetricDefinition referenziert. Es gibt kein AWS-SDK, keine
+  CloudWatch-API, keine neue Dependency und keine Aenderung an CloudFormation,
+  IAM, Gateway, Invocation oder Human Review.
+- Begruendung: Der bestehende awslogs-Pfad mit `logs:PutLogEvents` reicht laut
+  offizieller EMF-Dokumentation fuer die asynchrone Metrikextraktion. Ein
+  Dashboard, Alarme und geschaetzte Modellkosten gehoeren nicht in diesen
+  Branch.
+- Auswirkung: Basic Runtime Metrics sind im HTTP-Event vorhanden. Kein
+  AWS-Live-Test; die reale EMF-Extraktion bleibt unbestaetigt. EMF wird
+  mindestens einmal verarbeitet, daher sind gelegentliche doppelte
+  Metrikwerte moeglich. Benutzerdefinierte CloudWatch-Metriken koennen Kosten
+  verursachen. Quellen:
+  [EMF](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html),
+  [EMF-Spezifikation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html),
+  [CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/).
