@@ -990,5 +990,6 @@ Hinweise zum erwarteten Ergebnis:
 - manuelle AWS-Verifikation bleibt ausstehend, bis ein Operator den Stack
   bewusst im eigenen Account durchspielt und das Go-/No-Go-Gate aus dem
   IAM-/Lifecycle-Modell v2.3 erfüllt ist
-- strukturierte Runtime-Logs und Basis-Metriken folgen in späteren
-  Phase-5-Branches
+- strukturierte Runtime-Logs für `POST /ai/draft` sind vorhanden (genau ein
+  JSON-Event je Aufruf auf stdout, serverseitige `X-Request-ID`);
+  Basis-Metriken folgen in `feat/add-basic-runtime-metrics`
