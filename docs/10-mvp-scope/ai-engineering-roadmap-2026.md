@@ -112,11 +112,15 @@ ai -> offline_mvp
 
 Als HTTP-Systemrand ist eine minimale FastAPI-Basis mit App Factory,
 `/health`, `/version` und dem kontrollierten synthetischen Endpunkt
-`POST /ai/draft` vorhanden. Die lokale Docker-Laufzeit fuer diese Demo ist
-ebenfalls vorhanden. Noch nicht vorhanden sind insbesondere Retry-Policy,
-Rate Limiting, Kostenkontrolle, Tokenzaehlung oder Tokenizer, Provider- oder
-Modell-Allowlist, produktive Evaluation, Persistenz, Authentifizierung,
-Cloud-Deployment, Infrastructure as Code und Monitoring.
+`POST /ai/draft` vorhanden. Jeder `POST /ai/draft`-Aufruf erzeugt genau ein
+einzeiliges JSON-Runtime-Event auf stdout und eine serverseitige
+`X-Request-ID`. Die Ausgabe ist mit dem bestehenden awslogs-Pfad kompatibel
+und enthaelt keine Request-/Response-Bodys, Prompts, Modellantworten,
+Exception-Texte, Secrets oder personenbezogenen Daten. Die lokale
+Docker-Laufzeit fuer diese Demo ist ebenfalls vorhanden. Noch nicht vorhanden
+sind insbesondere Retry-Policy, Rate Limiting, Kostenkontrolle, Tokenzaehlung
+oder Tokenizer, Provider- oder Modell-Allowlist, produktive Evaluation,
+Persistenz, Authentifizierung und aggregierte Runtime-Metriken.
 Eine erfolgreiche Live-Verbindung zum Provider ist ohne expliziten opt-in
 Smoke-Test nicht behauptet. Eine Prompt Registry ist bewusst aufgeschoben und
 aktuell nicht benoetigt. Die lokale RAG-Baseline mit Retrieval-, Grounding-,
@@ -652,7 +656,8 @@ minimale CloudFormation-Referenz-Stack liegt unter
 `infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Die
 IAM-Control-Plane v2.3 liegt unter `infra/iam/reference-demo/v2.3/`.
 Template, Guard-Regeln und Runbook werden an das IAM-/Lifecycle-Modell v2.3
-gebunden. Strukturierte Runtime-Logs und Basis-Metriken stehen noch aus.
+gebunden. Strukturierte Runtime-Logs fuer `POST /ai/draft` sind vorhanden.
+Basis-Metriken bleiben der naechste Branch `feat/add-basic-runtime-metrics`.
 
 Minimaler Cloud-Scope:
 
@@ -682,7 +687,7 @@ Pflichtmetadaten fuer strukturierte Logs:
 - Request-ID
 - Workflowstatus
 - Gatewayentscheidung
-- Reviewentscheidung
+- technischer Review-Gate-Status, niemals eine menschliche Reviewentscheidung
 - Providername
 - Modellname
 - Promptversion
@@ -973,10 +978,9 @@ Architekturentscheidungen.
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
 ADR-004. Die AWS-Referenzarchitektur, der minimale CloudFormation-Referenz-Stack
-und die IAM-Control-Plane v2.3 sind vorhanden. Der naechste sinnvolle
-Produktionsbranch nach der Template-/Runbook-Haertung an das IAM-/Lifecycle-
-Modell v2.3 ist `feat/add-structured-runtime-logging`. Basis-Metriken bleiben
-danach `feat/add-basic-runtime-metrics`. Ein AWS-Live-Test ist weiterhin nicht
+und die IAM-Control-Plane v2.3 sind vorhanden. Strukturierte Runtime-Logs fuer
+`POST /ai/draft` sind vorhanden. Der naechste sinnvolle Produktionsbranch ist
+`feat/add-basic-runtime-metrics`. Ein AWS-Live-Test ist weiterhin nicht
 freigegeben.
 
 ### Aktualisierung vom 21. Juli 2026
@@ -1285,3 +1289,22 @@ freigegeben.
   Standardtests bleiben offline und netzwerkfrei. Kein AWS-Live-Test, kein
   Simulatorlauf und kein Logging-/Metrics-Branch. Naechster sinnvoller
   Produktionsbranch nach Merge bleibt `feat/add-structured-runtime-logging`.
+
+### Aktualisierung vom 20. August 2026 (Structured Runtime Logging)
+
+- Datum: 20. August 2026
+- Aenderung: Am HTTP-Systemrand erzeugt `POST /ai/draft` genau ein einzeiliges
+  JSON-Runtime-Event auf stdout und eine serverseitige `X-Request-ID`. Die
+  Pflichtmetadaten nutzen tatsaechliche Workflowwerte; nicht erreichte Stufen
+  sind `null` beziehungsweise `not_run`. `review_gate_status` ist ausschliesslich
+  der technische Review-Gate-Status. Parse-, Validierungs- und Providerfehler
+  erhalten feste sichere Fehlerklassen ohne Exception-Texte, Bodys, Prompts,
+  Modellantworten, Secrets oder personenbezogene Daten. Es gibt kein AWS-SDK,
+  keine neue Dependency und keine Aenderung an Gateway-, Invocation- oder
+  Human-Review-Grenzen.
+- Begruendung: Die bestehende awslogs-Senke kann einzeilige JSON-Events ohne
+  CloudWatch-API im Anwendungskern aufnehmen. Aggregierte Runtime-Metriken
+  bleiben ein getrennter naechster Branch.
+- Auswirkung: Strukturierte Runtime-Logs sind vorhanden. Naechster
+  Produktionsbranch ist `feat/add-basic-runtime-metrics`. Kein AWS-Live-Test,
+  keine Metrikaggregation und keine CloudWatch- oder IAM-Aenderung.

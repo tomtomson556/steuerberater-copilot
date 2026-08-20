@@ -339,11 +339,20 @@ Nicht Teil des Standard-Stacks:
 - Verlass auf die automatisch von Express Mode erzeugte Log Group
 - Express Service vor verfügbarem Image-Digest
 
-## Spätere Observability-Branches
+## Observability
 
-Dieses Dokument legt nur die Log-Senke und die Aufbewahrung fest.
-Strukturierte Log-Metadaten folgen in
-`feat/add-structured-runtime-logging`. Basis-Metriken folgen in
+Die Log-Senke und die Aufbewahrung bleiben die stackverwaltete CloudWatch Log
+Group mit `RetentionInDays: 14` und `PrimaryContainer.AwsLogsConfiguration`.
+Strukturierte Runtime-Logs sind am HTTP-Systemrand vorhanden: jeder
+`POST /ai/draft`-Aufruf schreibt genau ein einzeiliges JSON-Event nach stdout
+und setzt eine serverseitige `X-Request-ID`. Die Anwendung verwendet dafür die
+Python-Standardbibliothek; es gibt kein AWS-SDK, keine CloudWatch-API und keine
+neue Dependency. `review_gate_status` ist der technische Review-Gate-Status,
+keine menschliche Reviewentscheidung. Request-/Response-Bodys, Prompts,
+Modellantworten, Exception-Texte, Secrets und personenbezogene Daten gehören
+nicht ins Event.
+
+Basis-Metriken, Aggregation und Dashboards folgen in
 `feat/add-basic-runtime-metrics`.
 
 ## Revisit
