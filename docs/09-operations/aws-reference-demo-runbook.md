@@ -107,7 +107,9 @@ python tools/policy_claim_check.py
 Guard und Tests müssen unter anderem sichern: feste Namen/Pfade/Boundaries,
 statische Secret-Lesepolicy ab Stage 1, `Cpu=256`, `Memory=512`,
 `DeletionPolicy`/`UpdateReplacePolicy=Delete` am Secret und die Abwesenheit
-von `TaskRoleArn`.
+von `TaskRoleArn`. `ImageUri` muss exakt
+`^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$`
+entsprechen.
 
 Gemeinsame Operator-Variablen für die folgenden Schritte:
 
@@ -254,7 +256,10 @@ IMAGE_URI="${ECR_URI}@${IMAGE_DIGEST}"
 echo "$IMAGE_URI"
 ```
 
-Nur Digest-URIs (`…@sha256:…`) sind für `DeployService=true` zulässig.
+`IMAGE_URI` wird ausschließlich aus dem stackeigenen `ECR_URI` und dem über
+ECR ermittelten `IMAGE_DIGEST` gebildet. Docker Hub, GHCR, andere Registries,
+andere Regionen oder Repositorynamen, Image-Tags ohne Digest und ungültige
+Account-IDs sind für `DeployService=true` unzulässig.
 
 ## 4. Stage-2-Change-Set mit Service
 

@@ -23,11 +23,12 @@ Parameters:
   ImageUri:
     Type: String
     Default: ""
-    AllowedPattern: "^$|^.+@sha256:[A-Fa-f0-9]{64}$"
+    AllowedPattern: '^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$'
     ConstraintDescription: >
-      Leave empty for stage-1 bootstrap, or supply a digest URI
-      (repository@sha256:<64 hex>) when DeployService=true.
-    Description: Container image URI by digest only (never :latest or mutable tags).
+      Leave empty for stage-1 bootstrap, or supply a private eu-central-1 ECR
+      digest URI for repository steuerberater-copilot-reference-demo when
+      DeployService=true.
+    Description: Fixed private ECR repository URI by digest only.
 
   CreateManagedSecret:
     Type: String

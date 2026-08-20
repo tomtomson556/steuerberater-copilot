@@ -77,7 +77,7 @@ rule parameters_remain_the_approved_set {
 
   Parameters.ImageUri.Type == "String"
   Parameters.ImageUri.Default == ""
-  Parameters.ImageUri.AllowedPattern == "^$|^.+@sha256:[A-Fa-f0-9]{64}$"
+  Parameters.ImageUri.AllowedPattern == "^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
 }
 
 rule resources_are_allowlisted {

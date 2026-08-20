@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "infra" / "cloudformation" / "reference-demo.yaml"
 GUARD_PATH = ROOT / "infra" / "cloudformation" / "guards" / "reference-demo.guard"
 IAM_POLICY_DIR = ROOT / "infra" / "iam" / "reference-demo" / "v2.3"
+CI_PATH = ROOT / ".github" / "workflows" / "ci.yml"
 
 FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
     "AWS::EC2::SecurityGroup",
@@ -123,6 +124,11 @@ EXPLICIT_FIXED_RESOURCE_TAGS = """\
         - Key: Lifecycle
           Value: ephemeral
 """
+
+IMAGE_URI_ALLOWED_PATTERN = (
+    r"^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/"
+    r"steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
+)
 
 # CloudFormation YAML does not support anchors, aliases, or hash merges.
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-formats.html
@@ -295,8 +301,33 @@ def test_parameters_defaults_and_allowed_values() -> None:
     image = parameters["ImageUri"]
     assert image["Type"] == "String"
     assert image["Default"] == ""
-    assert "@sha256:" in image["AllowedPattern"]
-    assert image["AllowedPattern"].startswith("^$|")
+    assert image["AllowedPattern"] == IMAGE_URI_ALLOWED_PATTERN
+
+
+def test_ci_installs_guard_from_locked_official_commit() -> None:
+    workflow = CI_PATH.read_text(encoding="utf-8")
+    install_step = workflow.split(
+        "      - name: Install CloudFormation Guard from pinned source\n", maxsplit=1
+    )[1].split("      - name: Run tests\n", maxsplit=1)[0]
+
+    assert 'CFN_GUARD_VERSION: "3.1.2"' in install_step
+    assert (
+        'CFN_GUARD_COMMIT: "de26750fa2d97099272156238041968abeb3b95b"'
+        in install_step
+    )
+    assert 'CFN_GUARD_RUST_TOOLCHAIN: "1.77.2"' in install_step
+    assert (
+        'rustup toolchain install "$CFN_GUARD_RUST_TOOLCHAIN" --profile minimal'
+        in install_step
+    )
+    assert 'cargo +"$CFN_GUARD_RUST_TOOLCHAIN" install' in install_step
+    assert "https://github.com/aws-cloudformation/cloudformation-guard.git" in install_step
+    assert '--rev "$CFN_GUARD_COMMIT"' in install_step
+    assert "--locked" in install_step
+    assert 'test "$actual_version" = "cfn-guard ${CFN_GUARD_VERSION}"' in install_step
+    assert "curl" not in install_step
+    assert "tar " not in install_step
+    assert "releases/download" not in install_step
 
 
 def test_conditions_and_rules_cover_bootstrap_and_secret_guards() -> None:
@@ -315,20 +346,41 @@ def test_conditions_and_rules_cover_bootstrap_and_secret_guards() -> None:
 def test_digest_required_for_service_deployment() -> None:
     template = load_template()
     image_pattern = template["Parameters"]["ImageUri"]["AllowedPattern"]
+    digest = "a" * 64
+    approved_image_uri = (
+        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+        f"steuerberater-copilot-reference-demo@sha256:{digest}"
+    )
+    rejected_image_uris = (
+        f"docker.io/library/demo@sha256:{digest}",
+        f"ghcr.io/example/demo@sha256:{digest}",
+        f"registry.example.com/demo@sha256:{digest}",
+        (
+            "123456789012.dkr.ecr.eu-west-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+        (
+            "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"other-repository@sha256:{digest}"
+        ),
+        (
+            "123456789012.dkr.ecr.eu-central-1.amazonaws.com/"
+            "steuerberater-copilot-reference-demo:bootstrap"
+        ),
+        (
+            "12345678901.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+        (
+            "ABCDEFGHIJKL.dkr.ecr.eu-central-1.amazonaws.com/"
+            f"steuerberater-copilot-reference-demo@sha256:{digest}"
+        ),
+    )
+
     assert re.fullmatch(image_pattern, "")
-    assert re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo@sha256:"
-        + ("a" * 64),
-    )
-    assert not re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo:latest",
-    )
-    assert not re.fullmatch(
-        image_pattern,
-        "123456789012.dkr.ecr.eu-central-1.amazonaws.com/demo:bootstrap",
-    )
+    assert re.fullmatch(image_pattern, approved_image_uri)
+    for rejected in rejected_image_uris:
+        assert re.fullmatch(image_pattern, rejected) is None, rejected
 
     service = _resource_by_type(template, "AWS::ECS::ExpressGatewayService")
     assert len(service) == 1
@@ -674,7 +726,7 @@ def test_guard_rules_encode_lifecycle_invariants() -> None:
         "count(Parameters.*)",
         'AllowedValues == ["true", "false"]',
         'Parameters.ImageUri.Default == ""',
-        "AllowedPattern",
+        f'Parameters.ImageUri.AllowedPattern == "{IMAGE_URI_ALLOWED_PATTERN}"',
         'count(Tags[*])',
         'Tags[0].Key == "Project"',
         'Tags[0].Value == "steuerberater-copilot"',
@@ -726,7 +778,7 @@ def test_yaml_alias_detector_ignores_arn_glob_suffixes() -> None:
     sample = (
         "Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:"
         "secret:steuerberater-copilot/reference-demo/synthetic-*\n"
-        'AllowedPattern: "^$|^.+@sha256:[A-Fa-f0-9]{64}$"\n'
+        f"AllowedPattern: '{IMAGE_URI_ALLOWED_PATTERN}'\n"
         "aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*\n"
     )
     assert cloudformation_incompatible_yaml_constructs(sample) == []
@@ -775,6 +827,25 @@ def test_cfn_guard_cli_rejects_yaml_aliases(tmp_path: Path) -> None:
     assert completed.returncode != 0
     combined = completed.stdout + completed.stderr
     assert "Parser Error" in combined or "Error occurred" in combined
+
+
+def test_cfn_guard_cli_rejects_broadened_image_uri_pattern(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    approved_pattern = f"    AllowedPattern: '{IMAGE_URI_ALLOWED_PATTERN}'\n"
+    broadened_pattern = "    AllowedPattern: '^$|^.+@sha256:[A-Fa-f0-9]{64}$'\n"
+    assert raw.count(approved_pattern) == 1
+    mutated = tmp_path / "broadened-image-uri-pattern.yaml"
+    mutated.write_text(
+        raw.replace(approved_pattern, broadened_pattern, 1),
+        encoding="utf-8",
+    )
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "parameters_remain_the_approved_set" in combined
+    assert "Parser Error" not in combined
 
 
 def test_cfn_guard_cli_rejects_additional_aws_star_principal(tmp_path: Path) -> None:

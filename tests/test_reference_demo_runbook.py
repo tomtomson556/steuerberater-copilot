@@ -16,6 +16,11 @@ FIXED_STACK_TAGS = (
     "Key=Lifecycle,Value=ephemeral",
 )
 
+IMAGE_URI_ALLOWED_PATTERN = (
+    r"^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/"
+    r"steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
+)
+
 
 def load_runbook() -> str:
     assert RUNBOOK_PATH.is_file(), RUNBOOK_PATH
@@ -90,3 +95,25 @@ def test_runbook_documents_secret_force_delete_and_x86_image() -> None:
     assert "No-Go" in text or "No-go" in text or "nicht ausfuehren" in text or (
         "nicht ausführen" in text
     )
+
+
+def test_runbook_builds_image_uri_only_from_stack_ecr_and_digest() -> None:
+    text = load_runbook()
+    image_uri_assignments = [
+        line.strip() for line in text.splitlines() if line.startswith("IMAGE_URI=")
+    ]
+    image_parameters = [
+        line.strip()
+        for line in text.splitlines()
+        if "ParameterKey=ImageUri,ParameterValue=" in line
+    ]
+
+    assert image_uri_assignments == ['IMAGE_URI="${ECR_URI}@${IMAGE_DIGEST}"']
+    assert 'ECR_URI="$(aws cloudformation describe-stacks \\' in text
+    assert 'IMAGE_DIGEST="$(aws ecr describe-images \\' in text
+    assert image_parameters
+    assert all(
+        parameter.startswith('ParameterKey=ImageUri,ParameterValue="$IMAGE_URI"')
+        for parameter in image_parameters
+    )
+    assert IMAGE_URI_ALLOWED_PATTERN in text
