@@ -141,6 +141,8 @@ rule task_execution_trust_is_hardened {
   let statement_count = count(%statements)
   %statement_count == 1
   %statements[0].Effect == "Allow"
+  let principal_count = count(%statements[0].Principal.*)
+  %principal_count == 1
   %statements[0].Principal.Service == "ecs-tasks.amazonaws.com"
   %statements[0].Action == "sts:AssumeRole"
   %statements[0].Condition.StringEquals["aws:SourceAccount"].Ref == "AWS::AccountId" or
@@ -157,6 +159,8 @@ rule express_infrastructure_trust_is_ecs_only {
   let statement_count = count(%statements)
   %statement_count == 1
   %statements[0].Effect == "Allow"
+  let principal_count = count(%statements[0].Principal.*)
+  %principal_count == 1
   %statements[0].Principal.Service == "ecs.amazonaws.com"
   %statements[0].Action == "sts:AssumeRole"
   %statements[0].Condition not exists

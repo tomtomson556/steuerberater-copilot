@@ -398,7 +398,7 @@ def test_iam_trusts_boundaries_and_managed_policies() -> None:
     assert _sub_value(execution_props["PermissionsBoundary"]) == TASK_EXECUTION_BOUNDARY_ARN
 
     execution_trust = execution_props["AssumeRolePolicyDocument"]["Statement"][0]
-    assert execution_trust["Principal"]["Service"] == "ecs-tasks.amazonaws.com"
+    assert execution_trust["Principal"] == {"Service": "ecs-tasks.amazonaws.com"}
     assert execution_trust["Action"] == "sts:AssumeRole"
     assert execution_trust["Condition"]["StringEquals"]["aws:SourceAccount"] == {
         "Ref": "AWS::AccountId"
@@ -415,7 +415,7 @@ def test_iam_trusts_boundaries_and_managed_policies() -> None:
     assert "Policies" not in infra_props
 
     infra_trust = infra_props["AssumeRolePolicyDocument"]["Statement"][0]
-    assert infra_trust["Principal"]["Service"] == "ecs.amazonaws.com"
+    assert infra_trust["Principal"] == {"Service": "ecs.amazonaws.com"}
     assert infra_trust["Action"] == "sts:AssumeRole"
     assert "Condition" not in infra_trust
     assert infra_props["ManagedPolicyArns"] == [
@@ -667,6 +667,8 @@ def test_guard_rules_encode_lifecycle_invariants() -> None:
         "AWS::ElasticLoadBalancingV2::LoadBalancer",
         "ecs-tasks.amazonaws.com",
         "ecs.amazonaws.com",
+        "count(%statements[0].Principal.*)",
+        "%principal_count == 1",
         "aws:SourceAccount",
         "aws:SourceArn",
         "count(Parameters.*)",
@@ -773,3 +775,26 @@ def test_cfn_guard_cli_rejects_yaml_aliases(tmp_path: Path) -> None:
     assert completed.returncode != 0
     combined = completed.stdout + completed.stderr
     assert "Parser Error" in combined or "Error occurred" in combined
+
+
+def test_cfn_guard_cli_rejects_additional_aws_star_principal(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    exclusive_principal = (
+        "            Principal:\n"
+        "              Service: ecs-tasks.amazonaws.com\n"
+    )
+    widened_principal = (
+        "            Principal:\n"
+        "              Service: ecs-tasks.amazonaws.com\n"
+        '              AWS: "*"\n'
+    )
+    assert raw.count(exclusive_principal) == 1
+    mutated = tmp_path / "widened-principal.yaml"
+    mutated.write_text(raw.replace(exclusive_principal, widened_principal, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "task_execution_trust_is_hardened" in combined
+    assert "Parser Error" not in combined
