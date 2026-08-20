@@ -107,6 +107,9 @@ Quellen:
 - [AWS::ECR::Repository](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecr-repository.html) (`EmptyOnDelete`)
 - [AWS::SecretsManager::Secret](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-secretsmanager-secret.html)
 - [Updating stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks.html)
+- [Embedding metrics within logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)
+- [Specification: Embedded metric format](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html)
+- [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
 
 ### Warum nicht die Alternativen
 
@@ -345,15 +348,48 @@ Die Log-Senke und die Aufbewahrung bleiben die stackverwaltete CloudWatch Log
 Group mit `RetentionInDays: 14` und `PrimaryContainer.AwsLogsConfiguration`.
 Strukturierte Runtime-Logs sind am HTTP-Systemrand vorhanden: jeder
 `POST /ai/draft`-Aufruf schreibt genau ein einzeiliges JSON-Event nach stdout
-und setzt eine serverseitige `X-Request-ID`. Die Anwendung verwendet dafür die
-Python-Standardbibliothek; es gibt kein AWS-SDK, keine CloudWatch-API und keine
-neue Dependency. `review_gate_status` ist der technische Review-Gate-Status,
-keine menschliche Reviewentscheidung. Request-/Response-Bodys, Prompts,
-Modellantworten, Exception-Texte, Secrets und personenbezogene Daten gehören
-nicht ins Event.
+und setzt eine serverseitige `X-Request-ID`. Das Event ist ein gültiges
+[CloudWatch Embedded Metric Format](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)-Dokument
+laut
+[EMF-Spezifikation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html).
+Die Anwendung verwendet dafür die Python-Standardbibliothek; es gibt kein
+AWS-SDK, keine CloudWatch-API, keinen `PutMetricData`-Aufruf und keine neue
+Dependency. `logs:PutLogEvents` über den bestehenden awslogs-Pfad bleibt
+ausreichend.
 
-Basis-Metriken, Aggregation und Dashboards folgen in
-`feat/add-basic-runtime-metrics`.
+Namespace `SteuerberaterCopilot/Runtime`. Nur die statischen Dimensionen
+`service=steuerberater-copilot` und `operation=POST /ai/draft`.
+`request_id`, `provider_name`, `model_name` und `prompt_version` sind keine
+CloudWatch-Dimensionen. `/health` und `/version` erzeugen keine
+Runtime-Metriken.
+
+Technische HTTP-Quoten, keine fachliche Bewertung:
+
+- Erfolgsquote: `SUM(success_count) / SUM(request_count)`
+- Fehlerquote: `SUM(error_count) / SUM(request_count)`
+- Abstention Rate: `SUM(abstention_count) / SUM(request_count)`
+- P95-Latenz: p95-Statistik von `duration_ms`
+- Fehlerzähler jeweils als Sum
+- Modellkosten nur über vorhandene numerische `model_cost_usd`-Werte
+
+Kontrollierter Block und Abstention mit HTTP 200 zählen technisch als
+erfolgreicher HTTP-Aufruf; die fachliche Bedeutung bleibt in
+`workflow_status`. Geschätzte Modellkosten sind nicht implementiert;
+`model_cost_usd` ist `0.0` oder `null`. Ist der Wert `null`, wird er nicht
+als EMF-MetricDefinition referenziert.
+
+EMF stellt mindestens-einmal-Verarbeitung sicher; gelegentliche doppelte
+Metrikwerte sind möglich. Benutzerdefinierte CloudWatch-Metriken können
+Kosten verursachen; siehe
+[Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/).
+Die niedrig-kardinalen Dimensionen begrenzen die Zahl der Zeitreihen. Es gibt
+kein verwaltetes Dashboard und keine Alarme in diesem Stand. Die reale
+EMF-Extraktion in CloudWatch bleibt bis zu einer bewussten AWS-Verifikation
+unbestätigt. Ein AWS-Live-Test ist nicht Teil dieses Stands.
+
+`review_gate_status` ist der technische Review-Gate-Status, keine menschliche
+Reviewentscheidung. Request-/Response-Bodys, Prompts, Modellantworten,
+Exception-Texte, Secrets und personenbezogene Daten gehören nicht ins Event.
 
 ## Revisit
 
