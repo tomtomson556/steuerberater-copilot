@@ -22,6 +22,7 @@ IAM_MANAGED_POLICY_CHARACTER_LIMIT = 6_144
 STACK_NAME = "steuerberater-copilot-reference-demo"
 SERVICE_ROLE_NAME = "reference-demo-cfn-service-role"
 SERVICE_ROLE_PATH = "/steuerberater-copilot/control-plane/"
+BOOTSTRAP_ROLE_NAME = "reference-demo-iam-bootstrap"
 OPERATOR_POLICY_KEYS = (
     "operator-cloudformation",
     "operator-ecr-publisher",
@@ -1108,13 +1109,10 @@ def _validated_config(args: argparse.Namespace) -> Config:
             "--apply requires an explicit separate --bootstrap-role-name."
         )
     if args.bootstrap_role_name is not None:
-        if not IDENTITY_NAME_RE.fullmatch(args.bootstrap_role_name):
+        if args.bootstrap_role_name != BOOTSTRAP_ROLE_NAME:
             raise ControlPlaneError(
-                "Bootstrap role name must be an explicit IAM role name without a path."
-            )
-        if args.bootstrap_role_name == SERVICE_ROLE_NAME:
-            raise ControlPlaneError(
-                "Bootstrap role must be separate from the CloudFormation service role."
+                "Bootstrap role name must be the fixed contract name "
+                f"{BOOTSTRAP_ROLE_NAME}."
             )
         if (
             args.operator_type == "role"
@@ -1177,9 +1175,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--bootstrap-role-name",
         help=(
-            "Required with --apply; explicit separate IAM role whose assumed-role "
-            "session must be the only accepted caller. Must not be the operator "
-            f"role or {SERVICE_ROLE_NAME}."
+            "Required with --apply; must be the fixed contract name "
+            f"{BOOTSTRAP_ROLE_NAME}. Must not be the operator role."
         ),
     )
     parser.add_argument(
