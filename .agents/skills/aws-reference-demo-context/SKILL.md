@@ -74,11 +74,13 @@ Paths are repository-relative from the repo root.
 
 ### 2. AWS core
 
-After base, for every matching task:
+After base, do **not** load architecture, runbook, and IAM README as a
+universal package. Select each of them only when the current task needs
+it. A broad AWS pre-live review may load all three together.
 
-6. `docs/03-architecture/aws-reference-cloud-deployment.md`
-7. `docs/09-operations/aws-reference-demo-runbook.md`
-8. `infra/iam/reference-demo/v2.3/README.md`
+- Architecture: `docs/03-architecture/aws-reference-cloud-deployment.md`
+- Runbook: `docs/09-operations/aws-reference-demo-runbook.md`
+- IAM README: `infra/iam/reference-demo/v2.3/README.md`
 
 Load a JSON file under `infra/iam/reference-demo/v2.3/` only when the
 task names that artifact.
@@ -89,11 +91,11 @@ Load only the rows that match the current task.
 
 | When the task is about | Load |
 | --- | --- |
-| Pre-live, live-test readiness, simulator status, or outstanding gates | Simulator protocol **status and gates only** (see below) |
-| A named `SIM-*` case or a specific simulator finding | That case's row and, if present, its correction section. Not the rest of the protocol |
-| CloudFormation template, Guard, stack shape, or template freeze | `infra/cloudformation/reference-demo.yaml`; `infra/cloudformation/guards/reference-demo.guard`; `tests/test_reference_cloudformation_template.py`; `tests/test_reference_demo_runbook.py` |
-| IAM JSON artifacts, bootstrap role, or policy text | The named files under `infra/iam/reference-demo/v2.3/`; `tests/test_reference_demo_iam_policies.py` |
-| Control-plane tool, apply, teardown, or dry-run | `tools/aws_reference_demo_iam_control_plane.py`; `tests/test_aws_reference_demo_iam_control_plane.py` |
+| Broad AWS pre-live review or live-test readiness across architecture, operations, and IAM | Architecture; runbook; IAM README; simulator protocol **status and gates only** (see below) |
+| A named `SIM-*` case or a specific simulator finding | IAM README as needed; that case's row and, if present, its correction section. Not architecture or the full runbook unless the finding requires them. Not the rest of the protocol |
+| CloudFormation template, Guard, stack shape, or template freeze | `infra/cloudformation/reference-demo.yaml`; `infra/cloudformation/guards/reference-demo.guard`; `tests/test_reference_cloudformation_template.py`; `tests/test_reference_demo_runbook.py`. Architecture and/or runbook only as the concrete issue needs them |
+| IAM JSON artifacts, bootstrap role, or policy text | IAM README; the named files under `infra/iam/reference-demo/v2.3/`; `tests/test_reference_demo_iam_policies.py` |
+| Control-plane tool, apply, teardown, or dry-run | IAM README; `tools/aws_reference_demo_iam_control_plane.py`; `tests/test_aws_reference_demo_iam_control_plane.py`. Not the full runbook unless the task is about a runbook-owned operation |
 | IAM, secrets, or security questions | `docs/02-security/security-baseline-policy.md` |
 | MCP, external tools, or research limits | `docs/04-mcp/agent-mcp-boundaries.md` |
 
