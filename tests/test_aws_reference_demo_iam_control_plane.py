@@ -325,7 +325,20 @@ def test_apply_rejects_wrong_bootstrap_role_name() -> None:
         )
 
 
-def test_apply_rejects_bootstrap_role_equal_to_operator_role(capsys) -> None:
+def test_bootstrap_role_name_is_the_fixed_contract() -> None:
+    assert control_plane.BOOTSTRAP_ROLE_NAME == BOOTSTRAP_ROLE_NAME
+    assert BOOTSTRAP_ROLE_NAME == "reference-demo-iam-bootstrap"
+    filenames = {artifact.filename for artifact in control_plane.POLICIES}
+    assert filenames.isdisjoint(
+        {
+            "bootstrap-role-boundary.json",
+            "bootstrap-role-policy.json",
+            "bootstrap-role-trust-policy.json",
+        }
+    )
+
+
+def test_apply_rejects_non_contract_bootstrap_role_name(capsys) -> None:
     with patch.object(control_plane.subprocess, "run") as run:
         result = control_plane.main(
             [
@@ -338,7 +351,33 @@ def test_apply_rejects_bootstrap_role_equal_to_operator_role(capsys) -> None:
                 OPERATOR_NAME,
                 "--apply",
                 "--bootstrap-role-name",
-                OPERATOR_NAME,
+                "other-bootstrap-role",
+                "--confirm-aws-write-account",
+                ACCOUNT_ID,
+                "--confirm-mfa-authenticated-session",
+                "--confirm-temporary-session",
+            ]
+        )
+
+    assert result == 1
+    run.assert_not_called()
+    assert "fixed contract name" in capsys.readouterr().err
+
+
+def test_apply_rejects_bootstrap_role_equal_to_operator_role(capsys) -> None:
+    with patch.object(control_plane.subprocess, "run") as run:
+        result = control_plane.main(
+            [
+                "bootstrap",
+                "--account-id",
+                ACCOUNT_ID,
+                "--operator-type",
+                "role",
+                "--operator-name",
+                BOOTSTRAP_ROLE_NAME,
+                "--apply",
+                "--bootstrap-role-name",
+                BOOTSTRAP_ROLE_NAME,
                 "--confirm-aws-write-account",
                 ACCOUNT_ID,
                 "--confirm-mfa-authenticated-session",
@@ -374,7 +413,7 @@ def test_apply_rejects_bootstrap_role_equal_to_service_role(capsys) -> None:
 
     assert result == 1
     run.assert_not_called()
-    assert "CloudFormation service role" in capsys.readouterr().err
+    assert "fixed contract name" in capsys.readouterr().err
 
 
 def test_teardown_apply_rejects_without_post_delete_attestation(capsys) -> None:

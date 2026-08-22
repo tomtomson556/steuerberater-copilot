@@ -23,7 +23,10 @@ Der Steuerberater entscheidet.
 - IAM-Control-Plane v2.3 bereits gebootstrappt (Operator-Policies, Boundaries,
   Service-Rolle). Bootstrap und Teardown liegen bei
   `tools/aws_reference_demo_iam_control_plane.py` und sind kein Bestandteil
-  dieses Stack-Laufs.
+  dieses Stack-Laufs. Die separate Bootstrap-Rolle
+  `reference-demo-iam-bootstrap` und die privilegierte Ausgangsidentität
+  `reference-demo-privileged-caller` sind der IAM-Vertrag unter
+  `infra/iam/reference-demo/v2.3/`; dieses Runbook erzeugt oder löscht sie nicht.
 - lokale Docker-Build-Fähigkeit für `linux/amd64` und AWS-CLI als Operator
   mit den v2.3-Operator-Policies
 - Billing-Budget oder Kostenalarm im Account
