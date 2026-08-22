@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Steuerberater-Copilot Guardrails
 
-Zentrale Agentenregeln: `AGENTS.md`. MCP-Grenzen: `docs/04-mcp/agent-mcp-boundaries.md`.
+Context-Router: `AGENTS.md`. Ist-Zustand: `docs/00-project/current-state.md`.
+MCP-Grenzen: `docs/04-mcp/agent-mcp-boundaries.md`. Detaildokumente nur laden,
+wenn der aktuelle Task sie braucht.
 
 Leitbild:
 
@@ -17,7 +19,7 @@ Der Steuerberater entscheidet.
 
 Erst prüfen, dann ändern. Zu Beginn eines Tasks aktuellen `main`, Arbeitsbaum und relevante Dateien prüfen; danach auf einem eigenen Arbeitsbranch arbeiten.
 
-Pflichtgrenzen (Details in `AGENTS.md`):
+Pflichtgrenzen (Router: `AGENTS.md`):
 
 - keine echten Daten, Secrets oder produktiven Schnittstellen
 - keine produktiven MCP-Server

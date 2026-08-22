@@ -1,34 +1,22 @@
 # Development Agent Instructions
 
-These instructions apply only to development agents that modify this repository,
-such as Codex, GitHub Copilot, Cursor, DeepSeek via GitHub Copilot, or other
-coding assistants.
+These instructions apply only to development agents that modify this repository.
+They are not runtime instructions for the steuerberater-copilot application.
 
-These instructions are not runtime instructions for the future
-steuerberater-copilot application, client-facing AI, Kanzlei-facing AI,
-productive advisory system, or tax assistant.
+`AGENTS.md` is the context router. Persistent detail lives in existing repository
+documents. Load those documents only when the current task needs them.
 
-This file is the central repository instruction for development agent behavior,
-where supported by the respective tool.
+## Source of truth
 
-## Project Scope
+```text
+main
+→ docs/00-project/current-state.md
+→ docs/10-mvp-scope/ai-engineering-roadmap-2026.md
+→ accepted ADRs
+→ implementation and tests
+```
 
-This project is compliance-first, local-first, and currently non-productive.
-The safe default is local and offline: synthetic data, deterministic and
-network-free standard tests, the `FakeModelProvider`, and no secrets.
-
-External, provider, API, or cloud integrations are not generally permitted.
-They may be added or changed only when the current binding roadmap explicitly
-provides for them, applicable accepted ADRs are followed, and the current
-branch scope expressly authorizes the work. Such integrations must remain
-isolated at system boundaries.
-
-The binding strategic source is
-`docs/10-mvp-scope/ai-engineering-roadmap-2026.md`. The current architecture
-decision is
-`docs/15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md`.
-
-The binding project principle is:
+The binding project principle:
 
 ```text
 KI bereitet vor.
@@ -36,24 +24,29 @@ Die Kanzlei prüft.
 Der Steuerberater entscheidet.
 ```
 
-Development agents support repository work only. They do not make tax decisions,
-provide individual tax advice, or perform tax-relevant actions. Tax-relevant
-outputs remain drafts and require Human Review.
+## Repository map
 
-Controls sit before and beside the model, especially in the Policy and Privacy
-Gateway, not inside the model itself.
-
-## Related Agent Files
-
-| File | Purpose |
+| Need | Read |
 | --- | --- |
-| `.github/copilot-instructions.md` | Short instructions for GitHub Copilot and coding assistants |
-| `.cursor/rules/steuerberater-copilot.mdc` | Cursor project rule, if present |
-| `docs/04-mcp/agent-mcp-boundaries.md` | MCP boundaries for repository agent work |
+| Live inventory | `docs/00-project/current-state.md` |
+| Project brief | `docs/00-project/project-brief.md` |
+| Strategy / 2026 scope | `docs/10-mvp-scope/ai-engineering-roadmap-2026.md` |
+| Architecture | `docs/03-architecture/system-overview.md` |
+| AWS reference cloud | `docs/03-architecture/aws-reference-cloud-deployment.md` |
+| ADRs | `docs/15-decisions/adr/` |
+| Security baseline | `docs/02-security/security-baseline-policy.md` |
+| Gateway | `docs/05-privacy-gateway/privacy-gateway-contract.md` |
+| Human Review | `docs/06-human-review/human-review-policy.md` |
+| Risk classes | `docs/07-risk-classification/risk-classification-policy.md` |
+| MCP | `docs/04-mcp/agent-mcp-boundaries.md` |
+| AWS IAM / runbook | `docs/09-operations/aws-reference-demo-runbook.md` |
+| Tests | `docs/10-testing-quality/testing-strategy.md` |
+| Git / `main` | `docs/03-workflow/main-branch-protection-policy.md` |
 
-## Required Startup Workflow
+Do not add parallel root files such as `ARCHITECTURE.md`, `DECISIONS.md`, or
+`SECURITY_INVARIANTS.md` while these documents already hold that role.
 
-At the start of each task, agents must inspect the current repository state:
+## Required startup workflow
 
 ```bash
 pwd
@@ -64,113 +57,45 @@ git pull --ff-only origin main
 git log --oneline --max-count=5
 ```
 
-After that, agents must use their own small working branch. Agents must read
-relevant existing files before creating new content or changing existing
-content. Already merged pull request content must not be recreated or
-duplicated.
+Then use a small working branch. Read the current-state snapshot and only the
+detail documents relevant to the task. Do not recreate already merged work.
 
-## Development Agent Rules
+## Git workflow
 
-- Agents may only prepare small, reviewable pull requests.
-- Agents must never push directly to `main`.
-- Agents must never merge pull requests.
-- Merges are performed only by the user in the terminal.
-- Squash merge is the standard merge method.
-- `main` remains protected.
-- CI must be green before merge.
-- Required Status Check remains binding.
-- Human Review remains the fachliche project rule.
-- Scope must be clarified and kept narrow before changes are made.
+- Prepare only small, reviewable pull requests.
+- Never push directly to `main`.
+- Never merge pull requests. The user merges in the terminal.
+- Squash merge is the standard method. `main` stays protected.
+- CI and the Required Status Check must be green before merge.
+- Keep scope narrow and authorized by the current branch plus the binding
+  roadmap.
 
-## Forbidden Changes
+## Core invariants
 
-Agents must not introduce, generate, configure, use, or weaken any of the
-following:
+- Non-productive. Synthetic data only. No repository-stored secrets.
+- Safe default: local, offline, deterministic, network-free standard tests,
+  `FakeModelProvider`.
+- Dependency direction is `offline_mvp -> ai`. `ai -> offline_mvp` is forbidden.
+- No Multi-Cloud. Exactly one reference cloud, only when the roadmap and ADRs
+  authorize it.
+- Human Review stays. Agents do not make tax decisions, give individual tax
+  advice, or perform tax-relevant actions. Tax-relevant outputs remain drafts.
+- Do not weaken Gateway, Model Invocation Policy, Human Review, or existing
+  compliance policies.
+- System-boundary work (one real provider, FastAPI/Docker, HTTP, secrets,
+  Cloud Logging/Metrics, IaC) is allowed only when the current roadmap, accepted
+  ADRs, and branch scope expressly authorize it. Keep provider and cloud SDKs
+  outside the application core.
 
-- productive integrations or productive external services
-- real Mandanten-, Kanzlei-, Beleg-, Steuer-, or other confidential data or
-  metadata
-- derived confidential content in public LLMs
-- secrets, tokens, credentials, certificates, or private keys in repository
-  content, fixtures, logs, prompts, or model inputs
-- individual tax advice by a model or development agent
-- tax calculation logic
-- productive tax actions
-- autonomous tax decisions
-- bypassing the Gateway, Model Invocation Policy, or Human Review
-- automatic tax submission or productive transmission
-- productive Agenda, DATEV, ELSTER, banking, or email integration
-- unplanned external, provider, API, or cloud integrations
-- Multi-Cloud support
-- network access in standard tests
-- productive MCP servers or productive MCP configuration
-- direct write access to productive or client systems, including Agenda,
-  DATEV, ELSTER, banking, email, cloud, or external APIs
-- productive data paths in development or test contexts
-- changes outside an explicitly authorized branch and roadmap scope
-- weakening of Compliance, Privacy, Security, AI Transparency, StBerG, Human
-  Review, Risk Classification, Offline MVP Operations, Testing/Quality, or
-  Release Governance policies
+Binding detail: `docs/02-security/security-baseline-policy.md`,
+`docs/05-privacy-gateway/privacy-gateway-contract.md`,
+`docs/06-human-review/human-review-policy.md`,
+`docs/15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md`,
+`docs/15-decisions/adr/adr-004-select-reference-cloud.md`.
 
-The LLM must not receive direct access to databases, file systems, object
-storage, Agenda, DATEV, ELSTER, banking systems, email systems, cloud systems,
-audit logs, token maps, or secrets.
+## Validation
 
-## Roadmap-Authorized System-Boundary Work
-
-The following capabilities are not blanket permissions. Agents may work on
-them only when the current binding roadmap explicitly provides for the
-capability, applicable accepted ADRs are followed, and the current branch scope
-expressly authorizes it:
-
-- exactly one controlled real `ModelProvider`, with its provider SDK isolated
-  at a clear system boundary
-- explicit opt-in live smoke tests using synthetic data only
-- the planned FastAPI interface and Docker runtime
-- HTTP transport at a system boundary
-- exactly one reference cloud
-- secret integration at a system boundary, without repository-stored secrets
-- Cloud Logging and Cloud Metrics at system boundaries
-- Infrastructure as Code only in the planned reference-cloud deployment scope
-
-All such work must preserve the safe offline default, synthetic-data-only
-operation, deterministic and network-free standard tests, Gateway and Human
-Review controls, the Model Invocation Policy, and a cloud-neutral application
-core. Provider and cloud SDKs must remain outside the application core. The
-work must not anticipate Multi-Cloud support or a general adapter architecture
-without a current need.
-
-## Risk Behavior
-
-- `RiskLevel A` may continue only through the controlled workflow. The safe
-  default remains the offline `FakeModelProvider`; any real-provider execution
-  must be explicitly authorized, opt-in, and synthetic-data-only.
-- `RiskLevel B`, `RiskLevel C`, and `RiskLevel D` must stop before automatic
-  continuation and require Human Review.
-- Human Review must never be bypassed, removed, or weakened.
-
-## MCP Boundaries
-
-MCP use for repository agent work is currently limited to documentation or
-read-only access to public or explicitly approved documentation sources.
-
-The approved read-only AWS documentation MCP may be used only for public,
-official AWS documentation and regional AWS service information. It is a
-development research aid, not an application component.
-
-Time-dependent or service-specific AWS architecture claims must be checked
-against current official AWS sources. Architecture and decision documents must
-name the sources used so that the claims remain traceable. MCP results are
-research input and never an automatic architecture decision.
-
-Productive MCP servers, MCPs with real or derived confidential content, MCPs
-with repository secrets, and MCP write tools for productive systems are not
-allowed. MCP must not bypass the Policy and Privacy Gateway. Details are
-documented in `docs/04-mcp/agent-mcp-boundaries.md`.
-
-## Required Workflow After Changes
-
-After changes, agents must inspect the working state:
+After changes:
 
 ```bash
 git status --short
@@ -179,12 +104,7 @@ git diff --stat
 git diff
 ```
 
-For new untracked files, agents must also read the affected files directly
-because `git diff` does not fully show untracked content.
-
-## Required Local Verification Before PR
-
-Before opening a pull request, agents must run:
+Read new untracked files directly. Before a pull request:
 
 ```bash
 ruff check .
@@ -192,13 +112,7 @@ pytest -q
 python tools/policy_claim_check.py
 ```
 
-## Required Final Output From Agents
+## Required final output
 
-Agents must report:
-
-- branch name
-- commit hash
-- PR URL
-- changed files
-- verification results
-- explicit note that the pull request was not merged
+Report branch name, commit hash, PR URL, changed files, verification results,
+and that the pull request was not merged.
