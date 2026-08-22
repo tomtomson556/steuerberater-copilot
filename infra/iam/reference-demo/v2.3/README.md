@@ -208,21 +208,23 @@ Bootstrap-/Teardown-Reihenfolge.
 ## Bootstrap-Permissions: Aktionen und Begründung
 
 `sts:GetCallerIdentity` braucht keine Policy-Zeile. Die übrigen Rechte folgen
-den tatsächlichen `bootstrap`-/`teardown`-Aufrufen. Create-Operationen von
-Policy und Rolle erfordern laut IAM-SAR zusätzlich `iam:TagPolicy` bzw.
-`iam:TagRole`; `create-role --permissions-boundary` erfordert
-`iam:PutRolePermissionsBoundary`.
+den tatsächlichen `bootstrap`-/`teardown`-Aufrufen. Laut IAM-SAR autorisiert
+`CreatePolicy` mit Tags zusätzlich `iam:TagPolicy`; `CreateRole` mit Tags
+autorisiert zusätzlich `iam:TagRole`. Der `PermissionsBoundary`-Parameter des
+`CreateRole`-Aufrufs wird dagegen durch `iam:CreateRole` und dessen
+`iam:PermissionsBoundary`-Condition autorisiert, nicht durch einen separaten
+`iam:PutRolePermissionsBoundary`-Allow.
 
 | Aktion | Werkzeugaufruf | Begründung |
 |---|---|---|
 | `iam:CreatePolicy`, `iam:TagPolicy` | `create-policy --tags` | legt die festen v2.3-Control-Plane-Policies mit den fünf Pflicht-Tags an |
 | `iam:GetPolicy`, `iam:ListPolicyVersions`, `iam:GetPolicyVersion`, `iam:ListPolicyTags`, `iam:ListEntitiesForPolicy` | Preflight | prüft Hash, alleinige Version `v1`, Pfad, Tags und erwartete Anhänge |
-| `iam:CreateRole`, `iam:TagRole`, `iam:PutRolePermissionsBoundary` | `create-role --permissions-boundary --tags` | legt nur `reference-demo-cfn-service-role` mit Service-Boundary und Pflicht-Tags an |
+| `iam:CreateRole`, `iam:TagRole` | `create-role --permissions-boundary --tags` | legt nur `reference-demo-cfn-service-role` mit Service-Boundary und Pflicht-Tags an; beide Aktionen stehen wegen ihrer unterschiedlichen unterstützten Condition Keys in getrennten Statements |
 | `iam:GetRole`, `iam:ListAttachedRolePolicies`, `iam:ListRolePolicies`, `iam:ListInstanceProfilesForRole` | Preflight | prüft Trust-Hash, Boundary, Tags und fehlende Inline-/Instance-Profile |
 | `iam:AttachRolePolicy`, `iam:DetachRolePolicy` | Service-Rollen-Anhang | nur die drei CFN-Service-Policies an die Service-Rolle |
 | `iam:GetUser` / `iam:GetRole` | Operator-Preflight | bestätigt die explizit übergebene vorhandene Operatoridentität |
 | `iam:AttachUserPolicy` / `iam:AttachRolePolicy` und Detach | Operator-Anhang | nur die vier Operator-Policies; Operatorname bleibt Laufzeitparameter |
-| `iam:PutUserPermissionsBoundary` / `iam:PutRolePermissionsBoundary` und Delete | Operator-Boundary | nur `reference-demo-operator-boundary` |
+| `iam:PutUserPermissionsBoundary` / `iam:PutRolePermissionsBoundary` und Delete | separater Operator-Boundary-Aufruf | nur `reference-demo-operator-boundary` |
 | `iam:DeleteRole` | Teardown | nur die Service-Rolle, erst nach Detach |
 | `iam:DeletePolicy` | Teardown | nur die v2.3-Control-Plane-Policies, nicht die Bootstrap-Artefakte |
 | `cloudformation:DescribeStacks` | Teardown-Preflight | verweigert IAM-Abbau, solange der feste Demo-Stack existiert |

@@ -42,6 +42,7 @@ TRUST_POLICY_FILES = {
     "bootstrap-role-trust-policy.json",
     "cloudformation-service-role-trust-policy.json",
 }
+IAM_PERMISSION_POLICY_FILES = EXPECTED_FILES - TRUST_POLICY_FILES
 BOOTSTRAP_PERMISSION_FILES = {
     "bootstrap-role-boundary.json",
     "bootstrap-role-policy.json",
@@ -216,7 +217,7 @@ def test_exact_versioned_artifact_set_parses_as_json() -> None:
 
 @pytest.mark.parametrize(
     "filename",
-    sorted(EXPECTED_FILES - TRUST_POLICY_FILES),
+    sorted(IAM_PERMISSION_POLICY_FILES),
 )
 def test_customer_managed_policy_documents_fit_the_iam_quota(
     filename: str,
@@ -236,6 +237,13 @@ def test_customer_managed_policy_documents_fit_the_iam_quota(
     )
 
 
+@pytest.mark.parametrize("filename", sorted(IAM_PERMISSION_POLICY_FILES))
+def test_iam_permission_policy_documents_have_no_top_level_id(
+    filename: str,
+) -> None:
+    assert "Id" not in load_document(filename)
+
+
 def test_only_account_id_placeholder_is_present() -> None:
     for filename in EXPECTED_FILES:
         raw = (POLICY_DIR / filename).read_text(encoding="utf-8")
@@ -248,7 +256,10 @@ def test_policies_and_boundaries_are_distinct_artifacts() -> None:
         filename: json.dumps(load_document(filename), sort_keys=True)
         for filename in EXPECTED_FILES
     }
-    assert len(set(documents.values())) == len(documents)
+    independently_versioned = EXPECTED_FILES - {"bootstrap-role-boundary.json"}
+    assert len({documents[filename] for filename in independently_versioned}) == len(
+        independently_versioned
+    )
     assert documents["cloudformation-service-role-policy.json"] != documents[
         "cloudformation-service-role-boundary.json"
     ]
@@ -258,9 +269,12 @@ def test_policies_and_boundaries_are_distinct_artifacts() -> None:
         documents["operator-secret-initializer-policy.json"],
         documents["operator-verifier-policy.json"],
     }
-    assert documents["bootstrap-role-policy.json"] != documents[
-        "bootstrap-role-boundary.json"
-    ]
+
+
+def test_bootstrap_policy_and_boundary_have_identical_permission_statements() -> None:
+    policy = load_document("bootstrap-role-policy.json")
+    boundary = load_document("bootstrap-role-boundary.json")
+    assert policy["Statement"] == boundary["Statement"]
 
 
 def allow_actions(filename: str) -> set[str]:
@@ -979,16 +993,6 @@ BOOTSTRAP_POLICY_ARN_PREFIX = (
 )
 
 
-def statement_by_sid(filename: str, sid: str) -> dict[str, Any]:
-    matches = [
-        statement
-        for statement in statements(filename)
-        if statement.get("Sid") == sid
-    ]
-    assert len(matches) == 1, (filename, sid, len(matches))
-    return matches[0]
-
-
 @pytest.mark.parametrize("filename", sorted(TRUST_POLICY_FILES))
 def test_trust_policies_fit_the_default_iam_quota(filename: str) -> None:
     document = load_document(filename)
@@ -1084,13 +1088,33 @@ def test_bootstrap_permissions_cover_control_plane_tool_actions(
     create_role = next(
         statement
         for statement in statements(filename)
-        if statement["Effect"] == "Allow" and "iam:CreateRole" in actions(statement)
+        if statement["Effect"] == "Allow"
+        and actions(statement) == {"iam:CreateRole"}
     )
     assert resources(create_role) == {SERVICE_ROLE_ARN}
-    assert create_role["Condition"]["ArnEquals"]["iam:PermissionsBoundary"] == (
-        f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
-        "reference-demo-cfn-service-boundary"
+    expected_tag_conditions = {
+        "StringEquals": {
+            f"aws:RequestTag/{key}": value for key, value in FIXED_TAGS.items()
+        },
+        "ForAllValues:StringEquals": {"aws:TagKeys": list(FIXED_TAGS)},
+    }
+    assert create_role["Condition"] == {
+        "ArnEquals": {
+            "iam:PermissionsBoundary": (
+                f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/"
+                "control-plane/reference-demo-cfn-service-boundary"
+            )
+        },
+        **expected_tag_conditions,
+    }
+    tag_role = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Allow" and actions(statement) == {"iam:TagRole"}
     )
+    assert resources(tag_role) == {SERVICE_ROLE_ARN}
+    assert tag_role["Condition"] == expected_tag_conditions
+    assert "iam:PermissionsBoundary" not in json.dumps(tag_role["Condition"])
     attach_service = next(
         statement
         for statement in statements(filename)
@@ -1125,6 +1149,30 @@ def test_bootstrap_permissions_cover_control_plane_tool_actions(
     assert set(attach_operator["Condition"]["ArnEquals"]["iam:PolicyARN"]) == (
         OPERATOR_POLICY_ARNS
     )
+    operator_boundary = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Allow"
+        and actions(statement)
+        == {
+            "iam:DeleteRolePermissionsBoundary",
+            "iam:DeleteUserPermissionsBoundary",
+            "iam:PutRolePermissionsBoundary",
+            "iam:PutUserPermissionsBoundary",
+        }
+    )
+    assert resources(operator_boundary) == {
+        f"arn:aws:iam::{ACCOUNT}:role/*",
+        f"arn:aws:iam::{ACCOUNT}:user/*",
+    }
+    assert operator_boundary["Condition"] == {
+        "ArnEquals": {
+            "iam:PermissionsBoundary": (
+                f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/"
+                "control-plane/reference-demo-operator-boundary"
+            )
+        }
+    }
     describe_stacks = next(
         statement
         for statement in statements(filename)
@@ -1141,8 +1189,17 @@ def test_bootstrap_permissions_cover_control_plane_tool_actions(
 def test_bootstrap_permissions_deny_operator_mutation_of_protected_roles(
     filename: str,
 ) -> None:
-    runtime_protect = statement_by_sid(
-        filename, "DenyMutateBootstrapAndRuntimeRoles"
+    deny_bootstrap_role_arn = BOOTSTRAP_ROLE_ARN.replace(ACCOUNT, "*")
+    deny_express_role_arn = EXPRESS_INFRASTRUCTURE_ROLE_ARN.replace(ACCOUNT, "*")
+    deny_task_role_arn = TASK_EXECUTION_ROLE_ARN.replace(ACCOUNT, "*")
+    deny_service_role_arn = SERVICE_ROLE_ARN.replace(ACCOUNT, "*")
+    deny_privileged_caller_arn = PRIVILEGED_CALLER_ARN.replace(ACCOUNT, "*")
+
+    runtime_protect = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Deny"
+        and deny_bootstrap_role_arn in resources(statement)
     )
     assert runtime_protect["Effect"] == "Deny"
     assert actions(runtime_protect) == {
@@ -1152,38 +1209,71 @@ def test_bootstrap_permissions_deny_operator_mutation_of_protected_roles(
         "iam:PutRolePermissionsBoundary",
     }
     assert resources(runtime_protect) == {
-        BOOTSTRAP_ROLE_ARN,
-        EXPRESS_INFRASTRUCTURE_ROLE_ARN,
-        TASK_EXECUTION_ROLE_ARN,
+        deny_bootstrap_role_arn,
+        deny_express_role_arn,
+        deny_task_role_arn,
     }
 
-    operator_on_service = statement_by_sid(
-        filename, "DenyOperatorPoliciesOnServiceRole"
+    operator_on_service = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Deny"
+        and actions(statement) == {"iam:AttachRolePolicy", "iam:DetachRolePolicy"}
+        and resources(statement) == {deny_service_role_arn}
     )
     assert operator_on_service["Effect"] == "Deny"
-    assert resources(operator_on_service) == {SERVICE_ROLE_ARN}
+    assert resources(operator_on_service) == {deny_service_role_arn}
     assert set(operator_on_service["Condition"]["ArnEquals"]["iam:PolicyARN"]) == {
         (
-            f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/"
             "reference-demo-iam-bootstrap-*"
         ),
         (
-            f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/"
             "reference-demo-operator-*"
         ),
     }
 
-    caller_protect = statement_by_sid(filename, "DenyMutatePrivilegedCaller")
+    caller_protect = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Deny" and "iam:DeleteUser" in actions(statement)
+    )
     assert caller_protect["Effect"] == "Deny"
-    assert resources(caller_protect) == {PRIVILEGED_CALLER_ARN}
+    assert resources(caller_protect) == {deny_privileged_caller_arn}
     assert "iam:DeleteUser" in actions(caller_protect)
 
-    delete_service_boundary = statement_by_sid(
-        filename, "DenyDeleteServiceRoleBoundary"
+    wrong_service_boundary = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Deny"
+        and actions(statement) == {"iam:PutRolePermissionsBoundary"}
+        and resources(statement) == {deny_service_role_arn}
+    )
+    assert wrong_service_boundary["Condition"] == {
+        "ArnLike": {
+            "iam:PermissionsBoundary": [
+                (
+                    "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/"
+                    "reference-demo-iam-bootstrap-*"
+                ),
+                (
+                    "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/"
+                    "reference-demo-operator-*"
+                ),
+            ]
+        }
+    }
+
+    delete_service_boundary = next(
+        statement
+        for statement in statements(filename)
+        if statement["Effect"] == "Deny"
+        and actions(statement) == {"iam:DeleteRolePermissionsBoundary"}
+        and resources(statement) == {deny_service_role_arn}
     )
     assert delete_service_boundary == {
-        "Sid": "DenyDeleteServiceRoleBoundary",
         "Effect": "Deny",
         "Action": "iam:DeleteRolePermissionsBoundary",
-        "Resource": SERVICE_ROLE_ARN,
+        "Resource": deny_service_role_arn,
     }

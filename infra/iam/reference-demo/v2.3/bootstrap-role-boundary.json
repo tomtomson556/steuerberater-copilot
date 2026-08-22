@@ -1,6 +1,5 @@
 {
   "Version": "2012-10-17",
-  "Id": "reference-demo-iam-bootstrap-boundary-v2.3",
   "Statement": [
     {
       "Effect": "Allow",
@@ -50,11 +49,7 @@
     },
     {
       "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:PutRolePermissionsBoundary",
-        "iam:TagRole"
-      ],
+      "Action": "iam:CreateRole",
       "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
       "Condition": {
         "ArnEquals": {
@@ -80,9 +75,31 @@
     },
     {
       "Effect": "Allow",
+      "Action": "iam:TagRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Component": "reference-demo",
+          "aws:RequestTag/Environment": "portfolio-test",
+          "aws:RequestTag/Lifecycle": "ephemeral",
+          "aws:RequestTag/ManagedBy": "cloudformation",
+          "aws:RequestTag/Project": "steuerberater-copilot"
+        },
+        "ForAllValues:StringEquals": {
+          "aws:TagKeys": [
+            "Project",
+            "Component",
+            "Environment",
+            "ManagedBy",
+            "Lifecycle"
+          ]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
       "Action": [
         "iam:DeleteRole",
-        "iam:GetRole",
         "iam:ListAttachedRolePolicies",
         "iam:ListInstanceProfilesForRole",
         "iam:ListRolePolicies"
@@ -164,7 +181,6 @@
       "Resource": "arn:aws:cloudformation:eu-central-1:<ACCOUNT_ID>:stack/steuerberater-copilot-reference-demo/*"
     },
     {
-      "Sid": "DenyMutateBootstrapAndRuntimeRoles",
       "Effect": "Deny",
       "Action": [
         "iam:AttachRolePolicy",
@@ -173,50 +189,46 @@
         "iam:PutRolePermissionsBoundary"
       ],
       "Resource": [
-        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap",
-        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/express-infrastructure",
-        "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/reference-demo/task-execution"
+        "arn:aws:iam::*:role/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap",
+        "arn:aws:iam::*:role/steuerberater-copilot/reference-demo/express-infrastructure",
+        "arn:aws:iam::*:role/steuerberater-copilot/reference-demo/task-execution"
       ]
     },
     {
-      "Sid": "DenyOperatorPoliciesOnServiceRole",
       "Effect": "Deny",
       "Action": [
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy"
       ],
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Resource": "arn:aws:iam::*:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
       "Condition": {
         "ArnEquals": {
           "iam:PolicyARN": [
-            "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap-*",
-            "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-*"
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap-*",
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/reference-demo-operator-*"
           ]
         }
       }
     },
     {
-      "Sid": "DenyWrongBoundaryOnServiceRole",
       "Effect": "Deny",
       "Action": "iam:PutRolePermissionsBoundary",
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Resource": "arn:aws:iam::*:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
       "Condition": {
-        "ArnEquals": {
+        "ArnLike": {
           "iam:PermissionsBoundary": [
-            "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap-boundary",
-            "arn:aws:iam::<ACCOUNT_ID>:policy/steuerberater-copilot/control-plane/reference-demo-operator-boundary"
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/reference-demo-iam-bootstrap-*",
+            "arn:aws:iam::*:policy/steuerberater-copilot/control-plane/reference-demo-operator-*"
           ]
         }
       }
     },
     {
-      "Sid": "DenyDeleteServiceRoleBoundary",
       "Effect": "Deny",
       "Action": "iam:DeleteRolePermissionsBoundary",
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+      "Resource": "arn:aws:iam::*:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
     },
     {
-      "Sid": "DenyMutatePrivilegedCaller",
       "Effect": "Deny",
       "Action": [
         "iam:AttachUserPolicy",
@@ -225,7 +237,7 @@
         "iam:DetachUserPolicy",
         "iam:PutUserPermissionsBoundary"
       ],
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:user/reference-demo-privileged-caller"
+      "Resource": "arn:aws:iam::*:user/reference-demo-privileged-caller"
     }
   ]
 }
