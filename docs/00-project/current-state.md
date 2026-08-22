@@ -1,8 +1,9 @@
 # Current State
 
-Inventory snapshot of `main`. This file is not strategy, architecture decision,
-or security policy. Those remain in the roadmap, ADRs, and existing control
-documents.
+Agent-context inventory snapshot of a dated `main` commit. This file is not
+strategy, architecture decision, security policy, or a source of truth. Those
+remain in live Git state, the roadmap, accepted ADRs, implementation, and
+existing control documents.
 
 ```text
 KI bereitet vor.
@@ -18,7 +19,6 @@ Der Steuerberater entscheidet.
 | `main` commit | `0f2d98e` (`feat: add reference-demo bootstrap role IAM contract (#142)`) |
 | Productive use | No. Local-first, non-productive, synthetic data only. |
 | Roadmap phase | Phase 5, Referenz-Cloud und Observability |
-| Open PRs at snapshot | None |
 
 Code and infra below are taken from that `main` commit. The agent-context
 layout in this file belongs with the router `AGENTS.md`: load detail documents
@@ -150,8 +150,8 @@ boundary. FastAPI must not own fachliche logic.
 
 ## Known documentation drift
 
-These documents still describe an earlier slice of `main`. Prefer this snapshot
-and the roadmap inventory over stale component lists:
+These documents still describe an earlier slice of `main`. Prefer live Git, the
+roadmap, accepted ADRs, and this snapshot over stale component lists:
 
 | Document | Stale claim on `main` `0f2d98e` |
 | --- | --- |

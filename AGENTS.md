@@ -9,12 +9,15 @@ documents. Load those documents only when the current task needs them.
 ## Source of truth
 
 ```text
-main
-→ docs/00-project/current-state.md
+current main
 → docs/10-mvp-scope/ai-engineering-roadmap-2026.md
 → accepted ADRs
 → implementation and tests
 ```
+
+`docs/00-project/current-state.md` is an agent-context inventory snapshot of a
+dated `main` commit. It is not a source of truth. When it disagrees with live
+Git state, the roadmap, accepted ADRs, or the code, those win.
 
 The binding project principle:
 
@@ -28,7 +31,7 @@ Der Steuerberater entscheidet.
 
 | Need | Read |
 | --- | --- |
-| Live inventory | `docs/00-project/current-state.md` |
+| Agent context / inventory snapshot | `docs/00-project/current-state.md` |
 | Project brief | `docs/00-project/project-brief.md` |
 | Strategy / 2026 scope | `docs/10-mvp-scope/ai-engineering-roadmap-2026.md` |
 | Architecture | `docs/03-architecture/system-overview.md` |
@@ -57,8 +60,9 @@ git pull --ff-only origin main
 git log --oneline --max-count=5
 ```
 
-Then use a small working branch. Read the current-state snapshot and only the
-detail documents relevant to the task. Do not recreate already merged work.
+Then use a small working branch. Use `docs/00-project/current-state.md` only as
+a convenience inventory index, then load the detail documents relevant to the
+task. Do not recreate already merged work.
 
 ## Git workflow
 

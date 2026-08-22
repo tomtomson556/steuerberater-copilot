@@ -7,8 +7,8 @@ They are not runtime instructions for the future steuerberater-copilot
 application or any tax advisory AI.
 
 Follow `AGENTS.md` as the context router for repository development agent
-behavior. Read `docs/00-project/current-state.md` for the live inventory.
-Load linked detail documents only when the current task needs them.
+behavior. Read `docs/00-project/current-state.md` as a current-state snapshot
+only. Load linked detail documents only when the current task needs them.
 
 Project principle:
 

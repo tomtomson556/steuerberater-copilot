@@ -5,9 +5,10 @@ alwaysApply: true
 
 # Steuerberater-Copilot Guardrails
 
-Context-Router: `AGENTS.md`. Ist-Zustand: `docs/00-project/current-state.md`.
-MCP-Grenzen: `docs/04-mcp/agent-mcp-boundaries.md`. Detaildokumente nur laden,
-wenn der aktuelle Task sie braucht.
+Context-Router: `AGENTS.md`. Inventory-Snapshot:
+`docs/00-project/current-state.md` (kein Source of Truth). MCP-Grenzen:
+`docs/04-mcp/agent-mcp-boundaries.md`. Detaildokumente nur laden, wenn der
+aktuelle Task sie braucht.
 
 Leitbild:
 
