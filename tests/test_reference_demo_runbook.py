@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,10 +23,83 @@ IMAGE_URI_ALLOWED_PATTERN = (
     r"steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
 )
 
+PREFLIGHT_HEADING = "### Read-only AWS Account-Preflight"
+VALIDATE_TEMPLATE_FENCE = "```bash\naws cloudformation validate-template"
+CREATE_CHANGE_SET = "aws cloudformation create-change-set"
+AWS_INVOCATION_RE = re.compile(r"\baws\s+([a-z0-9-]+)\s+([a-z0-9-]+)")
+READ_ONLY_OPERATIONS = {
+    "describe-availability-zones",
+    "describe-clusters",
+    "describe-express-gateway-service",
+    "describe-log-groups",
+    "describe-repositories",
+    "describe-secret",
+    "describe-stacks",
+    "get-caller-identity",
+    "get-policy",
+    "get-policy-version",
+    "get-role",
+    "list-attached-role-policies",
+    "list-role-policies",
+    "list-role-tags",
+    "list-service-quotas",
+    "lookup-events",
+}
+FORBIDDEN_OPERATION_PREFIXES = (
+    "add-",
+    "attach-",
+    "create-",
+    "delete-",
+    "detach-",
+    "detect-",
+    "execute-",
+    "modify-",
+    "pass-",
+    "put-",
+    "register-",
+    "remove-",
+    "set-",
+    "start-",
+    "stop-",
+    "tag-",
+    "untag-",
+    "update-",
+)
+
 
 def load_runbook() -> str:
     assert RUNBOOK_PATH.is_file(), RUNBOOK_PATH
     return RUNBOOK_PATH.read_text(encoding="utf-8")
+
+
+def preflight_section(text: str) -> str:
+    start = text.index(PREFLIGHT_HEADING)
+    end = text.index(VALIDATE_TEMPLATE_FENCE)
+    assert start < end
+    return text[start:end]
+
+
+def bash_blocks(markdown: str) -> list[str]:
+    blocks: list[str] = []
+    parts = markdown.split("```")
+    for index in range(1, len(parts), 2):
+        payload = parts[index]
+        newline_at = payload.find("\n")
+        language = payload[:newline_at] if newline_at >= 0 else payload
+        if language.strip() == "bash":
+            blocks.append(payload[newline_at + 1 :] if newline_at >= 0 else "")
+    return blocks
+
+
+def preflight_aws_operations(text: str) -> list[tuple[str, str]]:
+    operations: list[tuple[str, str]] = []
+    for block in bash_blocks(preflight_section(text)):
+        joined = block.replace("\\\n", " ")
+        operations.extend(
+            (match.group(1), match.group(2))
+            for match in AWS_INVOCATION_RE.finditer(joined)
+        )
+    return operations
 
 
 def test_runbook_is_change_set_only_with_named_iam() -> None:
@@ -117,3 +192,100 @@ def test_runbook_builds_image_uri_only_from_stack_ecr_and_digest() -> None:
         for parameter in image_parameters
     )
     assert IMAGE_URI_ALLOWED_PATTERN in text
+
+
+def test_runbook_places_read_only_preflight_before_validate_template() -> None:
+    text = load_runbook()
+    preflight_at = text.index(PREFLIGHT_HEADING)
+    validate_at = text.index(VALIDATE_TEMPLATE_FENCE)
+    first_write_at = text.index(CREATE_CHANGE_SET)
+    after_preflight_at = text.index("Erst nach bestandenem Preflight folgt die read-only")
+
+    assert preflight_at < after_preflight_at < validate_at < first_write_at
+    assert "`aws cloudformation validate-template`" in preflight_section(text)
+    assert "vor jedem ersten AWS-Write" in preflight_section(text)
+    assert "kein allgemeines AWS-Live-Test-Go" in preflight_section(text)
+
+
+def test_runbook_preflight_commands_are_read_only() -> None:
+    operations = preflight_aws_operations(load_runbook())
+    assert operations
+    seen = {operation for _service, operation in operations}
+    assert seen <= READ_ONLY_OPERATIONS
+    assert "get-caller-identity" in seen
+    assert "create-change-set" not in seen
+    assert "validate-template" not in seen
+    for service, operation in operations:
+        assert not operation.startswith(FORBIDDEN_OPERATION_PREFIXES), (
+            service,
+            operation,
+        )
+        assert "pass-role" not in operation
+        assert "create" not in operation
+        assert "update" not in operation
+        assert "delete" not in operation
+        assert "attach" not in operation.split("-")[0]
+        assert not operation.startswith("put-")
+
+
+def test_runbook_preflight_covers_required_account_gates() -> None:
+    section = preflight_section(load_runbook())
+    required = (
+        "aws sts get-caller-identity",
+        "eu-central-1",
+        "reference-demo-cfn-service-role",
+        "aws iam get-role",
+        "aws iam list-attached-role-policies",
+        "aws iam list-role-policies",
+        "aws iam list-role-tags",
+        "aws iam get-policy",
+        "aws iam get-policy-version",
+        "aws ecs describe-clusters",
+        "--clusters default",
+        "AWSServiceRoleForECS",
+        "AWSServiceRoleForElasticLoadBalancing",
+        "AWSServiceRoleForApplicationAutoScaling_ECSService",
+        "aws ecr describe-repositories",
+        "aws logs describe-log-groups",
+        "aws secretsmanager describe-secret",
+        "aws ecs describe-express-gateway-service",
+        "aws service-quotas list-service-quotas",
+        "aws cloudtrail lookup-events",
+        "AmazonECSInfrastructureRoleforExpressGatewayServices",
+        "express-infrastructure-boundary.json",
+        "Billing-Budget oder Kostenalarm",
+        "Organizations-SCPs",
+        "Permission Sets",
+        "Session Policies",
+        "AccessDenied",
+        "Kein Umbenennen, kein Reparieren",
+        "Policies\nwerden während des Ablaufs nicht erweitert",
+    )
+    for needle in required:
+        assert needle in section, needle
+
+
+def test_runbook_does_not_treat_access_analyzer_as_open_branch_goal() -> None:
+    section = preflight_section(load_runbook())
+    assert "AWS Access Analyzer / `ValidatePolicy` (19/19" in section
+    assert "0 Findings" in section
+    assert "SIM-001 bis SIM-142" in section
+    assert "nicht als offenes Branch-Ziel" in section
+    assert "führt sie nicht erneut aus" in section
+    assert "Access Analyzer bleibt ausstehend" not in section
+    assert "ValidatePolicy noch offen" not in section
+    assert "Access Analyzer erneut ausführen" not in section
+
+
+def test_runbook_static_checks_stay_network_free() -> None:
+    source = Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".", 1)[0])
+    assert imported <= {"__future__", "ast", "re", "pathlib"}
+    assert "preflight_aws_operations" in source
+    assert "load_runbook" in source
