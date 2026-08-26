@@ -28,8 +28,14 @@ Der Steuerberater entscheidet.
   `reference-demo-privileged-caller` sind der IAM-Vertrag unter
   `infra/iam/reference-demo/v2.3/`; dieses Runbook erzeugt oder löscht sie nicht.
 - lokale Docker-Build-Fähigkeit für `linux/amd64` und AWS-CLI als Operator
-  mit den v2.3-Operator-Policies
-- Billing-Budget oder Kostenalarm im Account
+  mit den v2.3-Operator-Policies, einschließlich der Verifier-Policy
+- Read-only AWS Account-Preflight mit genau diesen vorhandenen
+  v2.3-Verifier-Rechten vor `aws cloudformation validate-template` und vor
+  jedem ersten AWS-Write. Der Preflight erzeugt, ändert oder löscht keine
+  Ressourcen, repariert nichts und benennt bei Kollisionen nicht um
+- Billing-Budget oder Kostenalarm im Account; diese Kostenkontrolle ist ein
+  vorab extern zu bestätigendes Gate und nicht über die Verifier-Policy
+  introspektierbar
 - keine Credentials, Secret-Werte oder Access Keys im Repository
 - `cfn-guard` ist für den Offline-Freeze verbindlich; ein erfolgreicher Lauf
   gegen `infra/cloudformation/guards/reference-demo.guard` ist Voraussetzung
@@ -114,22 +120,512 @@ von `TaskRoleArn`. `ImageUri` muss exakt
 `^$|^[0-9]{12}\.dkr\.ecr\.eu-central-1\.amazonaws\.com/steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$`
 entsprechen.
 
-Gemeinsame Operator-Variablen für die folgenden Schritte:
+Lokale Operator-Variablen ohne AWS-Aufruf. `ACCOUNT_ID` und
+`SERVICE_ROLE_ARN` setzt erst der folgende Preflight.
 
 ```bash
 REGION=eu-central-1
 STACK_NAME=steuerberater-copilot-reference-demo
-ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-SERVICE_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
 TEMPLATE="file://infra/cloudformation/reference-demo.yaml"
+ECR_REPO_NAME=steuerberater-copilot-reference-demo
+LOG_GROUP_NAME=/steuerberater-copilot/reference-demo/application
+SECRET_NAME=steuerberater-copilot/reference-demo/synthetic
+EXPRESS_SERVICE_NAME=steuerberater-copilot-reference-demo
 ```
 
-Read-only CloudFormation-Templatevalidierung vor dem ersten Change Set. Der
-Aufruf `validate-template` erzeugt oder ändert keine Ressourcen; er prüft, ob
-CloudFormation das YAML akzeptiert, und nennt die erforderlichen Capabilities
+### Read-only AWS Account-Preflight
+
+Dieser Abschnitt ist der verbindliche Account-Preflight vor
+`aws cloudformation validate-template` und vor jedem ersten AWS-Write
+dieses Runbooks (`create-change-set` und jede andere schreibende Aktion).
+Er nutzt ausschließlich die vorhandenen Rechte aus
+`infra/iam/reference-demo/v2.3/operator-verifier-policy.json`. Policies
+werden während des Ablaufs nicht erweitert. Es gibt kein automatisches
+Reparieren und kein spontanes Umbenennen bei Kollisionen.
+
+Jedes unerwartete Ergebnis, jede nicht ausdrücklich als zulässiger
+Pre-State inventarisierte fehlende Voraussetzung und jedes `AccessDenied`
+ist **No-Go**. Die inventarisierte Absenz des ECS-Clusters `default` nur
+mit `describe-clusters`-Failure Reason `MISSING` für genau diesen Cluster
+sowie `NoSuchEntity` für eine der drei kanonischen Service-Linked Roles
+ist kein `AccessDenied` und kein automatisches No-Go. Jeder andere
+Failure-Inhalt bei Cluster `default` ist **No-Go**. Ein bestandener
+Preflight gibt nur den Weg zu `validate-template` frei. Er ist kein allgemeines AWS-Live-Test-Go, kein
+Change-Set-Go und kein Stack-Create.
+
+Bereits abgeschlossen und nicht Teil dieses Preflights: IAM-Simulator
+SIM-001 bis SIM-142 sowie AWS Access Analyzer / `ValidatePolicy` (19/19
+Dokumente, 0 Findings). Dieser Ablauf führt sie nicht erneut aus und
+behandelt sie nicht als offenes Branch-Ziel. IAM-JSON, Template und Guard
+bleiben unverändert.
+
+Vor den AWS-Leseaufrufen organisatorisch bestätigen. Die vorhandenen
+Operatorrechte können diese Gates nicht zuverlässig introspektieren;
+unbestätigt oder unklar ist **No-Go**:
+
+- kurzlebige, freigegebene Operator-Session mit MFA. `sts:GetCallerIdentity`
+  beweist MFA nicht
+  ([get-caller-identity](https://docs.aws.amazon.com/cli/latest/reference/sts/get-caller-identity.html))
+- aktives Billing-Budget oder Kostenalarm im Account (Kostenkontrolle)
+- Organizations-SCPs in `eu-central-1` blockieren den Referenzpfad nicht
+- Permission Sets erweitern den Operator nicht über v2.3 hinaus und
+  entziehen keine Verifier-/CloudFormation-Rechte
+- Session Policies schränken die Operator-Session nicht unter die
+  v2.3-Operator-Policies ein
+- keine unerwartete übergeordnete Permissions Boundary an der
+  Operatoridentität außer `reference-demo-operator-boundary`
+- keine Instanzprofile an der CloudFormation-Service-Rolle; kundenverwaltete
+  Control-Plane-Policies haben nur die Default-Version `v1`. Beides ist mit
+  der Verifier-Policy nicht vollständig enumerierbar (`iam:ListInstanceProfilesForRole`
+  und `iam:ListPolicyVersions` sind kein Verifier-Recht) und wird deshalb
+  vorab bestätigt, nicht durch neue Berechtigungen
+
+Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
+
+- ECS-Cluster `default`: Präsenz oder Absenz inventarisieren. Liefert
+  `describe-clusters` keinen Cluster, ist Absenz nur zulässiger Pre-State,
+  wenn die Failure-Antwort den angefragten Cluster `default` mit Reason
+  `MISSING` ausweist
+  ([API failure reasons](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/api_failures_messages.html)).
+  Jeder andere Failure-Inhalt ist **No-Go**. Protokollieren und **nicht**
+  erstellen. Ist der Cluster vorhanden, exakten ARN
+  `arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default`, Status und
+  vorhandene Tags prüfen. Abweichender ARN oder unerwarteter Status ist
+  No-Go.
+- Die drei kanonischen Service-Linked Roles
+  (`AWSServiceRoleForECS`, `AWSServiceRoleForElasticLoadBalancing`,
+  `AWSServiceRoleForApplicationAutoScaling_ECSService`): kanonischer Name,
+  exakter IAM-Pfad/ARN und Service-Principal der Trust Policy prüfen.
+  `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz
+  nicht durch Create beheben. Falscher Pfad, ARN oder Trust ist No-Go.
+- Service Quotas entlang des v2.3-Vertrags: VPC/EIP-IPv4 (`vpc`), ECS
+  (`ecs`), ELB (`elasticloadbalancing`), ACM (`acm`) und Fargate
+  (`fargate`). Für `vpc`, `elasticloadbalancing`, `acm` und `fargate` die
+  angewendeten Limits mit `list-service-quotas` lesen. AWS unterstützt für
+  ECS keine applied quotas; `list-service-quotas --service-code ecs`
+  liefert sie deshalb nicht. ECS-Default-Quotas mit dem bereits erlaubten
+  `list-aws-default-service-quotas` lesen. Das ist **kein** automatischer
+  Nachweis von Restkapazität oder aktueller Nutzung. Der Operator bewertet
+  die Ausgabe manuell als read-only Go-/No-Go-Gate. Kein Quota-Increase in
+  diesem Ablauf.
+
+Technische Lese-Gates in derselben Operator-Shell. `set -e` beendet bei
+jedem unerwarteten Fehler. Dokumentierte Not-found-Fälle sind die
+Kollisionsprüfungen fester Referenzressourcen, die Inventar-Absenz von
+Cluster `default` nur bei Failure Reason `MISSING` für genau diesen
+Cluster und `NoSuchEntity` für die drei Service-Linked Roles. Jeder andere
+Fehler einschließlich `AccessDenied` oder anderem Cluster-Failure-Inhalt
+ist **No-Go**.
+
+```bash
+set -euo pipefail
+
+REGION=eu-central-1
+STACK_NAME=steuerberater-copilot-reference-demo
+TEMPLATE="file://infra/cloudformation/reference-demo.yaml"
+ECR_REPO_NAME=steuerberater-copilot-reference-demo
+LOG_GROUP_NAME=/steuerberater-copilot/reference-demo/application
+SECRET_NAME=steuerberater-copilot/reference-demo/synthetic
+EXPRESS_SERVICE_NAME=steuerberater-copilot-reference-demo
+
+preflight_fail() {
+  echo "No-Go: $*" >&2
+  exit 1
+}
+
+preflight_require_success() {
+  local label="$1"
+  shift
+  local out ec
+  set +e
+  out="$("$@" 2>&1)"
+  ec=$?
+  set -e
+  if [ "$ec" -ne 0 ]; then
+    echo "$out" >&2
+    preflight_fail "$label fehlgeschlagen (AccessDenied, fehlende Voraussetzung oder unerwartetes Ergebnis)."
+  fi
+  PREFLIGHT_OUTPUT="$out"
+}
+
+preflight_require_absent() {
+  local label="$1"
+  local not_found_re="$2"
+  shift 2
+  local out ec
+  set +e
+  out="$("$@" 2>&1)"
+  ec=$?
+  set -e
+  if [ "$ec" -eq 0 ]; then
+    echo "$out" >&2
+    preflight_fail "Kollision: $label existiert bereits. Kein Umbenennen, kein Reparieren."
+  fi
+  if ! printf '%s\n' "$out" | grep -Eqi -- "$not_found_re"; then
+    echo "$out" >&2
+    preflight_fail "$label: unerwartetes Ergebnis oder AccessDenied statt dokumentiertem Not-found."
+  fi
+}
+
+preflight_inventory_get_role() {
+  local label="$1"
+  local role_name="$2"
+  local expected_path="$3"
+  local expected_principal="$4"
+  local expected_arn="arn:aws:iam::${ACCOUNT_ID}:role${expected_path}${role_name}"
+  local out ec
+  set +e
+  out="$(aws iam get-role --role-name "$role_name" --output json 2>&1)"
+  ec=$?
+  set -e
+  if [ "$ec" -ne 0 ]; then
+    if printf '%s\n' "$out" | grep -Eqi -- 'NoSuchEntity'; then
+      echo "Inventar: $label ABSENT (NoSuchEntity, zulässiger Pre-State). Nicht erstellen."
+      return 0
+    fi
+    echo "$out" >&2
+    preflight_fail "$label: AccessDenied oder unerwarteter Fehler, nicht NoSuchEntity."
+  fi
+  PREFLIGHT_OUTPUT="$out"
+  EXPECTED_ROLE_ARN="$expected_arn"
+  EXPECTED_ROLE_PATH="$expected_path"
+  EXPECTED_ROLE_NAME="$role_name"
+  EXPECTED_TRUST_PRINCIPAL="$expected_principal"
+  export EXPECTED_ROLE_ARN EXPECTED_ROLE_PATH EXPECTED_ROLE_NAME EXPECTED_TRUST_PRINCIPAL
+  printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, os, sys
+role = json.load(sys.stdin)['Role']
+name = os.environ['EXPECTED_ROLE_NAME']
+path = os.environ['EXPECTED_ROLE_PATH']
+arn = os.environ['EXPECTED_ROLE_ARN']
+principal = os.environ['EXPECTED_TRUST_PRINCIPAL']
+assert role.get('RoleName') == name, role.get('RoleName')
+assert role.get('Path') == path, role.get('Path')
+assert role.get('Arn') == arn, role.get('Arn')
+trust = role.get('AssumeRolePolicyDocument') or {}
+statements = trust.get('Statement') or []
+if isinstance(statements, dict):
+    statements = [statements]
+services = []
+for statement in statements:
+    if statement.get('Effect') != 'Allow':
+        continue
+    action = statement.get('Action')
+    actions = action if isinstance(action, list) else [action]
+    if 'sts:AssumeRole' not in actions:
+        continue
+    prin = (statement.get('Principal') or {}).get('Service')
+    if isinstance(prin, list):
+        services.extend(prin)
+    elif prin:
+        services.append(prin)
+assert principal in services, (arn, services)
+print(
+    'Inventar: %s PRESENT name=%s path=%s arn=%s trust=%s'
+    % (name, role.get('RoleName'), role.get('Path'), role.get('Arn'), principal)
+)
+" || preflight_fail "$label: Name, Pfad, ARN oder Trust-Principal weichen vom kanonischen Vertrag ab."
+  preflight_require_success \
+    "$label angehängte Policies" \
+    aws iam list-attached-role-policies --role-name "$role_name" --output json
+  echo "Inventar: $label Attachments gelesen (nur Bestand, keine Änderung)."
+}
+
+# 1. Caller Identity, Account-ID, Region
+preflight_require_success \
+  "Caller Identity" \
+  aws sts get-caller-identity --output json
+ACCOUNT_ID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c 'import json,sys; print(json.load(sys.stdin)["Account"])')"
+CALLER_ARN="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c 'import json,sys; print(json.load(sys.stdin)["Arn"])')"
+printf '%s\n' "$ACCOUNT_ID" | grep -Eq '^[0-9]{12}$' \
+  || preflight_fail "Account-ID ist nicht zwölfstellig."
+printf '%s\n' "$CALLER_ARN" | grep -Eq "^arn:aws:sts::${ACCOUNT_ID}:(assumed-role|federated-user)/" \
+  || preflight_fail "Caller ist keine kurzlebige STS-Session (assumed-role oder federated-user)."
+printf '%s\n' "$CALLER_ARN" | grep -Eq 'assumed-role/reference-demo-iam-bootstrap/' \
+  && preflight_fail "Bootstrap-Rolle ist keine Operator-Session."
+printf '%s\n' "$CALLER_ARN" | grep -Eq 'assumed-role/reference-demo-cfn-service-role/' \
+  && preflight_fail "CloudFormation-Service-Rolle ist keine Operator-Session."
+printf '%s\n' "$CALLER_ARN" | grep -Eq ":root$" \
+  && preflight_fail "Root ist unzulässig."
+
+SERVICE_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role"
+EXPRESS_SERVICE_ARN="arn:aws:ecs:${REGION}:${ACCOUNT_ID}:service/default/${EXPRESS_SERVICE_NAME}"
+EXPRESS_MANAGED_POLICY_ARN="arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
+CFN_FOUNDATION_POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/steuerberater-copilot/control-plane/reference-demo-cfn-foundation-policy"
+CFN_LIFECYCLE_POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/steuerberater-copilot/control-plane/reference-demo-cfn-iam-lifecycle-policy"
+CFN_SERVICE_POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-policy"
+CFN_SERVICE_BOUNDARY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/steuerberater-copilot/control-plane/reference-demo-cfn-service-boundary"
+export ACCOUNT_ID REGION \
+  CFN_FOUNDATION_POLICY_ARN CFN_LIFECYCLE_POLICY_ARN CFN_SERVICE_POLICY_ARN
+
+preflight_require_success \
+  "Availability Zones in eu-central-1" \
+  aws ec2 describe-availability-zones \
+    --region "$REGION" \
+    --query 'AvailabilityZones[?State==`available`].ZoneName' \
+    --output text
+AZ_COUNT="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | wc -w)"
+[ "$AZ_COUNT" -ge 2 ] || preflight_fail "eu-central-1 hat nicht mindestens zwei verfügbare AZs."
+
+# 2. CloudFormation-Service-Rolle: Existenz, Trust, Boundary, Tags, Anhänge
+preflight_require_success \
+  "CloudFormation-Service-Rolle" \
+  aws iam get-role --role-name reference-demo-cfn-service-role --output json
+printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, sys
+role = json.load(sys.stdin)['Role']
+assert role['RoleName'] == 'reference-demo-cfn-service-role'
+assert role['Path'] == '/steuerberater-copilot/control-plane/'
+assert role['Arn'].endswith('/steuerberater-copilot/control-plane/reference-demo-cfn-service-role')
+boundary = role.get('PermissionsBoundary') or {}
+assert boundary.get('PermissionsBoundaryArn', '').endswith('reference-demo-cfn-service-boundary')
+trust = role['AssumeRolePolicyDocument']
+statements = trust['Statement'] if isinstance(trust['Statement'], list) else [trust['Statement']]
+assert statements == [{
+    'Sid': 'TrustCloudFormationOnly',
+    'Effect': 'Allow',
+    'Principal': {'Service': 'cloudformation.amazonaws.com'},
+    'Action': 'sts:AssumeRole',
+}], trust
+" || preflight_fail "Service-Rolle: Trust, Path oder Boundary weichen vom v2.3-Vertrag ab."
+preflight_require_success \
+  "Service-Rollen-Tags" \
+  aws iam list-role-tags --role-name reference-demo-cfn-service-role --output json
+printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, sys
+tags = {item['Key']: item['Value'] for item in json.load(sys.stdin).get('Tags', [])}
+assert tags == {
+    'Project': 'steuerberater-copilot',
+    'Component': 'reference-demo',
+    'Environment': 'portfolio-test',
+    'ManagedBy': 'cloudformation',
+    'Lifecycle': 'ephemeral',
+}, tags
+" || preflight_fail "Service-Rolle hat unerwartete Tags."
+preflight_require_success \
+  "Service-Rollen-Policy-Anhänge" \
+  aws iam list-attached-role-policies --role-name reference-demo-cfn-service-role --output json
+printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, os, sys
+attached = {item['PolicyArn'] for item in json.load(sys.stdin).get('AttachedPolicies', [])}
+expected = {
+    os.environ['CFN_FOUNDATION_POLICY_ARN'],
+    os.environ['CFN_LIFECYCLE_POLICY_ARN'],
+    os.environ['CFN_SERVICE_POLICY_ARN'],
+}
+assert attached == expected, attached
+" || preflight_fail "Service-Rolle hat unerwartete oder fehlende Policy-Anhänge."
+preflight_require_success \
+  "Service-Rollen-Inline-Policies" \
+  aws iam list-role-policies --role-name reference-demo-cfn-service-role \
+    --query 'PolicyNames' --output text
+[ -z "$PREFLIGHT_OUTPUT" ] || preflight_fail "Service-Rolle hat unerwartete Inline-Policies."
+
+for POLICY_ARN in \
+  "$CFN_FOUNDATION_POLICY_ARN" \
+  "$CFN_LIFECYCLE_POLICY_ARN" \
+  "$CFN_SERVICE_POLICY_ARN" \
+  "$CFN_SERVICE_BOUNDARY_ARN"
+do
+  preflight_require_success \
+    "Policy $POLICY_ARN" \
+    aws iam get-policy --policy-arn "$POLICY_ARN" \
+      --query 'Policy.DefaultVersionId' --output text
+  [ "$PREFLIGHT_OUTPUT" = "v1" ] || preflight_fail "DefaultVersionId von $POLICY_ARN ist nicht v1."
+  preflight_require_success \
+    "PolicyVersion $POLICY_ARN v1" \
+    aws iam get-policy-version \
+      --policy-arn "$POLICY_ARN" \
+      --version-id v1 \
+      --query 'PolicyVersion.VersionId' \
+      --output text
+  [ "$PREFLIGHT_OUTPUT" = "v1" ] || preflight_fail "Policy-Version v1 für $POLICY_ARN nicht lesbar."
+done
+
+# 3. ECS-Cluster default inventarisieren; Absenz nur bei Reason MISSING
+preflight_require_success \
+  "ECS-Cluster default" \
+  aws ecs describe-clusters \
+    --region "$REGION" \
+    --clusters default \
+    --include TAGS \
+    --output json
+printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, os, sys
+payload = json.load(sys.stdin)
+clusters = payload.get('clusters') or []
+failures = payload.get('failures') or []
+account = os.environ['ACCOUNT_ID']
+region = os.environ['REGION']
+expected_arn = f'arn:aws:ecs:{region}:{account}:cluster/default'
+if not clusters:
+    failure = failures[0] if len(failures) == 1 else None
+    failure_arn = (failure or {}).get('arn') or ''
+    identifies_default = (
+        failure_arn == expected_arn
+        or failure_arn.endswith(':cluster/default')
+        or failure_arn.rstrip('/').split('/')[-1] == 'default'
+    )
+    if (
+        failure is None
+        or failure.get('reason') != 'MISSING'
+        or not identifies_default
+    ):
+        raise SystemExit(
+            'unerwarteter Failure-Inhalt statt Reason MISSING für Cluster default'
+        )
+    print(
+        'Inventar: ECS-Cluster default ABSENT (zulässiger Pre-State, Reason MISSING). '
+        'Nicht erstellen. failures=%s' % (failures,)
+    )
+    raise SystemExit(0)
+if len(clusters) != 1:
+    raise SystemExit('unerwartete Anzahl Cluster in der Describe-Antwort')
+cluster = clusters[0]
+arn = cluster.get('clusterArn')
+status = cluster.get('status')
+tags = cluster.get('tags') or []
+print(
+    'Inventar: ECS-Cluster default PRESENT arn=%s status=%s tags=%s'
+    % (arn, status, tags)
+)
+if cluster.get('clusterName') != 'default' or arn != expected_arn:
+    raise SystemExit('Cluster-ARN oder Name weicht vom kanonischen default-ARN ab')
+if status != 'ACTIVE':
+    raise SystemExit('vorhandener default-Cluster ist nicht ACTIVE')
+" || preflight_fail "ECS-Cluster default: unerwarteter Zustand. Nicht erstellen und nicht reparieren."
+
+# 4. Kanonische Service-Linked Roles inventarisieren
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForECS" \
+  AWSServiceRoleForECS \
+  /aws-service-role/ecs.amazonaws.com/ \
+  ecs.amazonaws.com
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForElasticLoadBalancing" \
+  AWSServiceRoleForElasticLoadBalancing \
+  /aws-service-role/elasticloadbalancing.amazonaws.com/ \
+  elasticloadbalancing.amazonaws.com
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForApplicationAutoScaling_ECSService" \
+  AWSServiceRoleForApplicationAutoScaling_ECSService \
+  /aws-service-role/ecs.application-autoscaling.amazonaws.com/ \
+  ecs.application-autoscaling.amazonaws.com
+
+# 5. Kollisionen fester Referenzressourcen
+preflight_require_absent \
+  "CloudFormation-Stack $STACK_NAME" \
+  'does not exist' \
+  aws cloudformation describe-stacks \
+    --region "$REGION" \
+    --stack-name "$STACK_NAME"
+
+preflight_require_absent \
+  "ECR-Repository $ECR_REPO_NAME" \
+  'RepositoryNotFoundException' \
+  aws ecr describe-repositories \
+    --region "$REGION" \
+    --repository-names "$ECR_REPO_NAME"
+
+set +e
+LOG_OUT="$(aws logs describe-log-groups \
+  --region "$REGION" \
+  --log-group-name-prefix "$LOG_GROUP_NAME" \
+  --query "logGroups[?logGroupName=='${LOG_GROUP_NAME}'].logGroupName" \
+  --output text 2>&1)"
+LOG_EC=$?
+set -e
+if [ "$LOG_EC" -ne 0 ]; then
+  echo "$LOG_OUT" >&2
+  preflight_fail "Log-Group-Prüfung fehlgeschlagen (AccessDenied oder unerwartetes Ergebnis)."
+fi
+[ -z "$LOG_OUT" ] || preflight_fail "Kollision: Log Group $LOG_GROUP_NAME existiert bereits."
+
+preflight_require_absent \
+  "Secret $SECRET_NAME" \
+  'ResourceNotFoundException' \
+  aws secretsmanager describe-secret \
+    --region "$REGION" \
+    --secret-id "$SECRET_NAME"
+
+preflight_require_absent \
+  "Express Service $EXPRESS_SERVICE_NAME" \
+  'ResourceNotFoundException' \
+  aws ecs describe-express-gateway-service \
+    --region "$REGION" \
+    --service-arn "$EXPRESS_SERVICE_ARN"
+
+preflight_require_absent \
+  "Task Execution Role" \
+  'NoSuchEntity' \
+  aws iam get-role --role-name task-execution
+preflight_require_absent \
+  "Express Infrastructure Role" \
+  'NoSuchEntity' \
+  aws iam get-role --role-name express-infrastructure
+
+# 6. Service-Quota-Limits lesen; Restkapazität manuell bewerten
+# v2.3: VPC/EIP-IPv4, ECS, ELB, ACM, Fargate. ECS ohne applied quotas.
+preflight_require_success \
+  "Service Quotas ecs default" \
+  aws service-quotas list-aws-default-service-quotas \
+    --region "$REGION" \
+    --service-code ecs \
+    --query 'Quotas[].{Name:QuotaName,Value:Value}' \
+    --output json
+for SERVICE_CODE in \
+  vpc elasticloadbalancing acm fargate ecr logs secretsmanager cloudformation iam
+do
+  preflight_require_success \
+    "Service Quotas $SERVICE_CODE" \
+    aws service-quotas list-service-quotas \
+      --region "$REGION" \
+      --service-code "$SERVICE_CODE" \
+      --query 'Quotas[].{Name:QuotaName,Value:Value}' \
+      --output json
+done
+echo "Service-Quota-Limits gelesen. vpc, elasticloadbalancing, acm und fargate über list-service-quotas (angewendete Limits). ecs über list-aws-default-service-quotas, weil AWS für ECS keine applied quotas unterstützt. Keine Restnutzung. Restkapazität ist damit nicht automatisch nachgewiesen. Manuell als read-only Go/No-Go bewerten. Kein Quota-Increase in diesem Ablauf."
+
+# 7. Zugriff auf CloudTrail Event History
+preflight_require_success \
+  "CloudTrail Event History" \
+  aws cloudtrail lookup-events \
+    --region "$REGION" \
+    --max-items 1 \
+    --output json
+
+# 8. AWS-verwaltete Express-Policy gegen eingefrorene Infrastructure-Boundary
+preflight_require_success \
+  "Express-Managed-Policy-Metadaten" \
+  aws iam get-policy \
+    --policy-arn "$EXPRESS_MANAGED_POLICY_ARN" \
+    --query 'Policy.DefaultVersionId' \
+    --output text
+EXPRESS_DEFAULT_VERSION="$PREFLIGHT_OUTPUT"
+[ "$EXPRESS_DEFAULT_VERSION" = "v6" ] || preflight_fail "AWS-verwaltete Express-Policy ist nicht mehr die eingefrorene Version v6 (Stand 31. Juli 2026). Kein Policy-Update in diesem Ablauf."
+preflight_require_success \
+  "Express-Managed-Policy-Version" \
+  aws iam get-policy-version \
+    --policy-arn "$EXPRESS_MANAGED_POLICY_ARN" \
+    --version-id "$EXPRESS_DEFAULT_VERSION" \
+    --output json
+echo "Lokal gegen infra/iam/reference-demo/v2.3/express-infrastructure-boundary.json abgleichen. Neue Aktionen außerhalb der eingefrorenen Boundary sind No-Go. Die Boundary nicht erweitern."
+
+echo "Read-only AWS Account-Preflight bestanden. Als Nächstes nur validate-template; kein Live-Test-Go."
+```
+
+Die Kostenkontrolle (aktives Billing-Budget oder Kostenalarm) bleibt das
+externe Gate aus den Voraussetzungen. Die Verifier-Policy enthält keine
+Budgets-APIs; ein fehlendes oder unbestätigtes Budget ist **No-Go**, kein
+Schreibversuch.
+
+Erst nach bestandenem Preflight folgt die read-only
+CloudFormation-Templatevalidierung. Der Aufruf `validate-template` erzeugt
+oder ändert keine Ressourcen; er prüft, ob CloudFormation das YAML
+akzeptiert, und nennt die erforderlichen Capabilities
 ([validate-template](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/validate-template.html)).
-Dieser Schritt gehört nicht zu den netzwerkfreien Standardtests und wird hier
-nicht ausgeführt.
+Account-Preflight und `validate-template` gehören nicht zu den
+netzwerkfreien Standardtests und werden hier nicht ausgeführt.
 
 ```bash
 aws cloudformation validate-template \
@@ -139,7 +635,9 @@ aws cloudformation validate-template \
 
 Erwartung: die Antwort enthält `CAPABILITY_NAMED_IAM`. Validierungsfehler,
 YAML-Parserfehler oder unerwartete Capabilities sind ein No-Go. Der Aufruf
-ist kein Change Set und kein `create-stack`/`update-stack`.
+ist kein Change Set und kein `create-stack`/`update-stack`. Die Variablen
+`REGION`, `STACK_NAME`, `ACCOUNT_ID`, `SERVICE_ROLE_ARN` und `TEMPLATE`
+gelten für die folgenden Schritte weiter.
 
 ## 1. Stage-1-Change-Set ohne Service
 
@@ -998,7 +1496,8 @@ Hinweise zum erwarteten Ergebnis:
 - keine Task Role; Anwendungscode hat keine AWS-Rechte
 - manuelle AWS-Verifikation bleibt ausstehend, bis ein Operator den Stack
   bewusst im eigenen Account durchspielt und das Go-/No-Go-Gate aus dem
-  IAM-/Lifecycle-Modell v2.3 erfüllt ist
+  IAM-/Lifecycle-Modell v2.3 erfüllt ist. Ein bestandener read-only
+  Account-Preflight ist kein allgemeines AWS-Live-Test-Go
 - strukturierte Runtime-Logs und Basic Runtime Metrics für `POST /ai/draft`
   sind vorhanden (genau ein CloudWatch-Embedded-Metric-Format-JSON-Event je
   Aufruf auf stdout, serverseitige `X-Request-ID`). EMF wird mindestens
