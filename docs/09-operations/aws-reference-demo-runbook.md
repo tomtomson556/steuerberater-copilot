@@ -143,8 +143,11 @@ Er nutzt ausschließlich die vorhandenen Rechte aus
 werden während des Ablaufs nicht erweitert. Es gibt kein automatisches
 Reparieren und kein spontanes Umbenennen bei Kollisionen.
 
-Jedes unerwartete Ergebnis, jede fehlende Voraussetzung und jedes
-`AccessDenied` ist **No-Go**. Ein bestandener Preflight gibt nur den Weg zu
+Jedes unerwartete Ergebnis, jede nicht ausdrücklich als zulässiger
+Pre-State inventarisierte fehlende Voraussetzung und jedes `AccessDenied`
+ist **No-Go**. Bloße Absenz des ECS-Clusters `default` oder einer der drei
+kanonischen Service-Linked Roles ist kein `AccessDenied` und kein
+automatisches No-Go. Ein bestandener Preflight gibt nur den Weg zu
 `validate-template` frei. Er ist kein allgemeines AWS-Live-Test-Go, kein
 Change-Set-Go und kein Stack-Create.
 
@@ -175,10 +178,30 @@ unbestätigt oder unklar ist **No-Go**:
   und `iam:ListPolicyVersions` sind kein Verifier-Recht) und wird deshalb
   vorab bestätigt, nicht durch neue Berechtigungen
 
+Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
+
+- ECS-Cluster `default`: Präsenz oder Absenz inventarisieren. Fehlt er, ist
+  das ein zulässiger Pre-State; protokollieren und **nicht** erstellen. Ist
+  er vorhanden, exakten ARN
+  `arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default`, Status und
+  vorhandene Tags prüfen. Abweichender ARN oder unerwarteter Status ist
+  No-Go.
+- Die drei kanonischen Service-Linked Roles
+  (`AWSServiceRoleForECS`, `AWSServiceRoleForElasticLoadBalancing`,
+  `AWSServiceRoleForApplicationAutoScaling_ECSService`): kanonischer Name,
+  exakter IAM-Pfad/ARN und Service-Principal der Trust Policy prüfen.
+  `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz
+  nicht durch Create beheben. Falscher Pfad, ARN oder Trust ist No-Go.
+- Service Quotas: mit `list-service-quotas` die angewendeten Limits lesen.
+  Das ist **kein** automatischer Nachweis von Restkapazität oder aktueller
+  Nutzung. Der Operator bewertet die Ausgabe manuell als read-only
+  Go-/No-Go-Gate. Kein Quota-Increase in diesem Ablauf.
+
 Technische Lese-Gates in derselben Operator-Shell. `set -e` beendet bei
-jedem unerwarteten Fehler. Dokumentierte Not-found-Fälle gelten nur für die
-Kollisionsprüfungen als erwartet; jeder andere Fehler einschließlich
-`AccessDenied` ist **No-Go**.
+jedem unerwarteten Fehler. Dokumentierte Not-found-Fälle sind die
+Kollisionsprüfungen fester Referenzressourcen sowie die Inventar-Absenz von
+Cluster `default` und der drei Service-Linked Roles. Jeder andere Fehler
+einschließlich `AccessDenied` ist **No-Go**.
 
 ```bash
 set -euo pipefail
@@ -228,6 +251,70 @@ preflight_require_absent() {
     echo "$out" >&2
     preflight_fail "$label: unerwartetes Ergebnis oder AccessDenied statt dokumentiertem Not-found."
   fi
+}
+
+preflight_inventory_get_role() {
+  local label="$1"
+  local role_name="$2"
+  local expected_path="$3"
+  local expected_principal="$4"
+  local expected_arn="arn:aws:iam::${ACCOUNT_ID}:role${expected_path}${role_name}"
+  local out ec
+  set +e
+  out="$(aws iam get-role --role-name "$role_name" --output json 2>&1)"
+  ec=$?
+  set -e
+  if [ "$ec" -ne 0 ]; then
+    if printf '%s\n' "$out" | grep -Eqi -- 'NoSuchEntity'; then
+      echo "Inventar: $label ABSENT (NoSuchEntity, zulässiger Pre-State). Nicht erstellen."
+      return 0
+    fi
+    echo "$out" >&2
+    preflight_fail "$label: AccessDenied oder unerwarteter Fehler, nicht NoSuchEntity."
+  fi
+  PREFLIGHT_OUTPUT="$out"
+  EXPECTED_ROLE_ARN="$expected_arn"
+  EXPECTED_ROLE_PATH="$expected_path"
+  EXPECTED_ROLE_NAME="$role_name"
+  EXPECTED_TRUST_PRINCIPAL="$expected_principal"
+  export EXPECTED_ROLE_ARN EXPECTED_ROLE_PATH EXPECTED_ROLE_NAME EXPECTED_TRUST_PRINCIPAL
+  printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+import json, os, sys
+role = json.load(sys.stdin)['Role']
+name = os.environ['EXPECTED_ROLE_NAME']
+path = os.environ['EXPECTED_ROLE_PATH']
+arn = os.environ['EXPECTED_ROLE_ARN']
+principal = os.environ['EXPECTED_TRUST_PRINCIPAL']
+assert role.get('RoleName') == name, role.get('RoleName')
+assert role.get('Path') == path, role.get('Path')
+assert role.get('Arn') == arn, role.get('Arn')
+trust = role.get('AssumeRolePolicyDocument') or {}
+statements = trust.get('Statement') or []
+if isinstance(statements, dict):
+    statements = [statements]
+services = []
+for statement in statements:
+    if statement.get('Effect') != 'Allow':
+        continue
+    action = statement.get('Action')
+    actions = action if isinstance(action, list) else [action]
+    if 'sts:AssumeRole' not in actions:
+        continue
+    prin = (statement.get('Principal') or {}).get('Service')
+    if isinstance(prin, list):
+        services.extend(prin)
+    elif prin:
+        services.append(prin)
+assert principal in services, (arn, services)
+print(
+    'Inventar: %s PRESENT name=%s path=%s arn=%s trust=%s'
+    % (name, role.get('RoleName'), role.get('Path'), role.get('Arn'), principal)
+)
+" || preflight_fail "$label: Name, Pfad, ARN oder Trust-Principal weichen vom kanonischen Vertrag ab."
+  preflight_require_success \
+    "$label angehängte Policies" \
+    aws iam list-attached-role-policies --role-name "$role_name" --output json
+  echo "Inventar: $label Attachments gelesen (nur Bestand, keine Änderung)."
 }
 
 # 1. Caller Identity, Account-ID, Region
@@ -341,7 +428,7 @@ do
   [ "$PREFLIGHT_OUTPUT" = "v1" ] || preflight_fail "Policy-Version v1 für $POLICY_ARN nicht lesbar."
 done
 
-# 3. Präexistenz und Attribution des ECS-Clusters default
+# 3. ECS-Cluster default inventarisieren; Absenz ist zulässiger Pre-State
 preflight_require_success \
   "ECS-Cluster default" \
   aws ecs describe-clusters \
@@ -351,32 +438,50 @@ preflight_require_success \
     --output json
 printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
 import json, os, sys
-clusters = json.load(sys.stdin).get('clusters') or []
-assert len(clusters) == 1, clusters
-cluster = clusters[0]
+payload = json.load(sys.stdin)
+clusters = payload.get('clusters') or []
+failures = payload.get('failures') or []
 account = os.environ['ACCOUNT_ID']
 region = os.environ['REGION']
-assert cluster.get('clusterName') == 'default'
-assert cluster.get('status') == 'ACTIVE'
-assert cluster.get('clusterArn') == f'arn:aws:ecs:{region}:{account}:cluster/default'
-" || preflight_fail "ECS-Cluster default fehlt, ist inaktiv oder nicht dem Referenzkonto in eu-central-1 zuzuordnen. Nicht erzeugen."
+expected_arn = f'arn:aws:ecs:{region}:{account}:cluster/default'
+if not clusters:
+    print(
+        'Inventar: ECS-Cluster default ABSENT (zulässiger Pre-State). '
+        'Nicht erstellen. failures=%s' % (failures,)
+    )
+    raise SystemExit(0)
+if len(clusters) != 1:
+    raise SystemExit('unerwartete Anzahl Cluster in der Describe-Antwort')
+cluster = clusters[0]
+arn = cluster.get('clusterArn')
+status = cluster.get('status')
+tags = cluster.get('tags') or []
+print(
+    'Inventar: ECS-Cluster default PRESENT arn=%s status=%s tags=%s'
+    % (arn, status, tags)
+)
+if cluster.get('clusterName') != 'default' or arn != expected_arn:
+    raise SystemExit('Cluster-ARN oder Name weicht vom kanonischen default-ARN ab')
+if status != 'ACTIVE':
+    raise SystemExit('vorhandener default-Cluster ist nicht ACTIVE')
+" || preflight_fail "ECS-Cluster default: unerwarteter Zustand. Nicht erstellen und nicht reparieren."
 
-# 4. Kanonische Service-Linked Roles
-for SLR_NAME in \
+# 4. Kanonische Service-Linked Roles inventarisieren
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForECS" \
   AWSServiceRoleForECS \
+  /aws-service-role/ecs.amazonaws.com/ \
+  ecs.amazonaws.com
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForElasticLoadBalancing" \
   AWSServiceRoleForElasticLoadBalancing \
-  AWSServiceRoleForApplicationAutoScaling_ECSService
-do
-  preflight_require_success \
-    "Service-Linked Role $SLR_NAME" \
-    aws iam get-role --role-name "$SLR_NAME" \
-      --query 'Role.[RoleName,Path,Arn]' --output text
-  printf '%s\n' "$PREFLIGHT_OUTPUT" | grep -q "$SLR_NAME" \
-    || preflight_fail "Service-Linked Role $SLR_NAME hat unerwarteten Zustand."
-  preflight_require_success \
-    "SLR-Anhänge $SLR_NAME" \
-    aws iam list-attached-role-policies --role-name "$SLR_NAME" --output json
-done
+  /aws-service-role/elasticloadbalancing.amazonaws.com/ \
+  elasticloadbalancing.amazonaws.com
+preflight_inventory_get_role \
+  "Service-Linked Role AWSServiceRoleForApplicationAutoScaling_ECSService" \
+  AWSServiceRoleForApplicationAutoScaling_ECSService \
+  /aws-service-role/ecs.application-autoscaling.amazonaws.com/ \
+  ecs.application-autoscaling.amazonaws.com
 
 # 5. Kollisionen fester Referenzressourcen
 preflight_require_absent \
@@ -430,7 +535,7 @@ preflight_require_absent \
   'NoSuchEntity' \
   aws iam get-role --role-name express-infrastructure
 
-# 6. Relevante Service Quotas in eu-central-1
+# 6. Service-Quota-Limits lesen; Restkapazität manuell bewerten
 for SERVICE_CODE in \
   ecs fargate ecr vpc elasticloadbalancing logs secretsmanager cloudformation iam
 do
@@ -439,10 +544,10 @@ do
     aws service-quotas list-service-quotas \
       --region "$REGION" \
       --service-code "$SERVICE_CODE" \
-      --query 'Quotas[].{Name:QuotaName,Value:Value,Used:UsageMetric}' \
+      --query 'Quotas[].{Name:QuotaName,Value:Value}' \
       --output json
 done
-echo "No-Go, wenn für Stage 1/2 keine Restkapazität bleibt: mindestens 1 VPC, 2 Subnetze, 1 Internet Gateway, 1 ECR-Repository, 1 Log Group, 2 IAM-Rollen, 1 CloudFormation-Stack, Fargate On-Demand vCPU >= 0.25, 1 Application Load Balancer falls kein geteilter Express-ALB existiert. Kein Quota-Increase in diesem Ablauf."
+echo "Service-Quota-Limits gelesen. list-service-quotas liefert angewendete Limits, keine Restnutzung. Restkapazität ist damit nicht automatisch nachgewiesen. Manuell als read-only Go/No-Go bewerten. Kein Quota-Increase in diesem Ablauf."
 
 # 7. Zugriff auf CloudTrail Event History
 preflight_require_success \

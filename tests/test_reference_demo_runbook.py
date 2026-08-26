@@ -260,9 +260,62 @@ def test_runbook_preflight_covers_required_account_gates() -> None:
         "AccessDenied",
         "Kein Umbenennen, kein Reparieren",
         "Policies\nwerden während des Ablaufs nicht erweitert",
+        "zulässiger Pre-State",
+        "NoSuchEntity",
+        "/aws-service-role/ecs.amazonaws.com/",
+        "/aws-service-role/elasticloadbalancing.amazonaws.com/",
+        "/aws-service-role/ecs.application-autoscaling.amazonaws.com/",
+        "nicht automatisch nachgewiesen",
     )
     for needle in required:
         assert needle in section, needle
+
+
+def test_runbook_preflight_allows_absent_default_cluster() -> None:
+    section = preflight_section(load_runbook())
+    operations = preflight_aws_operations(load_runbook())
+    assert ("ecs", "describe-clusters") in operations
+    assert "--clusters default" in section
+    assert "--include TAGS" in section
+    assert "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default" in section
+    assert "ABSENT (zulässiger Pre-State)" in section
+    assert "Nicht erstellen" in section
+    assert "ECS-Cluster default fehlt" not in section
+    assert "create-cluster" not in section
+    assert ("ecs", "create-cluster") not in operations
+    assert "status=%s" in section
+    assert "tags=%s" in section
+
+
+def test_runbook_preflight_inventories_service_linked_roles_without_conflating_absence() -> None:
+    section = preflight_section(load_runbook())
+    operations = preflight_aws_operations(load_runbook())
+    assert ("iam", "get-role") in operations
+    assert "AWSServiceRoleForECS" in section
+    assert "AWSServiceRoleForElasticLoadBalancing" in section
+    assert "AWSServiceRoleForApplicationAutoScaling_ECSService" in section
+    assert "/aws-service-role/ecs.amazonaws.com/" in section
+    assert "/aws-service-role/elasticloadbalancing.amazonaws.com/" in section
+    assert "/aws-service-role/ecs.application-autoscaling.amazonaws.com/" in section
+    assert "ecs.amazonaws.com" in section
+    assert "elasticloadbalancing.amazonaws.com" in section
+    assert "ecs.application-autoscaling.amazonaws.com" in section
+    assert "NoSuchEntity" in section
+    assert "nicht NoSuchEntity" in section
+    assert "create-service-linked-role" not in section
+    assert ("iam", "create-service-linked-role") not in operations
+    assert "AssumeRolePolicyDocument" in section or "Trust-Principal" in section
+
+
+def test_runbook_preflight_service_quotas_are_manual_read_only_gate() -> None:
+    section = preflight_section(load_runbook())
+    assert "aws service-quotas list-service-quotas" in section
+    assert "Manuell als read-only Go/No-Go bewerten" in section
+    assert "nicht automatisch nachgewiesen" in section
+    assert "UsageMetric" not in section
+    assert "keine Restkapazität bleibt" not in section
+    assert "Fargate On-Demand vCPU >= 0.25" not in section
+    assert "Kein Quota-Increase" in section
 
 
 def test_runbook_does_not_treat_access_analyzer_as_open_branch_goal() -> None:
