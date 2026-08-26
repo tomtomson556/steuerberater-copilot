@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import ast
+import json
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +46,7 @@ READ_ONLY_OPERATIONS = {
     "list-attached-role-policies",
     "list-role-policies",
     "list-role-tags",
+    "list-aws-default-service-quotas",
     "list-service-quotas",
     "lookup-events",
 }
@@ -100,6 +105,41 @@ def preflight_aws_operations(text: str) -> list[tuple[str, str]]:
             for match in AWS_INVOCATION_RE.finditer(joined)
         )
     return operations
+
+
+def preflight_applied_quota_service_codes(text: str) -> list[str]:
+    section = preflight_section(text)
+    match = re.search(
+        r"for SERVICE_CODE in \\\n(.*?)\ndo\n",
+        section,
+        flags=re.DOTALL,
+    )
+    assert match, section
+    return match.group(1).replace("\\", " ").split()
+
+
+def cluster_inventory_python(text: str) -> str:
+    section = preflight_section(text)
+    anchor = section.index("aws ecs describe-clusters")
+    start = section.index("import json, os, sys\n", anchor)
+    end = section.index('" || preflight_fail "ECS-Cluster default:', start)
+    script = section[start:end]
+    assert script.strip().startswith("import json, os, sys")
+    return script
+
+
+def run_cluster_inventory(payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["ACCOUNT_ID"] = "123456789012"
+    env["REGION"] = "eu-central-1"
+    return subprocess.run(
+        [sys.executable, "-c", cluster_inventory_python(load_runbook())],
+        input=json.dumps(payload),
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
 
 
 def test_runbook_is_change_set_only_with_named_iam() -> None:
@@ -249,7 +289,9 @@ def test_runbook_preflight_covers_required_account_gates() -> None:
         "aws logs describe-log-groups",
         "aws secretsmanager describe-secret",
         "aws ecs describe-express-gateway-service",
+        "aws service-quotas list-aws-default-service-quotas",
         "aws service-quotas list-service-quotas",
+        "--service-code ecs",
         "aws cloudtrail lookup-events",
         "AmazonECSInfrastructureRoleforExpressGatewayServices",
         "express-infrastructure-boundary.json",
@@ -266,6 +308,7 @@ def test_runbook_preflight_covers_required_account_gates() -> None:
         "/aws-service-role/elasticloadbalancing.amazonaws.com/",
         "/aws-service-role/ecs.application-autoscaling.amazonaws.com/",
         "nicht automatisch nachgewiesen",
+        "vpc elasticloadbalancing acm fargate",
     )
     for needle in required:
         assert needle in section, needle
@@ -278,13 +321,79 @@ def test_runbook_preflight_allows_absent_default_cluster() -> None:
     assert "--clusters default" in section
     assert "--include TAGS" in section
     assert "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default" in section
-    assert "ABSENT (zulässiger Pre-State)" in section
+    assert "ABSENT (zulässiger Pre-State, Reason MISSING)" in section
     assert "Nicht erstellen" in section
     assert "ECS-Cluster default fehlt" not in section
     assert "create-cluster" not in section
     assert ("ecs", "create-cluster") not in operations
     assert "status=%s" in section
     assert "tags=%s" in section
+    assert "failure.get('reason') != 'MISSING'" in section
+    assert "unerwarteter Failure-Inhalt statt Reason MISSING" in section
+
+
+def test_runbook_preflight_absent_default_cluster_requires_missing_failure() -> None:
+    expected_arn = "arn:aws:ecs:eu-central-1:123456789012:cluster/default"
+    allowed = run_cluster_inventory(
+        {
+            "clusters": [],
+            "failures": [{"arn": expected_arn, "reason": "MISSING"}],
+        }
+    )
+    assert allowed.returncode == 0, allowed.stderr
+    assert "ABSENT" in allowed.stdout
+    assert "MISSING" in allowed.stdout
+
+    empty_failures = run_cluster_inventory({"clusters": [], "failures": []})
+    assert empty_failures.returncode != 0
+
+    wrong_reason = run_cluster_inventory(
+        {
+            "clusters": [],
+            "failures": [{"arn": expected_arn, "reason": "UNKNOWN"}],
+        }
+    )
+    assert wrong_reason.returncode != 0
+
+    wrong_cluster = run_cluster_inventory(
+        {
+            "clusters": [],
+            "failures": [
+                {
+                    "arn": "arn:aws:ecs:eu-central-1:123456789012:cluster/other",
+                    "reason": "MISSING",
+                }
+            ],
+        }
+    )
+    assert wrong_cluster.returncode != 0
+
+    extra_failure = run_cluster_inventory(
+        {
+            "clusters": [],
+            "failures": [
+                {"arn": expected_arn, "reason": "MISSING"},
+                {"arn": expected_arn, "reason": "MISSING"},
+            ],
+        }
+    )
+    assert extra_failure.returncode != 0
+
+    present = run_cluster_inventory(
+        {
+            "clusters": [
+                {
+                    "clusterName": "default",
+                    "clusterArn": expected_arn,
+                    "status": "ACTIVE",
+                    "tags": [],
+                }
+            ],
+            "failures": [],
+        }
+    )
+    assert present.returncode == 0, present.stderr
+    assert "PRESENT" in present.stdout
 
 
 def test_runbook_preflight_inventories_service_linked_roles_without_conflating_absence() -> None:
@@ -308,14 +417,24 @@ def test_runbook_preflight_inventories_service_linked_roles_without_conflating_a
 
 
 def test_runbook_preflight_service_quotas_are_manual_read_only_gate() -> None:
-    section = preflight_section(load_runbook())
-    assert "aws service-quotas list-service-quotas" in section
+    text = load_runbook()
+    section = preflight_section(text)
+    operations = preflight_aws_operations(text)
+    applied = preflight_applied_quota_service_codes(text)
+    assert ("service-quotas", "list-aws-default-service-quotas") in operations
+    assert ("service-quotas", "list-service-quotas") in operations
+    assert "--service-code ecs" in section
+    assert "keine applied quotas" in section
+    assert {"vpc", "elasticloadbalancing", "acm", "fargate"} <= set(applied)
+    assert "ecs" not in applied
+    assert "acm" in applied
     assert "Manuell als read-only Go/No-Go bewerten" in section
     assert "nicht automatisch nachgewiesen" in section
     assert "UsageMetric" not in section
     assert "keine Restkapazität bleibt" not in section
     assert "Fargate On-Demand vCPU >= 0.25" not in section
     assert "Kein Quota-Increase" in section
+    assert "list-service-quotas liefert angewendete Limits, keine Restnutzung" not in section
 
 
 def test_runbook_does_not_treat_access_analyzer_as_open_branch_goal() -> None:
@@ -339,6 +458,15 @@ def test_runbook_static_checks_stay_network_free() -> None:
             imported.update(alias.name.split(".", 1)[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".", 1)[0])
-    assert imported <= {"__future__", "ast", "re", "pathlib"}
+    assert imported <= {
+        "__future__",
+        "ast",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "subprocess",
+        "sys",
+    }
     assert "preflight_aws_operations" in source
     assert "load_runbook" in source

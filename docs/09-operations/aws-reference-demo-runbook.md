@@ -145,10 +145,12 @@ Reparieren und kein spontanes Umbenennen bei Kollisionen.
 
 Jedes unerwartete Ergebnis, jede nicht ausdrücklich als zulässiger
 Pre-State inventarisierte fehlende Voraussetzung und jedes `AccessDenied`
-ist **No-Go**. Bloße Absenz des ECS-Clusters `default` oder einer der drei
-kanonischen Service-Linked Roles ist kein `AccessDenied` und kein
-automatisches No-Go. Ein bestandener Preflight gibt nur den Weg zu
-`validate-template` frei. Er ist kein allgemeines AWS-Live-Test-Go, kein
+ist **No-Go**. Die inventarisierte Absenz des ECS-Clusters `default` nur
+mit `describe-clusters`-Failure Reason `MISSING` für genau diesen Cluster
+sowie `NoSuchEntity` für eine der drei kanonischen Service-Linked Roles
+ist kein `AccessDenied` und kein automatisches No-Go. Jeder andere
+Failure-Inhalt bei Cluster `default` ist **No-Go**. Ein bestandener
+Preflight gibt nur den Weg zu `validate-template` frei. Er ist kein allgemeines AWS-Live-Test-Go, kein
 Change-Set-Go und kein Stack-Create.
 
 Bereits abgeschlossen und nicht Teil dieses Preflights: IAM-Simulator
@@ -180,9 +182,13 @@ unbestätigt oder unklar ist **No-Go**:
 
 Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
 
-- ECS-Cluster `default`: Präsenz oder Absenz inventarisieren. Fehlt er, ist
-  das ein zulässiger Pre-State; protokollieren und **nicht** erstellen. Ist
-  er vorhanden, exakten ARN
+- ECS-Cluster `default`: Präsenz oder Absenz inventarisieren. Liefert
+  `describe-clusters` keinen Cluster, ist Absenz nur zulässiger Pre-State,
+  wenn die Failure-Antwort den angefragten Cluster `default` mit Reason
+  `MISSING` ausweist
+  ([API failure reasons](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/api_failures_messages.html)).
+  Jeder andere Failure-Inhalt ist **No-Go**. Protokollieren und **nicht**
+  erstellen. Ist der Cluster vorhanden, exakten ARN
   `arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default`, Status und
   vorhandene Tags prüfen. Abweichender ARN oder unerwarteter Status ist
   No-Go.
@@ -192,16 +198,24 @@ Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
   exakter IAM-Pfad/ARN und Service-Principal der Trust Policy prüfen.
   `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz
   nicht durch Create beheben. Falscher Pfad, ARN oder Trust ist No-Go.
-- Service Quotas: mit `list-service-quotas` die angewendeten Limits lesen.
-  Das ist **kein** automatischer Nachweis von Restkapazität oder aktueller
-  Nutzung. Der Operator bewertet die Ausgabe manuell als read-only
-  Go-/No-Go-Gate. Kein Quota-Increase in diesem Ablauf.
+- Service Quotas entlang des v2.3-Vertrags: VPC/EIP-IPv4 (`vpc`), ECS
+  (`ecs`), ELB (`elasticloadbalancing`), ACM (`acm`) und Fargate
+  (`fargate`). Für `vpc`, `elasticloadbalancing`, `acm` und `fargate` die
+  angewendeten Limits mit `list-service-quotas` lesen. AWS unterstützt für
+  ECS keine applied quotas; `list-service-quotas --service-code ecs`
+  liefert sie deshalb nicht. ECS-Default-Quotas mit dem bereits erlaubten
+  `list-aws-default-service-quotas` lesen. Das ist **kein** automatischer
+  Nachweis von Restkapazität oder aktueller Nutzung. Der Operator bewertet
+  die Ausgabe manuell als read-only Go-/No-Go-Gate. Kein Quota-Increase in
+  diesem Ablauf.
 
 Technische Lese-Gates in derselben Operator-Shell. `set -e` beendet bei
 jedem unerwarteten Fehler. Dokumentierte Not-found-Fälle sind die
-Kollisionsprüfungen fester Referenzressourcen sowie die Inventar-Absenz von
-Cluster `default` und der drei Service-Linked Roles. Jeder andere Fehler
-einschließlich `AccessDenied` ist **No-Go**.
+Kollisionsprüfungen fester Referenzressourcen, die Inventar-Absenz von
+Cluster `default` nur bei Failure Reason `MISSING` für genau diesen
+Cluster und `NoSuchEntity` für die drei Service-Linked Roles. Jeder andere
+Fehler einschließlich `AccessDenied` oder anderem Cluster-Failure-Inhalt
+ist **No-Go**.
 
 ```bash
 set -euo pipefail
@@ -428,7 +442,7 @@ do
   [ "$PREFLIGHT_OUTPUT" = "v1" ] || preflight_fail "Policy-Version v1 für $POLICY_ARN nicht lesbar."
 done
 
-# 3. ECS-Cluster default inventarisieren; Absenz ist zulässiger Pre-State
+# 3. ECS-Cluster default inventarisieren; Absenz nur bei Reason MISSING
 preflight_require_success \
   "ECS-Cluster default" \
   aws ecs describe-clusters \
@@ -445,8 +459,23 @@ account = os.environ['ACCOUNT_ID']
 region = os.environ['REGION']
 expected_arn = f'arn:aws:ecs:{region}:{account}:cluster/default'
 if not clusters:
+    failure = failures[0] if len(failures) == 1 else None
+    failure_arn = (failure or {}).get('arn') or ''
+    identifies_default = (
+        failure_arn == expected_arn
+        or failure_arn.endswith(':cluster/default')
+        or failure_arn.rstrip('/').split('/')[-1] == 'default'
+    )
+    if (
+        failure is None
+        or failure.get('reason') != 'MISSING'
+        or not identifies_default
+    ):
+        raise SystemExit(
+            'unerwarteter Failure-Inhalt statt Reason MISSING für Cluster default'
+        )
     print(
-        'Inventar: ECS-Cluster default ABSENT (zulässiger Pre-State). '
+        'Inventar: ECS-Cluster default ABSENT (zulässiger Pre-State, Reason MISSING). '
         'Nicht erstellen. failures=%s' % (failures,)
     )
     raise SystemExit(0)
@@ -536,8 +565,16 @@ preflight_require_absent \
   aws iam get-role --role-name express-infrastructure
 
 # 6. Service-Quota-Limits lesen; Restkapazität manuell bewerten
+# v2.3: VPC/EIP-IPv4, ECS, ELB, ACM, Fargate. ECS ohne applied quotas.
+preflight_require_success \
+  "Service Quotas ecs default" \
+  aws service-quotas list-aws-default-service-quotas \
+    --region "$REGION" \
+    --service-code ecs \
+    --query 'Quotas[].{Name:QuotaName,Value:Value}' \
+    --output json
 for SERVICE_CODE in \
-  ecs fargate ecr vpc elasticloadbalancing logs secretsmanager cloudformation iam
+  vpc elasticloadbalancing acm fargate ecr logs secretsmanager cloudformation iam
 do
   preflight_require_success \
     "Service Quotas $SERVICE_CODE" \
@@ -547,7 +584,7 @@ do
       --query 'Quotas[].{Name:QuotaName,Value:Value}' \
       --output json
 done
-echo "Service-Quota-Limits gelesen. list-service-quotas liefert angewendete Limits, keine Restnutzung. Restkapazität ist damit nicht automatisch nachgewiesen. Manuell als read-only Go/No-Go bewerten. Kein Quota-Increase in diesem Ablauf."
+echo "Service-Quota-Limits gelesen. vpc, elasticloadbalancing, acm und fargate über list-service-quotas (angewendete Limits). ecs über list-aws-default-service-quotas, weil AWS für ECS keine applied quotas unterstützt. Keine Restnutzung. Restkapazität ist damit nicht automatisch nachgewiesen. Manuell als read-only Go/No-Go bewerten. Kein Quota-Increase in diesem Ablauf."
 
 # 7. Zugriff auf CloudTrail Event History
 preflight_require_success \
