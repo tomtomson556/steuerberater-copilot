@@ -22,8 +22,8 @@ Der Steuerberater entscheidet.
 
 Code and infra below are taken from that `main` commit. The agent-context
 layout in this file belongs with the router `AGENTS.md`: load detail documents
-only when the task needs them. Nested `AGENTS.md` files, agent skills, and
-multi-agent exec plans are not in use.
+only when the task needs them. At this snapshot commit, nested `AGENTS.md`
+files, agent skills, and multi-agent exec plans were not in use.
 
 Refresh this inventory from live `main` when the implemented surface changes.
 The binding strategy remains
