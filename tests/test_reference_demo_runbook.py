@@ -122,10 +122,20 @@ def cluster_inventory_python(text: str) -> str:
     section = preflight_section(text)
     anchor = section.index("aws ecs describe-clusters")
     start = section.index("import json, os, sys\n", anchor)
-    end = section.index('" || preflight_fail "ECS-Cluster default:', start)
+    end = section.index('")" || preflight_fail "ECS-Cluster default:', start)
     script = section[start:end]
     assert script.strip().startswith("import json, os, sys")
     return script
+
+
+def express_service_collision_shell(text: str) -> str:
+    section = preflight_section(text)
+    start = section.index('if [ "$ECS_CLUSTER_DEFAULT_STATE" = "ABSENT" ]')
+    end = section.index(
+        'preflight_require_absent \\\n  "Task Execution Role"',
+        start,
+    )
+    return section[start:end]
 
 
 def run_cluster_inventory(payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
@@ -341,8 +351,9 @@ def test_runbook_preflight_absent_default_cluster_requires_missing_failure() -> 
         }
     )
     assert allowed.returncode == 0, allowed.stderr
-    assert "ABSENT" in allowed.stdout
-    assert "MISSING" in allowed.stdout
+    assert allowed.stdout.strip() == "ABSENT"
+    assert "ABSENT" in allowed.stderr
+    assert "MISSING" in allowed.stderr
 
     empty_failures = run_cluster_inventory({"clusters": [], "failures": []})
     assert empty_failures.returncode != 0
@@ -393,7 +404,41 @@ def test_runbook_preflight_absent_default_cluster_requires_missing_failure() -> 
         }
     )
     assert present.returncode == 0, present.stderr
-    assert "PRESENT" in present.stdout
+    assert present.stdout.strip() == "PRESENT"
+    assert "PRESENT" in present.stderr
+
+    inactive = run_cluster_inventory(
+        {
+            "clusters": [
+                {
+                    "clusterName": "default",
+                    "clusterArn": expected_arn,
+                    "status": "INACTIVE",
+                    "tags": [],
+                }
+            ],
+            "failures": [],
+        }
+    )
+    assert inactive.returncode != 0
+
+
+def test_runbook_preflight_reuses_cluster_state_for_express_collision() -> None:
+    text = load_runbook()
+    section = preflight_section(text)
+    collision = express_service_collision_shell(text)
+    absent_branch, present_branch = collision.split("else", maxsplit=1)
+
+    assert 'ECS_CLUSTER_DEFAULT_STATE="$(' in section
+    assert "print('ABSENT')" in section
+    assert "print('PRESENT')" in section
+    assert 'ABSENT|PRESENT)' in section
+    assert "describe-express-gateway-service" not in absent_branch
+    assert "Collision-Describe übersprungen" in absent_branch
+    assert "describe-express-gateway-service" in present_branch
+    assert "'ResourceNotFoundException'" in present_branch
+    assert "ClusterNotFoundException" not in collision
+    assert "bei vorhandenem Cluster default" in present_branch
 
 
 def test_runbook_preflight_inventories_service_linked_roles_without_conflating_absence() -> None:
@@ -439,11 +484,12 @@ def test_runbook_preflight_service_quotas_are_manual_read_only_gate() -> None:
 
 def test_runbook_does_not_treat_access_analyzer_as_open_branch_goal() -> None:
     section = preflight_section(load_runbook())
-    assert "AWS Access Analyzer / `ValidatePolicy` (19/19" in section
-    assert "0 Findings" in section
-    assert "SIM-001 bis SIM-142" in section
-    assert "nicht als offenes Branch-Ziel" in section
-    assert "führt sie nicht erneut aus" in section
+    assert "AWS Access Analyzer / `ValidatePolicy`" in section
+    assert "zuvor 19/19" in section
+    assert "erneut 2/2 mit 0 Findings" in section
+    assert "SIM-001 bis SIM-146" in section
+    assert "nicht als offenes Preflight-Ziel" in section
+    assert "führt sie nicht\nerneut aus" in section
     assert "Access Analyzer bleibt ausstehend" not in section
     assert "ValidatePolicy noch offen" not in section
     assert "Access Analyzer erneut ausführen" not in section

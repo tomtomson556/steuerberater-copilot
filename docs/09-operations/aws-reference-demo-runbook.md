@@ -154,10 +154,11 @@ Preflight gibt nur den Weg zu `validate-template` frei. Er ist kein allgemeines 
 Change-Set-Go und kein Stack-Create.
 
 Bereits abgeschlossen und nicht Teil dieses Preflights: IAM-Simulator
-SIM-001 bis SIM-142 sowie AWS Access Analyzer / `ValidatePolicy` (19/19
-Dokumente, 0 Findings). Dieser Ablauf führt sie nicht erneut aus und
-behandelt sie nicht als offenes Branch-Ziel. IAM-JSON, Template und Guard
-bleiben unverändert.
+SIM-001 bis SIM-146 sowie AWS Access Analyzer / `ValidatePolicy` (zuvor 19/19
+Dokumente, 0 Findings; für die beiden in SIM-143 bis SIM-146 korrigierten
+Policy-Dokumente erneut 2/2 mit 0 Findings). Dieser Ablauf führt sie nicht
+erneut aus und behandelt sie nicht als offenes Preflight-Ziel. Template und
+Guard bleiben unverändert.
 
 Vor den AWS-Leseaufrufen organisatorisch bestätigen. Die vorhandenen
 Operatorrechte können diese Gates nicht zuverlässig introspektieren;
@@ -191,13 +192,18 @@ Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
   erstellen. Ist der Cluster vorhanden, exakten ARN
   `arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:cluster/default`, Status und
   vorhandene Tags prüfen. Abweichender ARN oder unerwarteter Status ist
-  No-Go.
+  No-Go. Der unmittelbar validierte Zustand wird für die Express-Service-
+  Kollisionsprüfung weiterverwendet: Bei `ABSENT` wird der von einem Cluster
+  abhängige Describe übersprungen und der Service als absent inventarisiert.
+  Bei `PRESENT` wird er ausgeführt; `ClusterNotFoundException` ist dann kein
+  zulässiger Not-found-Fall, sondern unerwartet und **No-Go**.
 - Die drei kanonischen Service-Linked Roles
   (`AWSServiceRoleForECS`, `AWSServiceRoleForElasticLoadBalancing`,
   `AWSServiceRoleForApplicationAutoScaling_ECSService`): kanonischer Name,
   exakter IAM-Pfad/ARN und Service-Principal der Trust Policy prüfen.
-  `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz
-  nicht durch Create beheben. Falscher Pfad, ARN oder Trust ist No-Go.
+  `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz im
+  Preflight nicht durch ein manuelles SLR-Create beheben. Falscher Pfad, ARN
+  oder Trust ist No-Go.
 - Service Quotas entlang des v2.3-Vertrags: VPC/EIP-IPv4 (`vpc`), ECS
   (`ecs`), ELB (`elasticloadbalancing`), ACM (`acm`) und Fargate
   (`fargate`). Für `vpc`, `elasticloadbalancing`, `acm` und `fargate` die
@@ -450,7 +456,7 @@ preflight_require_success \
     --clusters default \
     --include TAGS \
     --output json
-printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
+ECS_CLUSTER_DEFAULT_STATE="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | python -c "
 import json, os, sys
 payload = json.load(sys.stdin)
 clusters = payload.get('clusters') or []
@@ -476,9 +482,11 @@ if not clusters:
         )
     print(
         'Inventar: ECS-Cluster default ABSENT (zulässiger Pre-State, Reason MISSING). '
-        'Nicht erstellen. failures=%s' % (failures,)
+        'Nicht erstellen. failures=%s' % (failures,),
+        file=sys.stderr,
     )
-    raise SystemExit(0)
+    print('ABSENT')
+    raise SystemExit
 if len(clusters) != 1:
     raise SystemExit('unerwartete Anzahl Cluster in der Describe-Antwort')
 cluster = clusters[0]
@@ -487,13 +495,19 @@ status = cluster.get('status')
 tags = cluster.get('tags') or []
 print(
     'Inventar: ECS-Cluster default PRESENT arn=%s status=%s tags=%s'
-    % (arn, status, tags)
+    % (arn, status, tags),
+    file=sys.stderr,
 )
 if cluster.get('clusterName') != 'default' or arn != expected_arn:
     raise SystemExit('Cluster-ARN oder Name weicht vom kanonischen default-ARN ab')
 if status != 'ACTIVE':
     raise SystemExit('vorhandener default-Cluster ist nicht ACTIVE')
-" || preflight_fail "ECS-Cluster default: unerwarteter Zustand. Nicht erstellen und nicht reparieren."
+print('PRESENT')
+")" || preflight_fail "ECS-Cluster default: unerwarteter Zustand. Nicht erstellen und nicht reparieren."
+case "$ECS_CLUSTER_DEFAULT_STATE" in
+  ABSENT|PRESENT) ;;
+  *) preflight_fail "ECS-Cluster default: interner Inventarzustand ist weder ABSENT noch PRESENT." ;;
+esac
 
 # 4. Kanonische Service-Linked Roles inventarisieren
 preflight_inventory_get_role \
@@ -548,12 +562,17 @@ preflight_require_absent \
     --region "$REGION" \
     --secret-id "$SECRET_NAME"
 
-preflight_require_absent \
-  "Express Service $EXPRESS_SERVICE_NAME" \
-  'ResourceNotFoundException' \
-  aws ecs describe-express-gateway-service \
-    --region "$REGION" \
-    --service-arn "$EXPRESS_SERVICE_ARN"
+if [ "$ECS_CLUSTER_DEFAULT_STATE" = "ABSENT" ]; then
+  echo "Inventar: Express Service $EXPRESS_SERVICE_NAME ABSENT, weil der unmittelbar validierte Cluster default ABSENT ist. Collision-Describe übersprungen."
+else
+  preflight_require_absent \
+    "Express Service $EXPRESS_SERVICE_NAME" \
+    'ResourceNotFoundException' \
+    aws ecs describe-express-gateway-service \
+      --region "$REGION" \
+      --service-arn "$EXPRESS_SERVICE_ARN"
+  echo "Inventar: Express Service $EXPRESS_SERVICE_NAME ABSENT (ResourceNotFoundException bei vorhandenem Cluster default)."
+fi
 
 preflight_require_absent \
   "Task Execution Role" \

@@ -1,9 +1,11 @@
 # AWS-Referenzdemo: IAM-Policy-Simulator-Testprotokoll
 
-Stand: 19. August 2026
+Stand: 29. August 2026
 Repository: `tomtomson556/steuerberater-copilot`  
-Branch: `agent/add-iam-simulator-test-protocol`
-Zuletzt für ein bestätigtes Testpaar geprüfter Ausgangsstand: `aa1b052033281796a63eafaaa411f252c67c1b6c`
+Branch: `fix/resolve-reference-demo-pre-live-blockers`
+Zuletzt für bestätigte Simulatorfälle geprüfter Ausgangsstand: Arbeitsbaum auf
+`2425e497f6cf44488bad595e6e3e48866934feeb`; exakte Policy-Hashes stehen im
+Ausführungsnachweis SIM-143 bis SIM-146.
 Zuletzt diagnostisch geprüfter Ausgangsstand: `ca096ec74431857eea4776faf1505d40fe16a156`
 Policy-Verzeichnis: `infra/iam/reference-demo/v2.3`  
 Zielregion: `eu-central-1`  
@@ -13,7 +15,7 @@ Simulatorprofil: `administrator`
 
 Dieses Protokoll hält die bestätigten Ergebnisse der vorbereitenden
 IAM-Policy-Simulator-Prüfung für die AWS-Referenzdemo fest. Es bildet die
-konsolidierte Evidenzquelle für SIM-001 bis SIM-142 sowie die dokumentierten
+konsolidierte Evidenzquelle für SIM-001 bis SIM-146 sowie die dokumentierten
 nicht gewerteten Versuche und Diagnoseläufe.
 
 Bisher wurde ausschließlich `aws iam simulate-custom-policy` verwendet. Die
@@ -25,7 +27,7 @@ weiteren V2.3-Gates abgeschlossen sind.
 
 ## Zählweise
 
-- Bestätigte nummerierte Simulatorfälle: **142**
+- Bestätigte nummerierte Simulatorfälle: **146**
 - Ergänzende bestätigte Gruppenmarker: **2**
 - SIM-046: im Erstlauf fehlgeschlagen, nach Policy-Korrektur erfolgreich wiederholt
 - SIM-086: im Erstlauf fehlgeschlagen, nach atomarer SLR-Paarbindung erfolgreich wiederholt
@@ -182,6 +184,10 @@ SIM-Nummer.
 | SIM-140 | CloudFormation-Service-Rolle | dieselben beiden Task-Definition-Aktionen | dieselbe synthetische Task Definition in `eu-west-1` sowie im fremden Konto; vier atomare Evaluationen und vier `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Identity-Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 4 | bestanden |
 | SIM-141 | CloudFormation-Service-Rolle | sechs ECS-Service-Leseaktionen: `ecs:DescribeExpressGatewayService`, `ecs:DescribeServiceDeployments`, `ecs:DescribeServiceRevisions`, `ecs:DescribeServices`, `ecs:ListServiceDeployments`, `ecs:ListTagsForResource` | exakter Referenzservice sowie zugehörige synthetische Deployment-/Revision-ARNs; sechs atomare Evaluationen und sechs `ResourceSpecificResults`; keine fehlenden Kontextwerte; sechs passende Statements; Boundary sechsmal freigebend; keine Trunkierung | `allowed` × 6 | bestanden |
 | SIM-142 | CloudFormation-Service-Rolle | dieselben sechs ECS-Service-Leseaktionen | falscher Servicename, dieselben Referenzpfade in `eu-west-1` und im fremden Konto; 18 atomare Evaluationen und 18 `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevante Kontextwerte vollständig; keine passenden Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 18 | bestanden |
+| SIM-143 | CloudFormation-Service-Rolle | `iam:CreateServiceLinkedRole` | exakter ECS-SLR-ARN im Referenzkonto mit `iam:AWSServiceName=ecs.amazonaws.com`; vier vollständige Policy-Dokumente, eine atomare Evaluation und ein `ResourceSpecificResult`; keine fehlenden Kontextwerte; ein passendes Identity-Statement; Boundary freigebend; keine Trunkierung | `allowed` | bestanden |
+| SIM-144 | CloudFormation-Service-Rolle | `iam:CreateServiceLinkedRole` | sechs atomare Gegenfälle: beide gekreuzten ECS-/ELB-Service-/ARN-Kombinationen, vollständiges ELB-Paar, falscher Rollenname, fremdes Konto und fremder Pfad; sechs `ResourceSpecificResults`; ausschließlich fachlich unbeteiligte fehlende Kontextwerte; relevanter `iam:AWSServiceName` jeweils vollständig; keine passenden Identity-Statements; Boundary niemals freigebend; keine Trunkierung | `implicitDeny` × 6 | bestanden |
+| SIM-145 | CloudFormation-Service-Rolle | `ecs:UpdateExpressGatewayService` und `ecs:DeleteExpressGatewayService` | exakter Referenzservice mit `aws:ResourceTag/Project=steuerberater-copilot`; vier vollständige Policy-Dokumente, zwei atomare Evaluationen und zwei `ResourceSpecificResults`; keine fehlenden Kontextwerte; zwei passende Identity-Statements; Boundary zweimal freigebend; keine Trunkierung | `allowed` × 2 | bestanden |
+| SIM-146 | CloudFormation-Service-Rolle | dieselben beiden Express-Mutationen | fehlender und falscher Project-Tag sowie falscher Service, falsche Region, fremdes Konto und Service-Deployment-/Service-Revision-Ressourcen; 14 atomare Evaluationen und 14 `ResourceSpecificResults`; der relevante globale Project-Tag fehlt nur in den zwei ausdrücklich ohne Tag ausgeführten Fällen; keine passenden Identity-Statements; Boundary bei fehlendem/falschem Tag viermal freigebend, bei falschem Service/Region/Konto sechsmal nicht freigebend und für vier inkompatible Ressourcentypen ohne Freigabeentscheidung; keine Trunkierung | `implicitDeny` × 14 | bestanden |
 
 ## Befund und Korrektur zu SIM-046
 
@@ -1274,6 +1280,126 @@ eingereichten Policy-Dokumente. Für den getesteten unbedingten ECS-Read-Block
 war kein Context Key erforderlich; der Harness bestätigte deshalb jeweils
 `RELEVANT_MISSING_CONTEXT=none`.
 
+## Ausführungsnachweis SIM-143 bis SIM-146
+
+Geprüfter Ausgangsstand und Bindung an die tatsächlich simulierten
+Repository-Dokumente:
+
+```text
+TESTED_BASE_HEAD=2425e497f6cf44488bad595e6e3e48866934feeb
+TESTED_BRANCH=fix/resolve-reference-demo-pre-live-blockers
+CFN_SERVICE_POLICY_SHA256=9fe35ac18936eb1d3efba8b06ca95791899f79d21249631237a3a3f26b3dc5c7
+CFN_SERVICE_BOUNDARY_SHA256=347a95e52fffa7241767c8a746edfbca6090d998a6251c17da2d6de089759f0c
+ACCOUNT_ID_CHECK=passed
+SIMULATOR_PROFILE=administrator
+```
+
+Die drei gerenderten Berechtigungs-Policies Foundation, IAM-Lifecycle und
+Service wurden vollständig als `PolicyInputList` übergeben; die gerenderte
+Service-Role-Boundary wurde vollständig und allein als
+`PermissionsBoundaryPolicyInputList` übergeben. Die Account-ID ersetzte dabei
+nur den Platzhalter `<ACCOUNT_ID>`; die Repository-Dateien blieben die
+gehashte Quelle.
+
+AWS Access Analyzer `ValidatePolicy` wurde für die beiden tatsächlich
+geänderten IAM-Dokumente mit `policy-type=IDENTITY_POLICY` erneut ausgeführt:
+
+```text
+CFN_SERVICE_POLICY_VALIDATE_POLICY_FINDINGS=0
+CFN_SERVICE_BOUNDARY_VALIDATE_POLICY_FINDINGS=0
+CFN_SERVICE_CHANGED_DOCUMENTS_VALIDATE_POLICY=passed
+```
+
+Statischer Vorcheck:
+
+```text
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_DOCUMENTS=4
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_IDENTITY_ACTION_OCCURRENCES=1
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_BOUNDARY_ACTION_OCCURRENCES=1
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_EXACT_RESOURCE_STATEMENTS=2
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_EXACT_SERVICE_CONDITIONS=2
+CFN_SERVICE_ROLE_ECS_SLR_STATIC_UPDATE_DELETE_ACTIONS=0
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_DOCUMENTS=4
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_ACTIONS=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_IDENTITY_ACTION_OCCURRENCES=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_BOUNDARY_ACTION_OCCURRENCES=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_GLOBAL_PROJECT_CONDITION=1
+CFN_SERVICE_ROLE_ECS_MUTATIONS_STATIC_SERVICE_SPECIFIC_PROJECT_CONDITION=0
+CFN_SERVICE_ROLE_PRE_LIVE_STATIC_CHECK=passed
+```
+
+SIM-143:
+
+```text
+CFN_SERVICE_ROLE_ECS_SLR=allowed
+CFN_SERVICE_ROLE_ECS_SLR_TOTAL=1
+CFN_SERVICE_ROLE_ECS_SLR_RESOURCE_SPECIFIC_RESULTS=1
+CFN_SERVICE_ROLE_ECS_SLR_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_SLR_MATCHED_STATEMENTS=1
+CFN_SERVICE_ROLE_ECS_SLR_BOUNDARY_ALLOWED=1
+CFN_SERVICE_ROLE_ECS_SLR_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_SLR_POSITIVE=passed
+```
+
+SIM-144:
+
+```text
+CFN_SERVICE_ROLE_ECS_SLR_CROSSED_ECS_ARN_ELB_SERVICE=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_CROSSED_ELB_ARN_ECS_SERVICE=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_ELB_PAIR=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_WRONG_NAME=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_FOREIGN_ACCOUNT=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_FOREIGN_PATH=implicitDeny
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_TOTAL=6
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=6
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_BOUNDARY_ALLOWED=0
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_SLR_NEGATIVE=passed
+```
+
+SIM-145:
+
+```text
+CFN_SERVICE_ROLE_ECS_MUTATIONS=allowed allowed
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TOTAL=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RESOURCE_SPECIFIC_RESULTS=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_RELEVANT_MISSING_CONTEXT=none
+CFN_SERVICE_ROLE_ECS_MUTATIONS_MATCHED_STATEMENTS=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_ALLOWED=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_MUTATIONS_POSITIVE=passed
+```
+
+SIM-146:
+
+```text
+CFN_SERVICE_ROLE_ECS_MUTATIONS_MISSING_TAG=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_WRONG_TAG=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_WRONG_SERVICE=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_WRONG_REGION=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_FOREIGN_ACCOUNT=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_DEPLOYMENT_RESOURCE=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_REVISION_RESOURCE=implicitDeny implicitDeny
+CFN_SERVICE_ROLE_ECS_MUTATIONS_NEGATIVE_TOTAL=14
+CFN_SERVICE_ROLE_ECS_MUTATIONS_NEGATIVE_RESOURCE_SPECIFIC_RESULTS=14
+CFN_SERVICE_ROLE_ECS_MUTATIONS_MISSING_RELEVANT_PROJECT_CONTEXT=2
+CFN_SERVICE_ROLE_ECS_MUTATIONS_NEGATIVE_MATCHED_STATEMENTS=0
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_ALLOWED=4
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_DENIED=6
+CFN_SERVICE_ROLE_ECS_MUTATIONS_BOUNDARY_NOT_APPLICABLE=4
+CFN_SERVICE_ROLE_ECS_MUTATIONS_NEGATIVE_TRUNCATED=false
+CFN_SERVICE_ROLE_ECS_MUTATIONS_NEGATIVE=passed
+```
+
+Die rohen `MissingContextValues` der SLR-Gegenfälle und mehrerer
+Express-Gegenfälle enthielten Context Keys aus fachlich unbeteiligten
+Statements der vier vollständig eingereichten Policy-Dokumente. Der für
+SIM-144 relevante `iam:AWSServiceName` war in allen sechs Fällen vorhanden.
+Der für SIM-146 relevante `aws:ResourceTag/Project` fehlte ausschließlich in
+den zwei ausdrücklich ohne Project-Tag ausgeführten Evaluationen.
+
 ## Nicht gewertete Versuche
 
 - Die ersten beiden vorgesehenen SIM-125/126-Läufe auf Commit
@@ -1695,23 +1821,49 @@ Ressourcentyp `service` sowohl `aws:ResourceTag/${TagKey}` als auch
 Diagnoselauf isoliert daher eine Abweichung der Simulatorauswertung für den
 bereitgestellten service-spezifischen Tag-Kontext; er weist keinen Action-,
 Ressourcen- oder Boundary-Fehler nach. Ohne einen vollständig erfolgreichen
-Lauf der unveränderten Repository-Policy werden diese beiden Aktionen nicht
-als SIM-143/144 gezählt.
+Lauf der unveränderten Repository-Policy wurden diese beiden Aktionen auf
+diesem damaligen Stand nicht als nummerierte Simulatorfälle gezählt.
 
-Es erfolgte keine IAM-Policyänderung. Eine reale AWS-Ausführung bleibt bis zum
-Abschluss der vorgesehenen Gates weiterhin **No-Go**.
+Auf dem damaligen Diagnose-Stand erfolgte keine IAM-Policyänderung. Eine reale
+AWS-Ausführung blieb bis zum Abschluss der vorgesehenen Gates **No-Go**.
+
+## Befund und Korrektur zu SIM-143 bis SIM-146
+
+Die separate Pre-Live-Korrektur ersetzt für
+`ecs:UpdateExpressGatewayService` und
+`ecs:DeleteExpressGatewayService` ausschließlich
+`ecs:ResourceTag/Project` durch den ebenfalls dokumentierten und im
+Diagnoselauf wirksamen globalen Schlüssel `aws:ResourceTag/Project`. SIM-145
+bestätigt danach beide Aktionen auf dem exakten Referenzservice mit richtigem
+Project-Tag als `allowed`. SIM-146 bestätigt beide Aktionen gegen fehlenden
+und falschen Tag, falschen Service, falsche Region, fremdes Konto sowie
+Service-Deployment- und Service-Revision-Ressourcen insgesamt vierzehnmal als
+`implicitDeny`.
+
+Für den bei Absenz erforderlichen ECS-Service-Linked-Role-Bootstrap erlauben
+Service-Policy und Boundary nun ausschließlich
+`iam:CreateServiceLinkedRole` auf dem kanonischen
+`AWSServiceRoleForECS`-ARN im Referenzkonto und nur mit
+`iam:AWSServiceName=ecs.amazonaws.com`. SIM-143 bestätigt das exakte Paar;
+SIM-144 verweigert beide gekreuzten ECS-/ELB-Kombinationen, das vollständige
+ELB-Paar, einen falschen Rollennamen, ein fremdes Konto und einen fremden
+Pfad. Update- oder Delete-Rechte für Service-Linked Roles wurden nicht
+ergänzt.
+
+AWS Access Analyzer `ValidatePolicy` wurde für genau die beiden geänderten
+Policy-Dokumente erneut ausgeführt und lieferte jeweils null Findings. Diese
+Simulator- und ValidatePolicy-Prüfungen erzeugten, änderten oder löschten
+keine AWS-Ressourcen. Ein realer Lifecycle-Test bleibt ein separates Gate und
+durch dieses Protokoll weiterhin nicht freigegeben.
 
 ## Abschlussstand der Simulatorreihe
 
 Die bestätigte nummerierte IAM-Policy-Simulator-Testreihe endet bei
-`SIM-142`. Für `ecs:UpdateExpressGatewayService` und
-`ecs:DeleteExpressGatewayService` wurden wegen des dokumentierten
-Simulatorgrenzfalls keine SIM-Nummern vergeben. Ein weiterer Simulator-Harness
-ist nicht vorgesehen.
-
-Eine spätere reale Validierung oder eine fachlich begründete Änderung des
-verwendeten Condition Keys wäre eine separate, erneut vollständig zu prüfende
-Arbeitsphase und ist nicht Bestandteil dieser abgeschlossenen Simulatorreihe.
+`SIM-146`. Der frühere unnummerierte Simulatorgrenzfall für
+`ecs:UpdateExpressGatewayService` und `ecs:DeleteExpressGatewayService` ist
+durch die fachlich begründete Condition-Key-Korrektur und die erneut
+ausgeführten positiven sowie adversarialen Fälle aufgelöst. Die bestätigte
+Reihe umfasst jetzt zusätzlich den eng gebundenen ECS-SLR-Create-Pfad.
 
 ## Noch ausstehende Gates außerhalb dieses Simulatorprotokolls
 
@@ -1719,7 +1871,8 @@ Dieses Dokument ersetzt nicht:
 
 - Template- und Guard-Prüfungen
 - Template-Hash- und Change-Set-Prüfungen
-- AWS Access Analyzer
+- AWS Access Analyzer über die dokumentierte `ValidatePolicy`-Wiederholung
+  der beiden geänderten Dokumente hinaus
 - unabhängige Reviews
 - kontrollierte Live-Lifecycle-Tests
 - Post-Delete-Restressourcenprüfung
