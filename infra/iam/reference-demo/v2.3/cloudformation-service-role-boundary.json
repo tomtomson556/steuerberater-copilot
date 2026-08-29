@@ -215,6 +215,16 @@
     },
     {
       "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "ecs.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
       "Action": [
         "ecs:CreateExpressGatewayService",
         "ecs:DeleteExpressGatewayService",

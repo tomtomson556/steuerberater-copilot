@@ -154,6 +154,14 @@ EXPRESS_INFRASTRUCTURE_ROLE_ARN = (
     f"arn:aws:iam::{ACCOUNT}:role/steuerberater-copilot/"
     "reference-demo/express-infrastructure"
 )
+ECS_SERVICE_LINKED_ROLE_ARN = (
+    f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/ecs.amazonaws.com/"
+    "AWSServiceRoleForECS"
+)
+EXPRESS_SERVICE_ARN = (
+    f"arn:aws:ecs:{REGION}:{ACCOUNT}:service/default/"
+    "steuerberater-copilot-reference-demo"
+)
 CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS = {
     (
         f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
@@ -625,6 +633,59 @@ def test_service_role_keeps_cluster_create_separate_and_non_speculative() -> Non
         "ecs:DeregisterTaskDefinition",
         "ecs:DescribeTaskDefinition",
     } & all_actions(filename)
+
+
+def test_service_role_creates_only_the_canonical_ecs_service_linked_role() -> None:
+    filenames = (
+        "cloudformation-service-role-policy.json",
+        "cloudformation-service-role-boundary.json",
+    )
+    expected_condition = {
+        "StringEquals": {
+            "iam:AWSServiceName": "ecs.amazonaws.com",
+        },
+    }
+
+    for filename in filenames:
+        create_slr = statement_for_action(filename, "iam:CreateServiceLinkedRole")
+        assert actions(create_slr) == {"iam:CreateServiceLinkedRole"}
+        assert resources(create_slr) == {ECS_SERVICE_LINKED_ROLE_ARN}
+        assert create_slr["Condition"] == expected_condition
+        assert not {
+            "iam:DeleteServiceLinkedRole",
+            "iam:GetServiceLinkedRoleDeletionStatus",
+            "iam:UpdateRole",
+        } & all_actions(filename)
+
+
+def test_express_update_and_delete_require_the_global_reference_project_tag() -> None:
+    service = "cloudformation-service-role-policy.json"
+    boundary = "cloudformation-service-role-boundary.json"
+    mutation_actions = {
+        "ecs:DeleteExpressGatewayService",
+        "ecs:UpdateExpressGatewayService",
+    }
+
+    for action in mutation_actions:
+        mutation = statement_for_action(service, action)
+        assert actions(mutation) == mutation_actions
+        assert resources(mutation) == {EXPRESS_SERVICE_ARN}
+        assert mutation["Condition"] == {
+            "StringEquals": {
+                "aws:ResourceTag/Project": "steuerberater-copilot",
+            },
+        }
+
+        boundary_statement = statement_for_action(boundary, action)
+        assert EXPRESS_SERVICE_ARN in resources(boundary_statement)
+        assert all(
+            "steuerberater-copilot-reference-demo" in resource
+            for resource in resources(boundary_statement)
+        )
+
+    assert "ecs:ResourceTag/Project" not in (
+        POLICY_DIR / service
+    ).read_text(encoding="utf-8")
 
 
 def test_service_role_force_deletes_only_the_reference_secret() -> None:

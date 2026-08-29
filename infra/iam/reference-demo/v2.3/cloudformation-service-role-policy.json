@@ -65,6 +65,16 @@
     },
     {
       "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "ecs.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
       "Action": "ecs:RegisterTaskDefinition",
       "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:task-definition/*"
     },
@@ -98,7 +108,7 @@
       "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo",
       "Condition": {
         "StringEquals": {
-          "ecs:ResourceTag/Project": "steuerberater-copilot"
+          "aws:ResourceTag/Project": "steuerberater-copilot"
         }
       }
     }
