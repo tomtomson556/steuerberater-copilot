@@ -103,82 +103,8 @@
       "Action": [
         "cloudformation:DescribeStackDriftDetectionStatus",
         "cloudformation:GetTemplateSummary",
-        "cloudformation:ValidateTemplate"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "eu-central-1"
-        }
-      }
-    },
-    {
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
-      "Condition": {
-        "StringEquals": {
-          "iam:PassedToService": "cloudformation.amazonaws.com"
-        }
-      }
-    },
-    {
-      "Effect": "Allow",
-      "Action": "ecr:GetAuthorizationToken",
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "eu-central-1"
-        }
-      }
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:CompleteLayerUpload",
-        "ecr:DescribeImages",
-        "ecr:DescribeRepositories",
-        "ecr:InitiateLayerUpload",
-        "ecr:ListImages",
-        "ecr:ListTagsForResource",
-        "ecr:PutImage",
-        "ecr:UploadLayerPart"
-      ],
-      "Resource": "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:ListSecretVersionIds",
-        "secretsmanager:PutSecretValue"
-      ],
-      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "eu-central-1"
-        }
-      }
-    },
-    {
-      "Effect": "Allow",
-      "Action": "sts:GetCallerIdentity",
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecs:DescribeExpressGatewayService",
-        "ecs:DescribeServices",
-        "ecs:ListServiceDeployments",
-        "ecs:ListTagsForResource"
-      ],
-      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
+        "cloudformation:ValidateTemplate",
+        "ecr:GetAuthorizationToken",
         "acm:DescribeCertificate",
         "acm:ListTagsForCertificate",
         "application-autoscaling:DescribeScalableTargets",
@@ -227,6 +153,64 @@
     },
     {
       "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/steuerberater-copilot/control-plane/reference-demo-cfn-service-role",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories",
+        "ecr:InitiateLayerUpload",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": "arn:aws:ecr:eu-central-1:<ACCOUNT_ID>:repository/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:PutSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:eu-central-1:<ACCOUNT_ID>:secret:steuerberater-copilot/reference-demo/synthetic-*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "eu-central-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeExpressGatewayService",
+        "ecs:DescribeServices",
+        "ecs:ListServiceDeployments",
+        "ecs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:ecs:eu-central-1:<ACCOUNT_ID>:service/default/steuerberater-copilot-reference-demo"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": [
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForECS",
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForElasticLoadBalancing",
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      ]
+    },
+    {
+      "Effect": "Allow",
       "Action": [
         "iam:GetRole",
         "iam:GetRolePolicy",
@@ -245,7 +229,8 @@
       "Effect": "Allow",
       "Action": [
         "iam:GetPolicy",
-        "iam:GetPolicyVersion"
+        "iam:GetPolicyVersion",
+        "sts:GetCallerIdentity"
       ],
       "Resource": "*"
     }

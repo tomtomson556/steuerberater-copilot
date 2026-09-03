@@ -160,6 +160,13 @@ Policy-Dokumente erneut 2/2 mit 0 Findings). Dieser Ablauf führt sie nicht
 erneut aus und behandelt sie nicht als offenes Preflight-Ziel. Template und
 Guard bleiben unverändert.
 
+Noch ausstehendes Draft-PR-Gate, nicht Teil dieses Account-Preflight-Ablaufs
+und keine Wiederholung von SIM-001 bis SIM-146: read-only IAM-Policy-
+Simulator- und Access-Analyzer-`ValidatePolicy`-Evidenz für die geänderten
+Dokumente `operator-verifier-policy.json` und `operator-boundary.json`,
+einschließlich der zusätzlichen `iam:GetRole`-Freigabe auf die drei
+pfadlosen Pre-Existence-Lookup-ARNs.
+
 Vor den AWS-Leseaufrufen organisatorisch bestätigen. Die vorhandenen
 Operatorrechte können diese Gates nicht zuverlässig introspektieren;
 unbestätigt oder unklar ist **No-Go**:
@@ -201,9 +208,22 @@ Inventar, das v2.3 später schreiben darf, ohne es im Preflight zu erzeugen:
   (`AWSServiceRoleForECS`, `AWSServiceRoleForElasticLoadBalancing`,
   `AWSServiceRoleForApplicationAutoScaling_ECSService`): kanonischer Name,
   exakter IAM-Pfad/ARN und Service-Principal der Trust Policy prüfen.
-  `NoSuchEntity` ist inventarisierte Absenz, kein `AccessDenied`. Absenz im
-  Preflight nicht durch ein manuelles SLR-Create beheben. Falscher Pfad, ARN
-  oder Trust ist No-Go.
+  `aws iam get-role --role-name` autorisiert AWS bei noch nicht vorhandener
+  Rolle gegen den pfadlosen Lookup-ARN
+  `arn:aws:iam::<ACCOUNT_ID>:role/<RoleName>`, nicht gegen den späteren
+  kanonischen pfadbehafteten SLR-ARN. Deshalb erlaubt die Verifier-Policy
+  `iam:GetRole` zusätzlich genau auf
+  `arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForECS`,
+  `arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForElasticLoadBalancing` und
+  `arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForApplicationAutoScaling_ECSService`.
+  Die Operator-Boundary enthält dieselbe getrennte `iam:GetRole`-Freigabe.
+  `GetRolePolicy`, `ListAttachedRolePolicies`, `ListRolePolicies` und
+  `ListRoleTags` bleiben auf die kanonischen pfadbehafteten SLR-ARNs und die
+  bestehenden Referenzrollen begrenzt. Ist die Rolle vorhanden, bleiben
+  Name, Pfad, ARN und Trust-Principal unverändert gegen den kanonischen
+  Vertrag zu prüfen. `NoSuchEntity` ist inventarisierte Absenz, kein
+  `AccessDenied`. Absenz im Preflight nicht durch ein manuelles SLR-Create
+  beheben. Falscher Pfad, ARN oder Trust ist No-Go. Jedes `AccessDenied` bleibt No-Go.
 - Service Quotas entlang des v2.3-Vertrags: VPC/EIP-IPv4 (`vpc`), ECS
   (`ecs`), ELB (`elasticloadbalancing`), ACM (`acm`) und Fargate
   (`fargate`). Für `vpc`, `elasticloadbalancing`, `acm` und `fargate` die
@@ -280,6 +300,7 @@ preflight_inventory_get_role() {
   local expected_principal="$4"
   local expected_arn="arn:aws:iam::${ACCOUNT_ID}:role${expected_path}${role_name}"
   local out ec
+  # Absente SLRs autorisiert AWS auf arn:aws:iam::<ACCOUNT_ID>:role/<RoleName>.
   set +e
   out="$(aws iam get-role --role-name "$role_name" --output json 2>&1)"
   ec=$?

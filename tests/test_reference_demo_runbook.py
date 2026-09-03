@@ -317,6 +317,12 @@ def test_runbook_preflight_covers_required_account_gates() -> None:
         "/aws-service-role/ecs.amazonaws.com/",
         "/aws-service-role/elasticloadbalancing.amazonaws.com/",
         "/aws-service-role/ecs.application-autoscaling.amazonaws.com/",
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForECS",
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForElasticLoadBalancing",
+        (
+            "arn:aws:iam::<ACCOUNT_ID>:role/"
+            "AWSServiceRoleForApplicationAutoScaling_ECSService"
+        ),
         "nicht automatisch nachgewiesen",
         "vpc elasticloadbalancing acm fargate",
     )
@@ -451,6 +457,21 @@ def test_runbook_preflight_inventories_service_linked_roles_without_conflating_a
     assert "/aws-service-role/ecs.amazonaws.com/" in section
     assert "/aws-service-role/elasticloadbalancing.amazonaws.com/" in section
     assert "/aws-service-role/ecs.application-autoscaling.amazonaws.com/" in section
+    assert "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForECS" in section
+    assert (
+        "arn:aws:iam::<ACCOUNT_ID>:role/AWSServiceRoleForElasticLoadBalancing"
+        in section
+    )
+    assert (
+        "arn:aws:iam::<ACCOUNT_ID>:role/"
+        "AWSServiceRoleForApplicationAutoScaling_ECSService"
+    ) in section
+    assert "pfadlosen Lookup-ARN" in section
+    assert "GetRolePolicy" in section
+    assert "ListAttachedRolePolicies" in section
+    assert "ListRolePolicies" in section
+    assert "ListRoleTags" in section
+    assert "Jedes `AccessDenied` bleibt No-Go" in section
     assert "ecs.amazonaws.com" in section
     assert "elasticloadbalancing.amazonaws.com" in section
     assert "ecs.application-autoscaling.amazonaws.com" in section
@@ -458,7 +479,9 @@ def test_runbook_preflight_inventories_service_linked_roles_without_conflating_a
     assert "nicht NoSuchEntity" in section
     assert "create-service-linked-role" not in section
     assert ("iam", "create-service-linked-role") not in operations
+    assert ("iam", "list-roles") not in operations
     assert "AssumeRolePolicyDocument" in section or "Trust-Principal" in section
+    assert "Name, Pfad, ARN und Trust-Principal" in section
 
 
 def test_runbook_preflight_service_quotas_are_manual_read_only_gate() -> None:
@@ -490,9 +513,15 @@ def test_runbook_does_not_treat_access_analyzer_as_open_branch_goal() -> None:
     assert "SIM-001 bis SIM-146" in section
     assert "nicht als offenes Preflight-Ziel" in section
     assert "führt sie nicht\nerneut aus" in section
+    assert "keine Wiederholung von SIM-001 bis SIM-146" in section
+    assert "Noch ausstehendes Draft-PR-Gate" in section
+    assert "operator-verifier-policy.json" in section
+    assert "operator-boundary.json" in section
+    assert "pfadlosen Pre-Existence-" in section
     assert "Access Analyzer bleibt ausstehend" not in section
     assert "ValidatePolicy noch offen" not in section
     assert "Access Analyzer erneut ausführen" not in section
+    assert "simulate-custom-policy" not in section
 
 
 def test_runbook_static_checks_stay_network_free() -> None:

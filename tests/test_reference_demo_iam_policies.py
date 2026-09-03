@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 from pathlib import Path
@@ -129,6 +130,10 @@ def resources(statement: dict[str, Any]) -> set[str]:
     return set(value)
 
 
+def iam_resource_allows(patterns: set[str], arn: str) -> bool:
+    return any(fnmatch.fnmatchcase(arn, pattern) for pattern in patterns)
+
+
 def statements_for_action_and_resource(
     filename: str,
     action: str,
@@ -158,6 +163,41 @@ ECS_SERVICE_LINKED_ROLE_ARN = (
     f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/ecs.amazonaws.com/"
     "AWSServiceRoleForECS"
 )
+ELB_SERVICE_LINKED_ROLE_ARN = (
+    f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+    "elasticloadbalancing.amazonaws.com/"
+    "AWSServiceRoleForElasticLoadBalancing"
+)
+ECS_AUTOSCALING_SERVICE_LINKED_ROLE_ARN = (
+    f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/"
+    "ecs.application-autoscaling.amazonaws.com/"
+    "AWSServiceRoleForApplicationAutoScaling_ECSService"
+)
+CANONICAL_SERVICE_LINKED_ROLE_ARNS = {
+    ECS_SERVICE_LINKED_ROLE_ARN,
+    ELB_SERVICE_LINKED_ROLE_ARN,
+    ECS_AUTOSCALING_SERVICE_LINKED_ROLE_ARN,
+}
+PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS = {
+    f"arn:aws:iam::{ACCOUNT}:role/AWSServiceRoleForECS",
+    f"arn:aws:iam::{ACCOUNT}:role/AWSServiceRoleForElasticLoadBalancing",
+    (
+        f"arn:aws:iam::{ACCOUNT}:role/"
+        "AWSServiceRoleForApplicationAutoScaling_ECSService"
+    ),
+}
+SERVICE_LINKED_ROLE_METADATA_ACTIONS = {
+    "iam:GetRolePolicy",
+    "iam:ListAttachedRolePolicies",
+    "iam:ListRolePolicies",
+    "iam:ListRoleTags",
+}
+VERIFIER_PRESENT_ROLE_ARNS = {
+    f"arn:aws:iam::{ACCOUNT}:role/steuerberater-copilot/"
+    "control-plane/reference-demo-cfn-service-role",
+    EXPRESS_INFRASTRUCTURE_ROLE_ARN,
+    TASK_EXECUTION_ROLE_ARN,
+}
 EXPRESS_SERVICE_ARN = (
     f"arn:aws:ecs:{REGION}:{ACCOUNT}:service/default/"
     "steuerberater-copilot-reference-demo"
@@ -827,6 +867,104 @@ def test_verifier_is_read_only_and_exactly_scopes_express_description() -> None:
     assert "secretsmanager:GetSecretValue" not in verifier_actions
 
 
+def _slr_get_role_lookup_statement(filename: str) -> dict[str, Any]:
+    matches = [
+        statement
+        for statement in statements_for_action(filename, "iam:GetRole")
+        if actions(statement) == {"iam:GetRole"}
+        and resources(statement) == PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS
+    ]
+    assert len(matches) == 1, filename
+    return matches[0]
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ("operator-verifier-policy.json", "operator-boundary.json"),
+)
+def test_operator_get_role_allows_pathless_slr_preexistence_lookup(
+    filename: str,
+) -> None:
+    lookup = _slr_get_role_lookup_statement(filename)
+    assert lookup["Effect"] == "Allow"
+    assert "Condition" not in lookup
+    assert actions(lookup).isdisjoint(SERVICE_LINKED_ROLE_METADATA_ACTIONS)
+    assert resources(lookup).isdisjoint(CANONICAL_SERVICE_LINKED_ROLE_ARNS)
+    assert all("*" not in resource for resource in resources(lookup))
+    assert all(
+        "/aws-service-role/" not in resource for resource in resources(lookup)
+    )
+    assert "iam:ListRoles" not in all_actions(filename)
+    assert "iam:CreateServiceLinkedRole" not in all_actions(filename)
+    assert not any(
+        resource.endswith("role/*") or "role/AWSServiceRoleFor*" in resource
+        for statement in statements(filename)
+        for resource in resources(statement)
+    )
+
+    metadata_actions = SERVICE_LINKED_ROLE_METADATA_ACTIONS | {"iam:GetRole"}
+    metadata_statements = [
+        statement
+        for statement in statements(filename)
+        if SERVICE_LINKED_ROLE_METADATA_ACTIONS <= actions(statement)
+    ]
+    assert metadata_statements
+    metadata_resources = {
+        resource
+        for statement in metadata_statements
+        for resource in resources(statement)
+    }
+    assert CANONICAL_SERVICE_LINKED_ROLE_ARNS <= metadata_resources
+    assert metadata_resources.isdisjoint(PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS)
+    assert all(
+        actions(statement) == metadata_actions for statement in metadata_statements
+    )
+    for action in SERVICE_LINKED_ROLE_METADATA_ACTIONS:
+        action_resources = {
+            resource
+            for statement in statements_for_action(filename, action)
+            for resource in resources(statement)
+        }
+        assert action_resources.isdisjoint(PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS)
+        assert CANONICAL_SERVICE_LINKED_ROLE_ARNS <= action_resources
+
+    present_get_role_resources = {
+        resource
+        for statement in statements_for_action(filename, "iam:GetRole")
+        for resource in resources(statement)
+        if resource not in PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS
+    }
+    assert CANONICAL_SERVICE_LINKED_ROLE_ARNS <= present_get_role_resources
+    if filename == "operator-boundary.json":
+        assert {
+            f"arn:aws:iam::{ACCOUNT}:role/steuerberater-copilot/*"
+        } <= present_get_role_resources
+
+
+def test_verifier_present_role_reads_stay_on_canonical_arns() -> None:
+    filename = "operator-verifier-policy.json"
+    metadata_statement = next(
+        statement
+        for statement in statements(filename)
+        if actions(statement)
+        == {"iam:GetRole"} | SERVICE_LINKED_ROLE_METADATA_ACTIONS
+    )
+    assert resources(metadata_statement) == (
+        CANONICAL_SERVICE_LINKED_ROLE_ARNS | VERIFIER_PRESENT_ROLE_ARNS
+    )
+    get_role_resources = {
+        resource
+        for statement in statements_for_action(filename, "iam:GetRole")
+        for resource in resources(statement)
+    }
+    assert get_role_resources == (
+        PATHLESS_SERVICE_LINKED_ROLE_LOOKUP_ARNS
+        | CANONICAL_SERVICE_LINKED_ROLE_ARNS
+        | VERIFIER_PRESENT_ROLE_ARNS
+    )
+    assert all("*" not in resource for resource in get_role_resources)
+
+
 def test_verifier_can_read_both_required_aws_managed_policy_versions() -> None:
     statement = statement_for_action(
         "operator-verifier-policy.json",
@@ -883,12 +1021,31 @@ def test_verifier_includes_iam_lifecycle_policy_and_all_control_plane_reads() ->
     assert actions(get_version) == {"iam:GetPolicy", "iam:GetPolicyVersion"}
     assert resources(get_policy) == resources(get_version)
     read_resources = resources(get_policy)
+    aws_managed = {
+        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+        (
+            "arn:aws:iam::aws:policy/service-role/"
+            "AmazonECSInfrastructureRoleforExpressGatewayServices"
+        ),
+    }
+    assert read_resources == aws_managed | CONTROL_PLANE_POLICY_RESOURCE_PREFIXES
     lifecycle_arn = (
         f"arn:aws:iam::{ACCOUNT}:policy/steuerberater-copilot/control-plane/"
         "reference-demo-cfn-iam-lifecycle-policy"
     )
-    assert lifecycle_arn in read_resources
-    assert CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS <= read_resources
+    assert iam_resource_allows(read_resources, lifecycle_arn)
+    assert all(
+        iam_resource_allows(read_resources, arn)
+        for arn in CUSTOMER_MANAGED_VERIFIER_POLICY_ARNS
+    )
+    assert not iam_resource_allows(
+        read_resources,
+        f"{BOOTSTRAP_POLICY_ARN_PREFIX}policy",
+    )
+    assert not iam_resource_allows(
+        read_resources,
+        f"{BOOTSTRAP_POLICY_ARN_PREFIX}boundary",
+    )
     assert not {
         action
         for action in all_actions(filename)
