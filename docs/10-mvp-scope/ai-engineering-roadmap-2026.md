@@ -1035,10 +1035,10 @@ CloudWatch Logs/EMF, minimale IaC, Kostenkontrolle und vollständigen Cleanup.
 
 CloudFormation-Template und Guard-Regeln implementieren diesen vereinfachten
 Stack mit externen Rollen-ARNs. Die IAM-Control-Plane v2.3 und das vorhandene
-ausführbare Runbook bleiben historische Legacy-v2.3-Evidenz. Der nächste
-Produktionsbranch muss ein neues ausführbares Runbook für den aktuellen Stack
-liefern. Ein konkreter Least-Privilege-Deployer-Vertrag wird aus dieser
-tatsächlichen Implementierung hergeleitet. Ein AWS-Live-Test, ein verwaltetes
+ausführbare Runbook bleiben historische Legacy-v2.3-Evidenz. Ein neues
+ausführbares Runbook für den vereinfachten Stack steht noch aus. Ein konkreter
+Least-Privilege-Deployer-Vertrag steht ebenfalls noch aus. Diese Roadmap legt
+deren Branch-Reihenfolge nicht fest. Ein AWS-Live-Test, ein verwaltetes
 Dashboard und Alarme sind weiterhin nicht freigegeben. Der
 Phase-6-Portfolio-Hardening-Umfang bleibt ausstehend.
 

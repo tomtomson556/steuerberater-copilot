@@ -99,10 +99,12 @@ Binding detail: `docs/02-security/security-baseline-policy.md`,
 
 ## German prose
 
-German prose uses normal UTF-8 orthography (`ä`, `ö`, `ü`, `ß`). ASCII
-transliterations (`ae`, `oe`, `ue`, `ss`) remain valid only where technically
-required, for example identifiers, filenames, regexes, external literal values,
-or commands. Do not bulk-normalize historical documents.
+German prose uses standard UTF-8 orthography with `ä`, `ö`, `ü`, and `ß`.
+Do not replace umlauts with `ae`, `oe`, or `ue`. Do not use `ss` as a
+substitute for `ß`. Legitimate German `ss` such as in `dass`, `muss`, or
+`wissen` remains correct. ASCII forms remain allowed only where technically
+required, for example identifiers, filenames, regexes, commands, or external
+literal values. Do not bulk-normalize historical documents.
 
 ## Validation
 
