@@ -13,10 +13,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "infra" / "cloudformation" / "reference-demo.yaml"
 GUARD_PATH = ROOT / "infra" / "cloudformation" / "guards" / "reference-demo.guard"
-IAM_POLICY_DIR = ROOT / "infra" / "iam" / "reference-demo" / "v2.3"
 CI_PATH = ROOT / ".github" / "workflows" / "ci.yml"
 
 FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
+    "AWS::IAM::",
+    "AWS::SecretsManager::",
     "AWS::EC2::SecurityGroup",
     "AWS::EC2::NatGateway",
     "AWS::EC2::EIP",
@@ -33,6 +34,10 @@ FORBIDDEN_RESOURCE_TYPE_PREFIXES = (
 )
 
 FORBIDDEN_EXACT_RESOURCE_TYPES = (
+    "AWS::IAM::Role",
+    "AWS::IAM::Policy",
+    "AWS::IAM::ManagedPolicy",
+    "AWS::SecretsManager::Secret",
     "AWS::EC2::NatGateway",
     "AWS::EC2::EIP",
     "AWS::EC2::VPCEndpoint",
@@ -54,8 +59,6 @@ ALLOWED_NETWORK_RESOURCE_TYPES = (
 ALLOWED_RESOURCE_TYPES = {
     "AWS::ECR::Repository",
     "AWS::Logs::LogGroup",
-    "AWS::IAM::Role",
-    "AWS::SecretsManager::Secret",
     "AWS::ECS::ExpressGatewayService",
     *ALLOWED_NETWORK_RESOURCE_TYPES,
 }
@@ -63,8 +66,8 @@ ALLOWED_RESOURCE_TYPES = {
 ALLOWED_PARAMETERS = {
     "DeployService",
     "ImageUri",
-    "CreateManagedSecret",
-    "InjectManagedSecret",
+    "TaskExecutionRoleArn",
+    "ExpressInfrastructureRoleArn",
 }
 
 STAGE1_RESOURCE_IDS = (
@@ -79,8 +82,6 @@ STAGE1_RESOURCE_IDS = (
     "PublicRoute",
     "PublicSubnetARouteTableAssociation",
     "PublicSubnetBRouteTableAssociation",
-    "TaskExecutionRole",
-    "ExpressInfrastructureRole",
 )
 
 TAGGABLE_RESOURCE_IDS = (
@@ -91,9 +92,6 @@ TAGGABLE_RESOURCE_IDS = (
     "PublicSubnetB",
     "InternetGateway",
     "PublicRouteTable",
-    "TaskExecutionRole",
-    "ExpressInfrastructureRole",
-    "ManagedSecret",
     "ExpressGatewayService",
 )
 
@@ -130,25 +128,16 @@ IMAGE_URI_ALLOWED_PATTERN = (
     r"steuerberater-copilot-reference-demo@sha256:[A-Fa-f0-9]{64}$"
 )
 
+ROLE_ARN_ALLOWED_PATTERN = (
+    r"^arn:aws:iam::[0-9]{12}:role"
+    r"(/[A-Za-z0-9+=,.@_-]+)*/[A-Za-z0-9+=,.@_-]+$"
+)
+
 # CloudFormation YAML does not support anchors, aliases, or hash merges.
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-formats.html
 CFN_INCOMPATIBLE_YAML_ANCHOR = re.compile(r"(?:^|[\s,{])&[A-Za-z_][\w-]*", re.MULTILINE)
 CFN_INCOMPATIBLE_YAML_ALIAS = re.compile(r"(?:^|[\s,{])\*[A-Za-z_][\w-]*", re.MULTILINE)
 CFN_INCOMPATIBLE_YAML_MERGE = re.compile(r"(?:^|[\s])<<\s*:", re.MULTILINE)
-
-SECRET_ARN_PATTERN = (
-    "arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:"
-    "steuerberater-copilot/reference-demo/synthetic-*"
-)
-TASK_EXECUTION_BOUNDARY_ARN = (
-    "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/"
-    "reference-demo/task-execution-boundary"
-)
-EXPRESS_INFRASTRUCTURE_BOUNDARY_ARN = (
-    "arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/"
-    "reference-demo/express-infrastructure-boundary"
-)
-ECS_SOURCE_ARN = "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*"
 
 SUSPICIOUS_CREDENTIAL_PATTERNS = (
     re.compile(r"AKIA[0-9A-Z]{16}"),
@@ -223,12 +212,12 @@ def _tag_map(tags: Any) -> dict[str, str]:
     return mapped
 
 
-def _sub_value(node: Any) -> str:
+def _ref_value(node: Any) -> str:
     assert isinstance(node, dict)
-    if "Sub" in node:
-        value = node["Sub"]
+    if "Ref" in node:
+        value = node["Ref"]
     else:
-        value = node["Fn::Sub"]
+        value = node["Fn::Ref"]
     assert isinstance(value, str)
     return value
 
@@ -292,16 +281,53 @@ def test_template_exists_and_parses() -> None:
 def test_parameters_defaults_and_allowed_values() -> None:
     parameters = load_template()["Parameters"]
     assert set(parameters) == ALLOWED_PARAMETERS
-    for name in ("DeployService", "CreateManagedSecret", "InjectManagedSecret"):
-        param = parameters[name]
-        assert param["Type"] == "String"
-        assert param["Default"] == "false"
-        assert param["AllowedValues"] == ["true", "false"]
+
+    deploy = parameters["DeployService"]
+    assert deploy["Type"] == "String"
+    assert deploy["Default"] == "false"
+    assert deploy["AllowedValues"] == ["true", "false"]
 
     image = parameters["ImageUri"]
     assert image["Type"] == "String"
     assert image["Default"] == ""
     assert image["AllowedPattern"] == IMAGE_URI_ALLOWED_PATTERN
+
+    for name in ("TaskExecutionRoleArn", "ExpressInfrastructureRoleArn"):
+        param = parameters[name]
+        assert param["Type"] == "String"
+        assert "Default" not in param
+        assert param["AllowedPattern"] == ROLE_ARN_ALLOWED_PATTERN
+        assert "AllowedValues" not in param
+
+
+def test_external_role_arn_parameters_accept_only_iam_role_arns() -> None:
+    parameters = load_template()["Parameters"]
+    pattern = parameters["TaskExecutionRoleArn"]["AllowedPattern"]
+    assert pattern == parameters["ExpressInfrastructureRoleArn"]["AllowedPattern"]
+
+    approved = (
+        "arn:aws:iam::123456789012:role/task-execution",
+        "arn:aws:iam::123456789012:role/steuerberater-copilot/reference-demo/task-execution",
+        "arn:aws:iam::999999999999:role/service-role/AmazonECSTaskExecutionRole",
+    )
+    rejected = (
+        "",
+        "arn:aws:iam::123456789012:role/",
+        "arn:aws:iam::123456789012:user/operator",
+        "arn:aws:iam::123456789012:policy/task-execution",
+        "arn:aws:iam::123456789012:instance-profile/task-execution",
+        "arn:aws-us-gov:iam::123456789012:role/task-execution",
+        "arn:aws:secretsmanager:eu-central-1:123456789012:secret:demo",
+        "arn:aws:iam::12345678901:role/task-execution",
+        "arn:aws:iam::ABCDEFGHIJKL:role/task-execution",
+        "task-execution",
+        "arn:aws:iam::123456789012:role/task execution",
+        "arn:aws:iam::123456789012:role/task-execution*",
+    )
+    for value in approved:
+        assert re.fullmatch(pattern, value), value
+    for value in rejected:
+        assert re.fullmatch(pattern, value) is None, value
 
 
 def test_ci_installs_guard_from_locked_official_commit() -> None:
@@ -330,17 +356,10 @@ def test_ci_installs_guard_from_locked_official_commit() -> None:
     assert "releases/download" not in install_step
 
 
-def test_conditions_and_rules_cover_bootstrap_and_secret_guards() -> None:
+def test_conditions_and_rules_cover_two_stage_digest_bootstrap() -> None:
     template = load_template()
-    conditions = template["Conditions"]
-    assert "DeployExpressService" in conditions
-    assert "CreateManagedSecretEnabled" in conditions
-    assert "InjectManagedSecretEnabled" in conditions
-
-    rules = template["Rules"]
-    assert "DeployServiceRequiresDigestImageUri" in rules
-    assert "InjectRequiresCreateManagedSecret" in rules
-    assert "InjectRequiresDeployService" in rules
+    assert set(template["Conditions"]) == {"DeployExpressService"}
+    assert set(template["Rules"]) == {"DeployServiceRequiresDigestImageUri"}
 
 
 def test_digest_required_for_service_deployment() -> None:
@@ -406,8 +425,21 @@ def test_express_service_port_health_scaling_and_logs() -> None:
     assert logs["LogStreamPrefix"] == "ecs"
     assert "LogGroup" in logs
     assert "Image" in container
+    assert "Secrets" not in container
     assert "TaskRoleArn" not in props
     assert "TaskDefinitionArn" not in props
+
+
+def test_express_service_references_external_role_arn_parameters() -> None:
+    template = load_template()
+    _, service = _resource_by_type(template, "AWS::ECS::ExpressGatewayService")[0]
+    props = service["Properties"]
+    assert _ref_value(props["ExecutionRoleArn"]) == "TaskExecutionRoleArn"
+    assert _ref_value(props["InfrastructureRoleArn"]) == "ExpressInfrastructureRoleArn"
+    assert not _find_keys(template, "TaskRoleArn")
+    assert not _find_keys(service, "GetAtt")
+    assert "Fn::GetAtt" not in str(props["ExecutionRoleArn"])
+    assert "Fn::GetAtt" not in str(props["InfrastructureRoleArn"])
 
 
 def test_log_group_retention_and_ecr_empty_on_delete() -> None:
@@ -425,99 +457,31 @@ def test_log_group_retention_and_ecr_empty_on_delete() -> None:
 
 def test_stage1_resources_are_unconditional_and_complete() -> None:
     resources = load_template()["Resources"]
-    assert len(STAGE1_RESOURCE_IDS) == 13
+    assert len(STAGE1_RESOURCE_IDS) == 11
     for logical_id in STAGE1_RESOURCE_IDS:
         assert "Condition" not in resources[logical_id]
-    assert resources["ManagedSecret"]["Condition"] == "CreateManagedSecretEnabled"
     assert resources["ExpressGatewayService"]["Condition"] == "DeployExpressService"
-    assert set(resources) == set(STAGE1_RESOURCE_IDS) | {
-        "ManagedSecret",
-        "ExpressGatewayService",
-    }
+    assert set(resources) == set(STAGE1_RESOURCE_IDS) | {"ExpressGatewayService"}
 
 
-def test_iam_trusts_boundaries_and_managed_policies() -> None:
+def test_stack_does_not_create_iam_roles_or_secrets() -> None:
     template = load_template()
-    roles = {
-        logical_id: resource
-        for logical_id, resource in _resource_by_type(template, "AWS::IAM::Role")
-    }
-    assert set(roles) == {"TaskExecutionRole", "ExpressInfrastructureRole"}
-
-    execution_props = roles["TaskExecutionRole"]["Properties"]
-    assert execution_props["RoleName"] == "task-execution"
-    assert execution_props["Path"] == "/steuerberater-copilot/reference-demo/"
-    assert _sub_value(execution_props["PermissionsBoundary"]) == TASK_EXECUTION_BOUNDARY_ARN
-
-    execution_trust = execution_props["AssumeRolePolicyDocument"]["Statement"][0]
-    assert execution_trust["Principal"] == {"Service": "ecs-tasks.amazonaws.com"}
-    assert execution_trust["Action"] == "sts:AssumeRole"
-    assert execution_trust["Condition"]["StringEquals"]["aws:SourceAccount"] == {
-        "Ref": "AWS::AccountId"
-    }
-    assert _sub_value(execution_trust["Condition"]["ArnLike"]["aws:SourceArn"]) == ECS_SOURCE_ARN
-    assert execution_props["ManagedPolicyArns"] == [
-        "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-    ]
-
-    infra_props = roles["ExpressInfrastructureRole"]["Properties"]
-    assert infra_props["RoleName"] == "express-infrastructure"
-    assert infra_props["Path"] == "/steuerberater-copilot/reference-demo/"
-    assert _sub_value(infra_props["PermissionsBoundary"]) == EXPRESS_INFRASTRUCTURE_BOUNDARY_ARN
-    assert "Policies" not in infra_props
-
-    infra_trust = infra_props["AssumeRolePolicyDocument"]["Statement"][0]
-    assert infra_trust["Principal"] == {"Service": "ecs.amazonaws.com"}
-    assert infra_trust["Action"] == "sts:AssumeRole"
-    assert "Condition" not in infra_trust
-    assert infra_props["ManagedPolicyArns"] == [
-        "arn:aws:iam::aws:policy/service-role/"
-        "AmazonECSInfrastructureRoleforExpressGatewayServices",
-        {
-            "Sub": (
-                "arn:aws:iam::${AWS::AccountId}:policy/"
-                "steuerberater-copilot/reference-demo/"
-                "express-infrastructure-acm-request-policy"
-            )
-        },
-    ]
-
-
-def test_secret_read_policy_is_static_from_stage1_and_arn_pattern_scoped() -> None:
-    template = load_template()
-    secrets = _resource_by_type(template, "AWS::SecretsManager::Secret")
-    assert len(secrets) == 1
-    logical_id, secret = secrets[0]
-    assert logical_id == "ManagedSecret"
-    assert secret["Condition"] == "CreateManagedSecretEnabled"
-    assert secret["DeletionPolicy"] == "Delete"
-    assert secret["UpdateReplacePolicy"] == "Delete"
-    props = secret.get("Properties", {})
-    assert props["Name"] == "steuerberater-copilot/reference-demo/synthetic"
-    assert "SecretString" not in props
-    assert "GenerateSecretString" not in props
-
-    execution_roles = _resource_by_type(template, "AWS::IAM::Role")
-    _, execution_role = next(item for item in execution_roles if item[0] == "TaskExecutionRole")
-    policies = execution_role["Properties"]["Policies"]
-    assert isinstance(policies, list)
-    assert len(policies) == 1
-    assert "If" not in policies[0]
-    assert policies[0]["PolicyName"] == "ManagedSecretGetSecretValue"
-    statements = policies[0]["PolicyDocument"]["Statement"]
-    assert len(statements) == 1
-    statement = statements[0]
-    assert statement["Action"] == "secretsmanager:GetSecretValue"
-    assert _sub_value(statement["Resource"]) == SECRET_ARN_PATTERN
-    assert statement["Resource"] != {"Ref": logical_id}
-    assert "Ref" not in statement["Resource"]
-
     raw = TEMPLATE_PATH.read_text(encoding="utf-8")
-    assert 'Resource: "*"' not in raw
-    assert "Resource: '*'" not in raw
-    role_block = raw.split("TaskExecutionRole:")[1].split("ExpressInfrastructureRole:")[0]
-    assert "!Ref ManagedSecret" not in role_block
-    assert "InjectManagedSecretEnabled" not in role_block
+    resource_types = [resource["Type"] for resource in template["Resources"].values()]
+
+    assert "AWS::IAM::Role" not in resource_types
+    assert "AWS::SecretsManager::Secret" not in resource_types
+    assert not _resource_by_type(template, "AWS::IAM::Role")
+    assert not _resource_by_type(template, "AWS::SecretsManager::Secret")
+    assert "CreateManagedSecret" not in template["Parameters"]
+    assert "InjectManagedSecret" not in template["Parameters"]
+    assert "ManagedSecret" not in template["Resources"]
+    assert "TaskExecutionRole:" not in raw
+    assert "ExpressInfrastructureRole:" not in raw
+    assert "ManagedSecretArn" not in template.get("Outputs", {})
+    assert "PrimaryContainer" in str(template["Resources"]["ExpressGatewayService"])
+    _, service = _resource_by_type(template, "AWS::ECS::ExpressGatewayService")[0]
+    assert "Secrets" not in service["Properties"]["PrimaryContainer"]
 
 
 def test_no_task_role_and_no_forbidden_resources() -> None:
@@ -526,10 +490,10 @@ def test_no_task_role_and_no_forbidden_resources() -> None:
     assert "AWS::ECS::ExpressGatewayService" in raw_types
     assert "AWS::ECR::Repository" in raw_types
     assert "AWS::Logs::LogGroup" in raw_types
-    assert "AWS::SecretsManager::Secret" in raw_types
     for allowed in ALLOWED_NETWORK_RESOURCE_TYPES:
         assert allowed in raw_types
     assert set(raw_types) <= ALLOWED_RESOURCE_TYPES
+    assert set(raw_types) == ALLOWED_RESOURCE_TYPES
 
     for type_name in raw_types:
         assert not type_name.startswith(FORBIDDEN_RESOURCE_TYPE_PREFIXES)
@@ -538,6 +502,8 @@ def test_no_task_role_and_no_forbidden_resources() -> None:
     assert not _find_keys(template, "TaskRoleArn")
     assert "AWS::ElasticLoadBalancingV2::LoadBalancer" not in raw_types
     assert "AWS::ElasticLoadBalancingV2::TargetGroup" not in raw_types
+    assert "AWS::IAM::Role" not in raw_types
+    assert "AWS::SecretsManager::Secret" not in raw_types
 
 
 def test_taggable_resources_have_exactly_the_five_fixed_tags() -> None:
@@ -658,6 +624,7 @@ def test_no_secret_values_or_suspicious_credential_literals() -> None:
     lowered = raw.lower()
     assert "secretstring:" not in lowered
     assert "generatesecretstring:" not in lowered
+    assert "aws::secretsmanager::secret" not in lowered
     for pattern in SUSPICIOUS_CREDENTIAL_PATTERNS:
         assert pattern.search(raw) is None, pattern.pattern
 
@@ -668,66 +635,60 @@ def test_outputs_are_minimal_and_conditional() -> None:
         "EcrRepositoryUri",
         "LogGroupName",
         "ServiceEndpoint",
-        "ManagedSecretArn",
     }
     assert outputs["ServiceEndpoint"]["Condition"] == "DeployExpressService"
-    assert outputs["ManagedSecretArn"]["Condition"] == "CreateManagedSecretEnabled"
     assert "Condition" not in outputs["EcrRepositoryUri"]
     assert "Condition" not in outputs["LogGroupName"]
+    assert "ManagedSecretArn" not in outputs
 
 
-def test_template_names_match_iam_v23_arn_patterns() -> None:
-    task_boundary = (IAM_POLICY_DIR / "task-execution-boundary.json").read_text(
-        encoding="utf-8"
-    )
-    assert "repository/steuerberater-copilot-reference-demo" in task_boundary
-    assert "/steuerberater-copilot/reference-demo/application" in task_boundary
-    assert "steuerberater-copilot/reference-demo/synthetic-*" in task_boundary
+def test_template_and_tests_are_decoupled_from_iam_v23_artifacts() -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    guard = GUARD_PATH.read_text(encoding="utf-8")
+    for text in (raw, guard):
+        assert "infra/iam/reference-demo/v2.3" not in text
+        assert "task-execution-boundary" not in text
+        assert "express-infrastructure-boundary" not in text
+        assert "ManagedSecretGetSecretValue" not in text
+        assert "CreateManagedSecret" not in text
+        assert "InjectManagedSecret" not in text
+    iam_paths = [
+        value
+        for value in globals().values()
+        if isinstance(value, Path) and "iam/reference-demo" in value.as_posix()
+    ]
+    assert iam_paths == []
 
-    lifecycle_path = IAM_POLICY_DIR / "cloudformation-service-role-iam-lifecycle-policy.json"
-    lifecycle = lifecycle_path.read_text(encoding="utf-8")
-    assert "role/steuerberater-copilot/reference-demo/task-execution" in lifecycle
-    assert "role/steuerberater-copilot/reference-demo/express-infrastructure" in lifecycle
-    assert "policy/steuerberater-copilot/reference-demo/task-execution-boundary" in lifecycle
-    assert (
-        "policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary"
-        in lifecycle
-    )
 
-
-def test_guard_rules_encode_lifecycle_invariants() -> None:
+def test_guard_rules_encode_simplified_stack_invariants() -> None:
     assert GUARD_PATH.is_file()
     text = GUARD_PATH.read_text(encoding="utf-8")
     required_snippets = (
         "steuerberater-copilot-reference-demo",
-        "/steuerberater-copilot/reference-demo/",
-        "task-execution",
-        "express-infrastructure",
-        "task-execution-boundary",
-        "express-infrastructure-boundary",
-        "ManagedSecretGetSecretValue",
-        "secretsmanager:GetSecretValue",
-        "steuerberater-copilot/reference-demo/synthetic-*",
         'ServiceName == "steuerberater-copilot-reference-demo"',
         'Cpu == "256"',
         'Memory == "512"',
         "TaskRoleArn not exists",
-        'DeletionPolicy == "Delete"',
-        'UpdateReplacePolicy == "Delete"',
+        "Parameters.TaskExecutionRoleArn exists",
+        "Parameters.ExpressInfrastructureRoleArn exists",
+        "Parameters.TaskExecutionRoleArn.Default not exists",
+        "Parameters.ExpressInfrastructureRoleArn.Default not exists",
+        f'Parameters.TaskExecutionRoleArn.AllowedPattern == "{ROLE_ARN_ALLOWED_PATTERN}"',
+        f'Parameters.ExpressInfrastructureRoleArn.AllowedPattern == "{ROLE_ARN_ALLOWED_PATTERN}"',
+        'Parameters.ImageUri.Default == ""',
+        f'Parameters.ImageUri.AllowedPattern == "{IMAGE_URI_ALLOWED_PATTERN}"',
+        "count(Parameters.*)",
+        "%parameter_count == 4",
+        "AWS::IAM::Role",
+        "AWS::SecretsManager::Secret",
+        "ExecutionRoleArn.Ref == \"TaskExecutionRoleArn\"",
+        "InfrastructureRoleArn.Ref == \"ExpressInfrastructureRoleArn\"",
+        "PrimaryContainer.Secrets not exists",
         "AWS::EC2::NatGateway",
         "AWS::EC2::SecurityGroup",
         "AWS::ElasticLoadBalancingV2::LoadBalancer",
-        "ecs-tasks.amazonaws.com",
-        "ecs.amazonaws.com",
-        "count(%statements[0].Principal.*)",
-        "%principal_count == 1",
-        "aws:SourceAccount",
-        "aws:SourceArn",
-        "count(Parameters.*)",
         'AllowedValues == ["true", "false"]',
-        'Parameters.ImageUri.Default == ""',
-        f'Parameters.ImageUri.AllowedPattern == "{IMAGE_URI_ALLOWED_PATTERN}"',
-        'count(Tags[*])',
+        "count(Tags[*])",
         'Tags[0].Key == "Project"',
         'Tags[0].Value == "steuerberater-copilot"',
         'Tags[1].Key == "Component"',
@@ -738,18 +699,19 @@ def test_guard_rules_encode_lifecycle_invariants() -> None:
         'Tags[3].Value == "cloudformation"',
         'Tags[4].Key == "Lifecycle"',
         'Tags[4].Value == "ephemeral"',
-        "arn:aws:ecs:eu-central-1:${AWS::AccountId}:*",
-        'Effect == "Allow"',
-        ".Ref == \"AWS::AccountId\"",
-        "SecretString not exists",
-        "GenerateSecretString not exists",
+        "%taggable_count == 8",
+        "EmptyOnDelete == true",
+        "RetentionInDays == 14",
     )
     for snippet in required_snippets:
         assert snippet in text, snippet
     assert "TaskRoleArn exists" not in text.replace("TaskRoleArn not exists", "")
     assert "Properties.Tags !empty" not in text
-    assert 'Condition.StringEquals["aws:SourceAccount"] exists' not in text
-    assert 'Condition.ArnLike["aws:SourceArn"] exists' not in text
+    assert "CreateManagedSecret" not in text
+    assert "InjectManagedSecret" not in text
+    assert "ManagedSecret" not in text
+    assert "ecs-tasks.amazonaws.com" not in text
+    assert "secretsmanager:GetSecretValue" not in text
 
 
 def test_template_has_no_cloudformation_incompatible_yaml_aliases() -> None:
@@ -776,10 +738,9 @@ def test_yaml_alias_detector_flags_anchors_aliases_and_merges() -> None:
 
 def test_yaml_alias_detector_ignores_arn_glob_suffixes() -> None:
     sample = (
-        "Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:"
-        "secret:steuerberater-copilot/reference-demo/synthetic-*\n"
         f"AllowedPattern: '{IMAGE_URI_ALLOWED_PATTERN}'\n"
-        "aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*\n"
+        f"RolePattern: '{ROLE_ARN_ALLOWED_PATTERN}'\n"
+        "Resource: arn:aws:iam::123456789012:role/demo-*\n"
     )
     assert cloudformation_incompatible_yaml_constructs(sample) == []
 
@@ -848,24 +809,103 @@ def test_cfn_guard_cli_rejects_broadened_image_uri_pattern(tmp_path: Path) -> No
     assert "Parser Error" not in combined
 
 
-def test_cfn_guard_cli_rejects_additional_aws_star_principal(tmp_path: Path) -> None:
+def test_cfn_guard_cli_rejects_broadened_role_arn_pattern(tmp_path: Path) -> None:
     raw = TEMPLATE_PATH.read_text(encoding="utf-8")
-    exclusive_principal = (
-        "            Principal:\n"
-        "              Service: ecs-tasks.amazonaws.com\n"
+    approved_pattern = f"    AllowedPattern: '{ROLE_ARN_ALLOWED_PATTERN}'\n"
+    broadened_pattern = "    AllowedPattern: '^arn:aws:.+$'\n"
+    assert raw.count(approved_pattern) == 2
+    mutated = tmp_path / "broadened-role-arn-pattern.yaml"
+    mutated.write_text(
+        raw.replace(approved_pattern, broadened_pattern, 1),
+        encoding="utf-8",
     )
-    widened_principal = (
-        "            Principal:\n"
-        "              Service: ecs-tasks.amazonaws.com\n"
-        '              AWS: "*"\n'
-    )
-    assert raw.count(exclusive_principal) == 1
-    mutated = tmp_path / "widened-principal.yaml"
-    mutated.write_text(raw.replace(exclusive_principal, widened_principal, 1), encoding="utf-8")
 
     completed = run_cfn_guard(mutated)
     assert completed.returncode != 0
     combined = completed.stdout + completed.stderr
     assert "Status = FAIL" in combined
-    assert "task_execution_trust_is_hardened" in combined
+    assert "parameters_remain_the_approved_set" in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_hardcoded_execution_role_arn(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    approved = "      ExecutionRoleArn: !Ref TaskExecutionRoleArn\n"
+    hardcoded = (
+        "      ExecutionRoleArn: arn:aws:iam::123456789012:role/task-execution\n"
+    )
+    assert raw.count(approved) == 1
+    mutated = tmp_path / "hardcoded-execution-role.yaml"
+    mutated.write_text(raw.replace(approved, hardcoded, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "express_service_uses_external_role_arn_parameters" in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_task_role_arn(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    approved = "      ExecutionRoleArn: !Ref TaskExecutionRoleArn\n"
+    with_task_role = (
+        "      ExecutionRoleArn: !Ref TaskExecutionRoleArn\n"
+        "      TaskRoleArn: !Ref TaskExecutionRoleArn\n"
+    )
+    assert raw.count(approved) == 1
+    mutated = tmp_path / "added-task-role.yaml"
+    mutated.write_text(raw.replace(approved, with_task_role, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "express_service_fixed_identity_cpu_memory_and_no_task_role" in combined
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_stack_owned_iam_role(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    marker = "  ReferenceDemoRepository:\n"
+    extra_role = (
+        "  ExtraTaskRole:\n"
+        "    Type: AWS::IAM::Role\n"
+        "    Properties:\n"
+        "      RoleName: extra-task-role\n"
+        "  ReferenceDemoRepository:\n"
+    )
+    assert raw.count(marker) == 1
+    mutated = tmp_path / "stack-owned-iam-role.yaml"
+    mutated.write_text(raw.replace(marker, extra_role, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert (
+        "resources_are_allowlisted" in combined
+        or "forbidden_resource_types_are_absent" in combined
+    )
+    assert "Parser Error" not in combined
+
+
+def test_cfn_guard_cli_rejects_container_secret_injection(tmp_path: Path) -> None:
+    raw = TEMPLATE_PATH.read_text(encoding="utf-8")
+    approved = "        ContainerPort: 8000\n"
+    injected = (
+        "        ContainerPort: 8000\n"
+        "        Secrets:\n"
+        "          - Name: REFERENCE_DEMO_SECRET\n"
+        "            ValueFrom: arn:aws:secretsmanager:eu-central-1:123456789012:secret:demo\n"
+    )
+    assert raw.count(approved) == 1
+    mutated = tmp_path / "container-secret-injection.yaml"
+    mutated.write_text(raw.replace(approved, injected, 1), encoding="utf-8")
+
+    completed = run_cfn_guard(mutated)
+    assert completed.returncode != 0
+    combined = completed.stdout + completed.stderr
+    assert "Status = FAIL" in combined
+    assert "express_service_uses_external_role_arn_parameters" in combined
     assert "Parser Error" not in combined
