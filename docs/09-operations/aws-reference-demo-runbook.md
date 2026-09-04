@@ -1,14 +1,32 @@
-# AWS Reference Demo Operations Runbook
+# AWS Reference Demo Operations Runbook (Legacy v2.3)
 
-Betriebs- und Deployment-Anleitung für den minimalen AWS-Referenz-Stack
-(`infra/cloudformation/reference-demo.yaml`). Synthetische Portfolio-Demo
-nur; keine echten Mandanten-, Kanzlei- oder Steuerdaten.
+## Status: Legacy und superseded
 
-Das Runbook bindet Template, Guard-Regeln und Betrieb an das IAM-/Lifecycle-
-Modell v2.3 und die Artefakte unter `infra/iam/reference-demo/v2.3/`. Create
-und Update laufen ausschließlich über geprüfte Change Sets mit der festen
+Dieses Dokument bewahrt den historischen Betriebs- und Deployment-Ablauf für
+den vorhandenen v2.3-Referenz-Stack
+(`infra/cloudformation/reference-demo.yaml`). Der Ablauf ist durch das aktuelle
+vereinfachte Zielbild in
+`docs/03-architecture/aws-reference-cloud-deployment.md` superseded. Er ist
+weder die aktuelle Zielarchitektur noch eine Anleitung für den nächsten
+AWS-Test und erteilt ausdrücklich kein AWS-Live-Go.
+
+Das vorhandene Template, die Guard-Regeln und die nachfolgenden Kommandos
+bleiben als historische Engineering-/IAM-Evidenz erhalten. Alle normativen
+Formulierungen unterhalb dieses Statushinweises gelten ausschließlich
+innerhalb des alten v2.3-Vertrags. Sie dürfen nicht auf die neue normale
+AWS-Referenzdemo-Arbeit übertragen oder ausgeführt werden.
+
+Ein neues ausführbares Deployment-Runbook wird erst zusammen mit der
+vereinfachten Implementierung erstellt. Bis dahin gibt es für das aktuelle
+Zielbild keinen ausführbaren AWS-Deployment-Pfad.
+
+Historischer Scope: synthetische Portfolio-Demo nur; keine echten Mandanten-,
+Kanzlei- oder Steuerdaten. Das Legacy-Runbook bindet Template, Guard-Regeln und
+Betrieb an das IAM-/Lifecycle-Modell v2.3 und die Artefakte unter
+`infra/iam/reference-demo/v2.3/`. Create und Update laufen in diesem alten Pfad
+ausschließlich über geprüfte Change Sets mit der festen
 CloudFormation-Service-Rolle. Direkte `create-stack`- und `update-stack`-
-Aufrufe sind nicht Teil dieses Pfads.
+Aufrufe sind nicht Teil dieses Legacy-Pfads.
 
 ```text
 KI bereitet vor.

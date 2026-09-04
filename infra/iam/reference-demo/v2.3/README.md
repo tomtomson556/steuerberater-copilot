@@ -1,5 +1,22 @@
 # AWS Reference Demo IAM Control Plane v2.3
 
+## Status: historische IAM-Evidenz
+
+Dieses Verzeichnis dokumentiert den abgeschlossenen Engineering- und
+IAM-Evidenzstand v2.3. Die Artefakte bleiben für explizite Legacy-, v2.3-,
+Simulator- und historische IAM-Aufgaben erhalten. Sie sind durch das aktuelle
+vereinfachte Zielbild in
+`docs/03-architecture/aws-reference-cloud-deployment.md` als Voraussetzung
+für neue normale AWS-Referenzdemo-Arbeit superseded.
+
+v2.3 ist weder die aktuelle Zielarchitektur noch ein AWS-Live-Test-Go. Die
+Policies, Boundaries, Bootstrap-/Service-Rollen und Simulatorbefunde dürfen
+nicht automatisch in den neuen Minimalpfad übernommen werden. Dieses Dokument
+und das zugehörige Werkzeug erteilen keinen AWS-Schreibzugriff.
+
+Der nachfolgende Inhalt beschreibt ausschließlich den historischen
+v2.3-Vertrag und wird als Evidenz ansonsten unverändert bewahrt.
+
 Versionierte IAM-Artefakte für die synthetische AWS-Referenzdemo in
 `eu-central-1`. Sie setzen die IAM-Control-Plane aus dem IAM-/Lifecycle-Konzept
 Version 2.3 um. Das CloudFormation-Template wird ausschließlich dort ergänzt,
