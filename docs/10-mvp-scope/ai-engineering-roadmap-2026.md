@@ -652,25 +652,60 @@ Evaluation-Command:
 
 Zeitraum: 9. bis 30. November 2026
 
-Status: Aktueller Abschnitt. Referenz-Cloud ist AWS laut ADR-004. Die konkrete
-AWS-Laufzeit ist als Amazon ECS Express Mode in
-`docs/03-architecture/aws-reference-cloud-deployment.md` dokumentiert. Der
-minimale CloudFormation-Referenz-Stack liegt unter
-`infra/cloudformation/reference-demo.yaml` inkl. Betriebs-Runbook. Die
-IAM-Control-Plane v2.3 liegt unter `infra/iam/reference-demo/v2.3/`.
-Template, Guard-Regeln und Runbook werden an das IAM-/Lifecycle-Modell v2.3
-gebunden. Strukturierte Runtime-Logs und Basic Runtime Metrics (CloudWatch
-Embedded Metric Format) fuer `POST /ai/draft` sind vorhanden. Ein AWS-Live-Test,
-ein verwaltetes Dashboard und Alarme sind nicht Teil dieses Stands.
+Status: Aktueller Abschnitt. Referenz-Cloud ist AWS laut ADR-004, vorgesehene
+Region ist `eu-central-1`, und Amazon ECS Express Mode bleibt die
+Referenzlaufzeit. Strukturierte Runtime-Logs und Basic Runtime Metrics
+(CloudWatch Embedded Metric Format) fuer `POST /ai/draft` sind im
+Anwendungscode vorhanden. Ein AWS-Live-Test, eine bestaetigte EMF-Extraktion in
+CloudWatch, ein verwaltetes Dashboard und Alarme sind nicht Teil dieses Stands.
+
+Aktuelle Vereinfachungsentscheidung (4. September 2026): Fuer den ersten realen
+AWS-Nachweis ersetzt der nachfolgende Minimalpfad die fruehere Bindung an den
+v2.3-IAM-/Secret-Store-Pfad. Die datierten v2.3-Artefakte bleiben unveraenderte
+historische Engineering- und IAM-Evidenz, sind aber weder Voraussetzung noch
+Zielarchitektur fuer diesen Nachweis. Das vorhandene CloudFormation-Template,
+die Guard-Regeln und das ausfuehrliche Runbook bilden weiterhin den alten
+v2.3-Stand ab und geben keinen AWS-Live-Test frei. Ein neues ausfuehrbares
+Runbook entsteht erst zusammen mit der vereinfachten Implementierung.
 
 Minimaler Cloud-Scope:
 
-- ein Containerdienst
-- ein Secret Store
-- Health Check
-- strukturierte Logs
-- minimale Infrastructure as Code
-- Kosten- und Abschaltkontrolle
+- ein kurzlebiger Amazon-ECS-Express-Mode-Dienst in `eu-central-1`
+- realer Nachweis des vorhandenen Docker-/FastAPI-Images mit `GET /health` und
+  synthetischem `POST /ai/draft`
+- private Amazon ECR Image-Ablage per unveraenderlichem Digest
+- strukturierte Logs und reale CloudWatch-EMF-Verifikation fuer
+  `POST /ai/draft`
+- minimale, reproduzierbare Infrastructure as Code fuer Dienst, ECR,
+  CloudWatch Log Group und eine kleine oeffentliche Netzwerkbasis
+- Kostenkontrolle und vollstaendige Bereinigung aller kurzlebigen
+  Demo-Ressourcen
+
+Der `FakeModelProvider` bleibt im AWS-Deployment der sichere Standard. Der
+erste Nachweis verwendet keinen echten Modellprovider, kein Runtime-Secret und
+keine Secret-Injection. AWS Secrets Manager ist deshalb fuer diesen Nachweis
+kein Pflichtbestandteil. Eine Task Role entfaellt, weil der Anwendungscode
+keine AWS-APIs aufruft.
+
+Express Mode benoetigt weiterhin eine Task Execution Role fuer Image-Pull und
+CloudWatch-Logs sowie eine Express Infrastructure Role fuer die von ECS
+verwalteten Infrastrukturkomponenten. Diese beiden kleinen, statischen Rollen
+sind Voraussetzungen ausserhalb des kurzlebigen Demo-Stacks. Der Stack erzeugt
+keine IAM-Rollen und uebernimmt keine v2.3-Policy-, Boundary-, Simulator- oder
+Bootstrap-Architektur.
+
+Fuer den ersten vereinfachten Pfad gibt es keine eigene
+CloudFormation-Service-Rolle. Der konkrete Least-Privilege-Vertrag fuer eine
+kurzlebige Deployer-Identitaet wird erst aus dem tatsaechlich implementierten
+Stack und seinen benoetigten Operationen hergeleitet und ist vor einem
+separaten AWS-Live-Go zu pruefen. Diese Roadmap-Entscheidung erteilt weder
+AWS-Schreibzugriff noch ein Live-Test-Go.
+
+Solange ECR im kurzlebigen Stack erzeugt wird, bleibt der zweistufige
+Image-Digest-Ablauf erforderlich: zuerst ECR, Log Group und Netzwerkbasis ohne
+Express Service anlegen, dann das Image pushen, den Digest bestimmen und den
+Stack mit der Digest-URI um den Dienst aktualisieren. IAM- und
+Secret-Bootstrap gehoeren nicht zu diesem Ablauf.
 
 Managed PostgreSQL ist kein Pflichtbestandteil. Die Demo arbeitet nur mit
 synthetischen Daten. Ein stateless Betrieb ist schneller, guenstiger und
@@ -809,12 +844,19 @@ gestrichen. Eine lokale Docker-Demo ersetzt die Referenz-Cloud nicht.
 
 Als minimaler reduzierter Cloud-Scope bleiben verbindlich:
 
-- ein Containerdienst
-- ein Secret Store
-- Health Check
-- strukturierte Logs
-- minimale Infrastructure as Code
-- Kosten- und Abschaltkontrolle
+- ein kurzlebiger Amazon-ECS-Express-Mode-Dienst in `eu-central-1`
+- `GET /health` und ein synthetischer `POST /ai/draft` mit
+  `FakeModelProvider`
+- strukturierte CloudWatch-Logs und EMF-Nachweis
+- minimale Infrastructure as Code ohne IAM-Rollen oder Secrets Manager im
+  kurzlebigen Stack
+- Task Execution Role und Express Infrastructure Role als statische
+  Voraussetzungen ausserhalb des Stacks; keine Task Role
+- Kostenkontrolle und vollstaendige Bereinigung
+
+Ein Secret Store ist fuer diesen reduzierten FakeProvider-Deployment-Nachweis
+keine Pflicht. Ein echter Provider oder Runtime-Secret waere ein neuer Scope
+mit eigener Entscheidung.
 
 Falls ein Meilenstein mehr als zwei Wochen hinter dem Plan liegt, werden zuerst
 gestrichen oder reduziert:
@@ -986,12 +1028,20 @@ Architekturentscheidungen.
 
 Phase 4 (API und Docker-Demo) ist abgeschlossen. Der aktuelle Abschnitt ist
 Phase 5 (Referenz-Cloud und Observability). Die Referenz-Cloud ist AWS laut
-ADR-004. Die AWS-Referenzarchitektur, der minimale CloudFormation-Referenz-Stack
-und die IAM-Control-Plane v2.3 sind vorhanden. Strukturierte Runtime-Logs und
-Basic Runtime Metrics (CloudWatch Embedded Metric Format) fuer `POST /ai/draft`
-sind vorhanden. Ein AWS-Live-Test, ein verwaltetes Dashboard und Alarme sind
-weiterhin nicht freigegeben. Der Phase-6-Portfolio-Hardening-Umfang bleibt
-ausstehend.
+ADR-004; Amazon ECS Express Mode in `eu-central-1` bleibt die Laufzeit. Das
+aktuelle Architekturziel reduziert den ersten AWS-Nachweis auf Docker/FastAPI,
+`GET /health`, synthetisches `POST /ai/draft` mit `FakeModelProvider`,
+CloudWatch Logs/EMF, minimale IaC, Kostenkontrolle und vollstaendigen Cleanup.
+
+Der vorhandene CloudFormation-/Guard-/Runbook-Stand und die
+IAM-Control-Plane v2.3 sind historische Evidenz und implementieren dieses
+vereinfachte Ziel noch nicht. Der naechste Produktionsbranch muss den Stack
+ohne IAM-Rollen, Secrets Manager und eigene CloudFormation-Service-Rolle auf
+die aktuelle Architektur ausrichten und erst dann ein neues ausfuehrbares
+Runbook liefern. Ein konkreter Least-Privilege-Deployer-Vertrag wird aus dieser
+tatsaechlichen Implementierung hergeleitet. Ein AWS-Live-Test, ein verwaltetes
+Dashboard und Alarme sind weiterhin nicht freigegeben. Der
+Phase-6-Portfolio-Hardening-Umfang bleibt ausstehend.
 
 ### Aktualisierung vom 21. Juli 2026
 
@@ -1345,3 +1395,27 @@ ausstehend.
   [EMF](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html),
   [EMF-Spezifikation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html),
   [CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/).
+
+### Aktualisierung vom 4. September 2026 (Vereinfachter AWS-Deployment-Nachweis)
+
+- Datum: 4. September 2026
+- Aenderung: Fuer den ersten realen AWS-Portfolio-Nachweis ersetzt die aktuelle
+  Architektur den alten v2.3-IAM-/Secret-Pfad durch den kleinsten
+  Express-Mode-Nachweis in `eu-central-1`: vorhandenes Docker-/FastAPI-Image,
+  `/health`, synthetisches `POST /ai/draft` mit `FakeModelProvider`, CloudWatch
+  Logs/EMF, minimale IaC, Kostenkontrolle und vollstaendiger Cleanup. Task
+  Execution Role und Express Infrastructure Role bleiben statische
+  Voraussetzungen ausserhalb des kurzlebigen Stacks; Task Role, Runtime-Secret,
+  Secrets Manager, stackeigene IAM-Rollen und eine eigene
+  CloudFormation-Service-Rolle entfallen fuer diesen ersten Pfad.
+- Begruendung: Der Portfolio-Nachweis soll die vorhandene Anwendung und ihre
+  Observability real deployen, ohne einen ungenutzten Secret-Pfad oder die alte
+  IAM-Control-Plane als Voraussetzung mitzuschleppen. Der konkrete
+  Least-Privilege-Deployer-Vertrag wird erst aus dem tatsaechlich
+  vereinfachten Stack hergeleitet.
+- Auswirkung: Die datierten Entscheidungen und v2.3-Artefakte vom 26. Juli und
+  19. August 2026 bleiben unveraenderte historische Evidenz, sind aber fuer
+  neue normale AWS-Referenzdemo-Arbeit superseded. Das vorhandene Template,
+  die Guard-Regeln und das Legacy-Runbook implementieren die neue Architektur
+  noch nicht. Diese Dokumentationsentscheidung erteilt keinen AWS-Schreibzugriff
+  und kein AWS-Live-Test-Go.

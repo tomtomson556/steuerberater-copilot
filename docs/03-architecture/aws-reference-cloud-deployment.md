@@ -2,18 +2,31 @@
 
 ## Zweck und Status
 
-Dieses Dokument legt die kleinstmögliche konkrete AWS-Referenzarchitektur für
-die bestehende stateless FastAPI-/Docker-Demo fest. Es ist die verbindliche
-Grundlage für den nächsten Produktionsbranch
-`feat/add-reference-cloud-infrastructure`.
+Dieses Dokument legt das aktuelle, vereinfachte Zielbild fuer den
+kleinstmoeglichen ueberzeugenden AWS-Deployment-Nachweis der vorhandenen
+stateless FastAPI-/Docker-Demo fest. Es ersetzt fuer diesen ersten Nachweis den
+frueher in diesem Dokument beschriebenen stackeigenen IAM- und
+Secrets-Manager-Pfad des IAM-/Lifecycle-Modells v2.3.
 
-Dieser Branch enthält ausschließlich Dokumentation. Er erzeugt keine
-AWS-Ressourcen, kein Infrastructure as Code, keine SDK-Integration und keine
-Anwendungscode-Änderung.
+Die v2.3-Artefakte bleiben historische Engineering- und IAM-Evidenz. Sie sind
+keine Voraussetzung und keine Zielarchitektur fuer neue normale
+AWS-Referenzdemo-Arbeit.
+
+Dieser Stand ist weiterhin reine Dokumentation:
+
+- `infra/cloudformation/reference-demo.yaml`, die zugehoerigen Guard-Regeln
+  und `docs/09-operations/aws-reference-demo-runbook.md` bilden noch den
+  superseded v2.3-Pfad ab.
+- Das vorhandene Template implementiert dieses Zielbild noch nicht und darf
+  nicht als vereinfachter Deployment-Pfad behandelt werden.
+- Ein ausfuehrbares Runbook entsteht erst zusammen mit der neuen
+  Implementierung.
+- Dieses Dokument erzeugt keine AWS-Ressourcen, erteilt keinen AWS-Schreibzugriff
+  und gibt keinen AWS-Live-Test frei.
 
 ```text
 KI bereitet vor.
-Die Kanzlei prüft.
+Die Kanzlei prueft.
 Der Steuerberater entscheidet.
 ```
 
@@ -22,381 +35,390 @@ Leitentscheidungen bleiben ADR-003 und ADR-004:
 - [adr-003-local-first-cloud-neutral-single-reference-cloud.md](../15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md)
 - [adr-004-select-reference-cloud.md](../15-decisions/adr/adr-004-select-reference-cloud.md)
 
+## Verbindliches Minimalziel
+
+AWS bleibt die einzige Referenz-Cloud, die Region ist `eu-central-1`, und
+Amazon ECS Express Mode bleibt die Referenzlaufzeit. Der erste reale Nachweis
+ist genau auf diese Kette begrenzt:
+
+1. das vorhandene Docker-Image reproduzierbar bauen und per unveraenderlichem
+   Digest aus einem privaten Amazon-ECR-Repository referenzieren
+2. die FastAPI-Anwendung als kurzlebigen ECS-Express-Mode-Dienst bereitstellen
+3. `GET /health` ueber den von Express Mode bereitgestellten HTTPS-Endpunkt
+   nachweisen
+4. einen ausschliesslich synthetischen `POST /ai/draft` mit dem
+   `FakeModelProvider` nachweisen
+5. die vorhandenen strukturierten Runtime-Logs und CloudWatch-EMF-Metriken fuer
+   diesen Aufruf in CloudWatch nachweisen
+6. Stack, Express-Mode-Randressourcen und alle weiteren kurzlebig erzeugten
+   Demo-Ressourcen vollstaendig bereinigen und die Bereinigung pruefen
+
+Mehr Infrastrukturbreite ist fuer den Portfolio-Nachweis kein Erfolgskriterium.
+
 ## Scope und Non-Goals
 
-In Scope:
+In Scope fuer die spaetere vereinfachte Implementierung:
 
-- ein Containerdienst
-- ein Secret Store (AWS Secrets Manager) als verbindlicher IaC-Bestandteil mit
-  konditionalem Opt-in
-- Health Check
-- Logging-Senke
-- EU-Region sowie Kosten- und Abschaltkontrolle
-- Daten-, Secret-, Netzwerk- und Vertrauensgrenzen
-- Abgrenzung cloud-neutraler Kern versus AWS-Systemrand
-- konkrete CloudFormation-Vorgabe inklusive zweistufigem Bootstrap für den
-  IaC-Branch
+- Amazon ECS Express Mode mit `AWS::ECS::ExpressGatewayService`
+- privates Amazon ECR
+- stackverwaltete CloudWatch Log Group mit begrenzter Aufbewahrung
+- kleine, reproduzierbare oeffentliche VPC-Netzwerkbasis
+- CloudFormation als minimale Infrastructure as Code
+- zwei statische Express-Mode-Rollen ausserhalb des kurzlebigen Stacks
+- eine kurzlebige, vor einem Live-Test gesondert freizugebende
+  Deployer-Identitaet
+- Kostenkontrolle und verifizierter Cleanup
 
-Nicht in Scope (dieser und der unmittelbare Folge-Branch):
+Nicht in Scope fuer den ersten Nachweis:
 
-- Infrastructure as Code oder AWS-Ressourcen in diesem Dokumentationsbranch
-- AWS-SDK im Anwendungskern
-- Multi-Cloud
-- Kubernetes
+- echter Modellprovider oder externer Modellaufruf
+- Runtime-Secret, Secret-Injection oder AWS Secrets Manager
+- Task Role oder AWS-API-Aufrufe aus dem Anwendungscode
+- IAM-Rollen im kurzlebigen Demo-Stack
+- v2.3-Policies, Permissions Boundaries, Bootstrap-Rolle,
+  IAM-Control-Plane-Werkzeug oder Simulatorprotokoll als Voraussetzung
+- eigene CloudFormation-Service-Rolle
 - Datenbank oder Persistenz
-- Authentifizierung
-- private VPC mit NAT, VPC Endpoints oder privaten Subnetzen
-- eigene ALB- oder Target-Group-Ressource im Template
-- eigene Security Groups im Template
-- erweitertes Monitoring oder Dashboards
-- echte Secret-Werte im Repository
+- Authentifizierung, Custom Domain oder WAF
+- private Subnetze, NAT Gateway, Elastic IP oder VPC Endpoints
+- eigene ALB-, Target-Group- oder Security-Group-Ressourcen im Template
+- Kubernetes, Multi-Region oder Multi-Cloud
+- produktive Daten, produktive Integrationen oder Dauerbetrieb
+- verwaltetes Dashboard oder Alarmarchitektur
 
-## Bestehende lokale Baseline
+## Bestehende Repository-Baseline
 
-Die Cloud-Referenz bildet die vorhandene lokale Demo ab, ändert sie aber nicht:
+Die Zielarchitektur bildet vorhandene, lokal verifizierbare Funktionen ab und
+aendert den Anwendungskern nicht:
 
-| Lokal | Cloud-Mapping |
+| Repository-Stand | AWS-Nachweis |
 | --- | --- |
-| Dockerfile, Port `8000` | Express-Mode-`containerPort` `8000` |
-| `GET /health` | ALB-Health-Check-Pfad `/health` |
-| `FakeModelProvider` als sicherer Standard | bleibt Default; keine Secret-Injection |
-| synthetische Fixtures | ausschließlich synthetische Daten |
-| kein Secret im Image | weiterhin keine Secrets im Image |
+| `Dockerfile`, Port `8000`, nicht privilegierter User `10001` | dasselbe Image in ECS Express Mode |
+| `GET /health` | Express-Mode-Health-Check und HTTPS-Smoke |
+| synthetisches `POST /ai/draft` | genau ein synthetischer Cloud-Smoke |
+| `FakeModelProvider` als fest verdrahteter HTTP-Demo-Provider | unveraenderter AWS-Default ohne Secret |
+| ein EMF-JSON-Event je `POST /ai/draft` auf stdout | Aufnahme in CloudWatch Logs und reale EMF-Extraktion |
+| keine AWS-SDK-Nutzung im Anwendungscode | keine AWS-Credentials im Container |
 
-## Festgelegte Architektur
+Der aktuelle CloudFormation-/Guard-/Runbook-Stand gehoert nicht zu dieser
+Baseline: Er ist die noch vorhandene v2.3-Implementierung, die in einem
+spaeteren, gesonderten Implementierungsbranch vereinfacht werden muss.
 
-Region: `eu-central-1` (ADR-004).
+## Zielarchitektur
 
-| Baustein | Entscheidung |
+| Baustein | Verbindliche Entscheidung |
 | --- | --- |
-| Containerdienst | Amazon ECS Express Mode |
-| Image-Quelle | Amazon ECR (privat) |
-| Image-Referenz | unveränderlicher Digest; nicht `latest` |
-| Secret Store | AWS Secrets Manager als verbindlicher Template-Bestandteil; Default ohne Injection |
-| Health Check | ALB-Pfad `/health`, Container-Port `8000` |
-| Logging | Stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`, referenziert in `PrimaryContainer.AwsLogsConfiguration` inkl. `LogStreamPrefix` |
-| Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`) |
-| Netzwerk | Stackeigene IPv4-VPC mit zwei öffentlichen Subnetzen in zwei AZs, Internet Gateway und öffentlicher Route `0.0.0.0/0`; Subnets explizit in `NetworkConfiguration`; keine Default-VPC-Abhängigkeit |
-| ECR-Löschung | `EmptyOnDelete: true` am stackverwalteten Repository (nur kurzlebige Portfolio-Demo) |
-| Bootstrap | Zweistufig im selben Stack: zuerst ECR/IAM/Log Group/VPC, danach Express Service mit Image-Digest |
-| IaC | AWS CloudFormation mit `AWS::ECS::ExpressGatewayService` |
+| Referenz-Cloud | ausschliesslich AWS |
+| Region | `eu-central-1` |
+| Containerlaufzeit | Amazon ECS Express Mode |
+| IaC-Ressource | `AWS::ECS::ExpressGatewayService` |
+| Image | privates ECR, Referenz per `repository@sha256:<digest>` |
+| Anwendung | vorhandenes FastAPI-/Docker-Artefakt, Port `8000` |
+| Health Check | `/health` |
+| Provider | ausschliesslich `FakeModelProvider` |
+| Logs/Metriken | stackverwaltete CloudWatch Log Group, vorhandenes EMF auf stdout |
+| Netzwerk | stackeigene IPv4-VPC, zwei oeffentliche Subnetze in zwei AZs, IGW und oeffentliche Route |
+| Skalierung | `MinTaskCount: 1`, `MaxTaskCount: 1` |
+| Statische Rollen | Task Execution Role und Express Infrastructure Role ausserhalb des Stacks |
+| Task Role | keine |
+| Secrets Manager | nicht Teil dieses Nachweises |
+| Deployer | kurzlebige Identitaet, keine eigene CloudFormation-Service-Rolle |
+| Abschaltung | Stack-Delete plus Post-Delete-Inventur |
 
-### Warum ECS Express Mode
+AWS beschreibt Express Mode als vereinfachten Fargate-basierten Dienst fuer
+stateless Webanwendungen und APIs. Fuer den Einstieg sind Container-Image,
+Task Execution Role und Infrastructure Role erforderlich; Express Mode
+verwaltet unter anderem HTTPS-Endpunkt, Load Balancer, Auto Scaling und
+Netzwerkkomponenten. Die CloudFormation-Ressource verlangt die
+Infrastructure Role und bietet eigene Felder fuer Execution Role,
+Health-Check-Pfad, Netzwerk, Container und eine optionale Task Role.
 
-AWS App Runner ist für Neukunden geschlossen. AWS empfiehlt Amazon ECS Express
-Mode als Nachfolger.
+Offizielle Grundlagen:
 
-ECS Express Mode: Image plus zwei IAM-Rollen reichen für einen
-Fargate-basierten Web-/API-Dienst mit HTTPS-URL, Load Balancer, Scaling und
-Networking. Express Mode automatisiert die unterstützenden Ressourcen; sie
-entstehen im eigenen Account und bleiben einsehbar.
+- [Amazon ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)
+- [Resources created by Amazon ECS Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)
+- [Create an Express Mode service using the AWS CLI](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-getting-started.html)
+- [`AWS::ECS::ExpressGatewayService`](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-expressgatewayservice.html)
 
-Quellen:
-
-- [AWS App Runner availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
-- [Amazon ECS Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)
-- [Resources created by Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)
-- [Delete Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-delete-task.html)
-- [Express Mode best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-best-practices.html)
-- [CloudFormation Parameters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html)
-- [CloudFormation Conditions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html)
-- [AWS::ECS::ExpressGatewayService](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-expressgatewayservice.html)
-- [ExpressGatewayService NetworkConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-expressgatewayservice-expressgatewayservicenetworkconfiguration.html)
-- [PrimaryContainer.AwsLogsConfiguration](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-expressgatewayservice-expressgatewayserviceawslogsconfiguration.html)
-- [AWS::Logs::LogGroup](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-logs-loggroup.html)
-- [AWS::ECR::Repository](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecr-repository.html) (`EmptyOnDelete`)
-- [AWS::SecretsManager::Secret](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-secretsmanager-secret.html)
-- [Updating stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks.html)
-- [Embedding metrics within logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)
-- [Specification: Embedded metric format](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html)
-- [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
-
-### Warum nicht die Alternativen
-
-| Alternative | Ablehnung |
-| --- | --- |
-| AWS App Runner | Für Neukunden geschlossen; AWS empfiehlt ECS Express Mode |
-| Handgerolltes ECS Fargate mit privater VPC/NAT/eigener ALB | Unnötig komplex; Express Mode plus minimale öffentliche stackeigene VPC deckt denselben Portfolio-Nachweis ab |
-| Kubernetes / EKS | Explizites Roadmap-Non-Goal |
-| Multi-Cloud | Explizites ADR-/Roadmap-Non-Goal |
-
-## Systemgrenzen
+## System- und Vertrauensgrenzen
 
 ```text
-HTTPS Client
-  -> internet-facing ALB (Express-managed Service Security Group ingress path)
-    -> ECS Express Mode / Fargate task
-       (public IP in stack-owned public subnet, MapPublicIpOnLaunch)
-      -> FastAPI-Container (cloud-neutraler Kern, FakeModelProvider default)
-        -> stdout/stderr
-          -> stackverwaltete CloudWatch Log Group
-             (RetentionInDays: 14, LogStreamPrefix)
-
-Stack-owned VPC (IPv4) + 2 public subnets + IGW + public route
-  -> ExpressGatewayService.NetworkConfiguration.Subnets
-ECR (Image by digest, EmptyOnDelete: true)
-  -> Express Mode pull via Task Execution Role
-Secrets Manager (template-owned, conditional opt-in)
-  -> optional Env-Injection via Task Execution Role
-CloudFormation Stack owns Express Mode, ECR, Log Group,
-stack VPC networking, Secrets Manager wiring, and IAM edge resources
+kurzlebige Deployer-Session
+  -> CloudFormation ohne eigene Service-Rolle
+    -> kurzlebiger Demo-Stack
+       -> ECR + Log Group + oeffentliche VPC-Netzwerkbasis
+       -> ECS Express Mode (mit zwei externen statischen Rollen)
+          -> Express-verwalteter HTTPS-/ALB-Pfad
+             -> FastAPI-Container, FakeModelProvider, keine AWS-Credentials
+                -> stdout/stderr
+                   -> stackverwaltete CloudWatch Log Group
+                      -> EMF-Extraktion
 ```
 
 ### Cloud-neutraler Anwendungskern
 
-Im Kern bleiben:
+Im Container bleiben:
 
-- FastAPI-Demo und Offline-MVP-Workflow
-- Gateway, Human Review und Risk-Grenzen
+- FastAPI-Demo und bestehender synthetischer RAG-/Draft-Workflow
+- Gateway-, Risk- und Human-Review-Grenzen
 - `FakeModelProvider` als sicherer Standard
-- keine AWS-SDKs und keine Cloud-API-Aufrufe der Anwendung
+- keine AWS-SDKs und keine Cloud-API-Aufrufe
+- keine Secrets und keine produktiven Daten
 
 ### AWS-Systemrand
 
-Am Systemrand liegen ausschließlich:
+Am Systemrand liegen:
 
-- Amazon ECR (stackverwaltet, inkl. `EmptyOnDelete: true`)
-- Amazon ECS Express Mode (darunter Fargate-Tasks und von Express Mode
-  verwaltete ALB-/Security-Group-Ressourcen)
-- stackeigene öffentliche IPv4-VPC mit zwei öffentlichen Subnetzen,
-  Internet Gateway und öffentlicher Route Table
-- stackverwaltete Amazon CloudWatch Log Group
-- AWS Secrets Manager als verbindlicher Template-Bestandteil mit
-  konditionalem Opt-in
-- IAM-Rollen für Express Mode
+- Amazon ECR
+- Amazon ECS Express Mode und seine verwalteten Randressourcen
+- eine kleine stackeigene oeffentliche Netzwerkbasis
+- eine stackverwaltete Amazon CloudWatch Log Group
 - AWS CloudFormation
+- die beiden ausdruecklich abgegrenzten statischen Rollen
 
-## Daten-, Secret-, Netzwerk- und Vertrauensgrenzen
+Modellprovider-Wahl und Laufzeit-Cloud bleiben getrennte Entscheidungen.
 
-### Daten
+### Statische Task Execution Role
 
-- ausschließlich synthetische Daten und Fixtures
+Die Task Execution Role liegt ausserhalb des kurzlebigen Demo-Stacks und wird
+von `ecs-tasks.amazonaws.com` angenommen. Sie dient dem ECS-/Fargate-Agenten,
+nicht dem Anwendungscode. Fuer diesen Nachweis ist sie auf die fuer den Pull
+aus privatem ECR und den `awslogs`-Pfad benoetigten Berechtigungen begrenzt;
+AWS dokumentiert dafuer `AmazonECSTaskExecutionRolePolicy` oder aequivalente
+Berechtigungen.
+
+Die Rolle erhaelt insbesondere keine Secret-Leserechte, weil die
+Task-Definition kein Secret referenziert. AWS verlangt zusaetzliche
+Secrets-Manager-Berechtigungen erst, wenn eine Task-Definition entsprechende
+sensitive Daten referenziert.
+
+Quelle:
+[Amazon ECS task execution IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html).
+
+### Statische Express Infrastructure Role
+
+Die Express Infrastructure Role liegt ebenfalls ausserhalb des kurzlebigen
+Stacks und wird von `ecs.amazonaws.com` angenommen. ECS verwendet sie fuer die
+von Express Mode verwalteten Infrastrukturkomponenten wie Load Balancing,
+Security Groups und Auto Scaling. Der vereinfachte Pfad orientiert sich am
+aktuellen AWS-Vertrag mit
+`AmazonECSInfrastructureRoleforExpressGatewayServices` oder nachweislich
+aequivalenten Berechtigungen.
+
+Die Rolle wird nicht dem Container bereitgestellt. Die alte v2.3-Boundary- und
+Zusatzpolicy-Architektur wird nicht als Voraussetzung uebernommen.
+
+Quellen:
+
+- [Express Mode IAM role defaults](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html#express-service-iam-role-defaults)
+- [`AmazonECSInfrastructureRoleforExpressGatewayServices`](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonECSInfrastructureRoleforExpressGatewayServices.html)
+
+### Keine Task Role
+
+Eine Task Role stellt dem Container Berechtigungen fuer eigene AWS-API-Aufrufe
+bereit. Der vorhandene Anwendungscode ruft keine AWS-APIs auf; Image-Pull und
+Logtransport gehoeren zur Task Execution Role. Deshalb wird `TaskRoleArn` im
+ersten Nachweis nicht gesetzt.
+
+Quelle:
+[Amazon ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html).
+
+### Deployer-Grenze ohne CloudFormation-Service-Rolle
+
+Der erste vereinfachte Pfad fuehrt keine eigene
+CloudFormation-Service-Rolle ein. AWS CloudFormation verwendet ohne angegebene
+Service-Rolle eine temporaere Session aus den Caller-Credentials. Deshalb muss
+die spaetere Deployer-Identitaet selbst auf die tatsaechlich vom finalen
+Template benoetigten Aktionen und auf das Referenzprojekt begrenzt sein.
+
+Der konkrete Least-Privilege-Vertrag wird erst aus dem vereinfachten Template,
+seinen Stack-Operationen, dem ECR-Push und dem kontrollierten Referenzieren der
+beiden statischen Rollen hergeleitet. Er wird vor jedem AWS-Live-Go separat
+reviewt. Dieser Dokumentationsstand behauptet weder eine fertige Policy noch
+uebernimmt er die v2.3-Operator-, Bootstrap- oder Service-Rollen-Policies.
+
+AWS weist darauf hin, dass eine einmal an einen Stack gebundene
+CloudFormation-Service-Rolle fuer spaetere Operationen weiterverwendet wird.
+Das Weglassen dieser zusaetzlichen langlebigen Rolle ist fuer den ersten
+Minimalpfad bewusst; es ersetzt nicht die noch ausstehende
+Least-Privilege-Begrenzung der Deployer-Session.
+
+Quellen:
+
+- [CloudFormation service role](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-servicerole.html)
+- [`CreateStack` `RoleARN`](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_CreateStack.html#API_CreateStack_RequestParameters)
+
+## Daten- und Secret-Grenze
+
+- ausschliesslich synthetische Fixtures und synthetische Requests
 - keine echten Mandanten-, Kanzlei-, Beleg- oder Steuerdaten
 - keine produktiven Schnittstellen
+- keine Secrets im Image, Repository, Log, Prompt oder Stack
+- kein Runtime-Secret und keine Container-Secret-Injection
+- kein echter Modellprovider
+- AWS Secrets Manager ist kein Bestandteil und keine Pflicht dieses
+  FakeProvider-Nachweises
 
-### Secrets
+Der Verzicht auf Secrets Manager gilt nur fuer diesen genau abgegrenzten
+Nachweis. Ein spaeterer echter Provider waere eine neue Entscheidung mit
+eigenem Secret-, Egress-, Modell- und Kostenvertrag.
 
-- keine Secrets im Image, Repository, Log oder Prompt
-- keine echten Secret-Werte im Repository
-- Standardbetrieb: `FakeModelProvider` ohne Secret-Injection
-- AWS Secrets Manager ist verbindlicher Bestandteil des IaC-Templates und der
-  Roadmap-Vorgabe "ein Secret Store"
-- derselbe Stack enthält einen expliziten, konditionalen Opt-in-Pfad für:
-  - eine Secrets-Manager-Ressource und/oder
-  - eine vorhandene Secret-ARN
-  - sowie die zugehörige Container-Injection
-- Default-Parameter lassen Secret-Ressource und Injection deaktiviert
-- Secret-Injection in den Container benötigt Berechtigungen in der
-  **Task Execution Role**
-- eine **Task Role** ist nur erforderlich, wenn die Anwendung selbst
-  AWS-APIs aufruft; die Standard-Demo tut das nicht
+## Netzwerkgrenze
 
-### Netzwerk
+Die reproduzierbare Minimalbasis darf im kurzlebigen Stack bleiben:
 
-- keine Abhängigkeit von einer accountweiten Default-VPC
-- der Stack stellt in `eu-central-1` eine eigene IPv4-VPC mit DNS-Support und
-  DNS-Hostnames sowie zwei öffentlichen Subnetzen in zwei Availability Zones
-  bereit (`MapPublicIpOnLaunch: true`, nicht überlappende CIDRs)
-- Internet Gateway, VPC-Attachment, öffentliche Route Table mit Route
-  `0.0.0.0/0` und Subnetz-Assoziationen sind stackverwaltet und beim
-  Stack-Delete vollständig entfernbar
-- `ExpressGatewayService.NetworkConfiguration.Subnets` übergibt beide
-  öffentlichen Subnetze ausdrücklich; ohne eigene Security Groups im Template,
-  damit Express Mode Service- und Load-Balancer-Security-Groups weiter selbst
-  verwaltet
-- laut AWS Express-Mode-Defaults: öffentliche Custom-Subnetze führen zu einem
-  internet-facing ALB und `assignPublicIp` für die Tasks; fehlende eigene
-  Security Groups lassen Express Mode die erforderlichen Gruppen erzeugen
-- kein NAT Gateway, keine Elastic IP, keine privaten Subnetze, keine VPC
-  Endpoints und keine eigene ALB-/Target-Group-Ressource im Template
+- eine IPv4-VPC mit DNS-Support und DNS-Hostnames
+- zwei oeffentliche Subnetze mit nicht ueberlappenden CIDRs in zwei
+  Availability Zones und Public-IP-Zuweisung
+- Internet Gateway, Attachment, oeffentliche Route Table, Route `0.0.0.0/0`
+  und beide Subnetz-Assoziationen
+- explizite Uebergabe beider Subnetze an
+  `ExpressGatewayService.NetworkConfiguration`
+- keine eigenen Security Groups im Template; Express Mode verwaltet die
+  benoetigten Service- und Load-Balancer-Gruppen
 
-### Vertrauen
+AWS dokumentiert, dass Express Mode bei oeffentlichen Subnetzen standardmaessig
+Public IPs fuer Tasks aktiviert und bei nicht angegebenen Security Groups
+geeignete Gruppen verwaltet. Die oeffentliche Erreichbarkeit ist nur fuer den
+kurzlebigen synthetischen HTTPS-Smoke akzeptiert; sie ist keine
+Produktionsarchitektur.
 
-- Task Execution Role: Image-Pull aus ECR, Schreibrechte für CloudWatch Logs;
-  bei aktiviertem Opt-in zusätzlich Leserechte für Secrets-Manager-Injection
-- Infrastructure Role für Express Mode (`ecsInfrastructureRoleForExpressServices`)
-- keine AWS-Credentials in Image oder Anwendungskern
-- Modellprovider-Wahl und Laufzeit-Cloud bleiben getrennte Entscheidungen
+Quelle:
+[Express Mode network defaults](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html#express-service-network-configuration-defaults).
 
-## Kosten- und Abschaltkontrolle
+## Infrastructure as Code und Image-Digest-Ablauf
 
-Stack-Delete ist der verlässliche vollständige Abschaltpfad nur dann, wenn
-auch die Log Group und das befüllte ECR-Repository tatsächlich
-stackverwaltet und löschbar sind. Dafür muss der IaC-Branch:
+Der vereinfachte CloudFormation-Stack soll nur folgende projektbezogene
+Ressourcen enthalten:
 
-- eine stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
-  erzeugen und in `PrimaryContainer.AwsLogsConfiguration` referenzieren
-- am ECR-Repository `EmptyOnDelete: true` setzen, damit ein befülltes
-  Repository den Stack-Delete nicht blockiert
+1. privates ECR-Repository mit `EmptyOnDelete: true`
+2. CloudWatch Log Group mit `RetentionInDays: 14`
+3. die kleine oeffentliche VPC-Netzwerkbasis
+4. konditional den `AWS::ECS::ExpressGatewayService`
 
-Die von Express Mode automatisch erzeugte Log Group läuft standardmäßig nicht
-ab und kann nach dem Löschen des Services erhalten bleiben. Deshalb ist sie
-kein ausreichender Abschalt- oder Retention-Pfad für diese Demo.
+Nicht in den Stack gehoeren IAM-Rollen, Permissions Boundaries, IAM-Policies
+oder Secrets-Manager-Ressourcen. Die statischen Rollen werden dem Service nur
+per ARN referenziert.
 
-Bloßes Verringern der Task-Anzahl entfernt Application Load Balancer und
-weitere Express-Mode-Randressourcen nicht und gilt nicht als vollständige
-Abschaltung.
+Weil das vom Stack erzeugte ECR-Repository vor dem Image-Push existieren muss,
+bleibt der Ablauf zweistufig im selben Stack:
 
-`EmptyOnDelete: true` ist destruktiv und nur für die kurzlebige synthetische
-Portfolio-Demo zulässig.
+1. Foundation-Stand mit ECR, Log Group und Netzwerkbasis, aber ohne Express
+   Service erstellen.
+2. Image fuer die vereinbarte Containerarchitektur bauen, nach ECR pushen und
+   den von ECR bestaetigten Digest bestimmen.
+3. Den Stack mit aktiviertem Express Service und
+   `ImageUri=<repository>@<digest>` aktualisieren.
 
-Zusätzliche Betriebsregeln für den IaC-Branch:
+Der neue Implementierungsbranch muss Template, Guard-Regeln und Tests auf diese
+Ressourcenmenge umstellen. Der neue Runbook-Branch dokumentiert danach die
+tatsaechlich ausfuehrbaren Parameter und Befehle. Die alten v2.3-Kommandos sind
+keine Vorlage, die ungeprueft uebernommen werden darf.
 
-- kleine Skalierungsgrenze: `MinTaskCount: 1`, `MaxTaskCount: 1`
-  (höchstens `2`)
-- Billing-Budget oder Kostenalarm im Account als organisatorische Kontrolle
-- Demo nur bei Bedarf deployen; nach dem Nachweis Stack löschen
+Quellen:
 
-## IaC-Vorgabe für `feat/add-reference-cloud-infrastructure`
+- [`AWS::ECR::Repository` `EmptyOnDelete`](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecr-repository.html)
+- [`AWS::Logs::LogGroup`](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-logs-loggroup.html)
+- [Updating CloudFormation stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks.html)
 
-Der nächste Produktionsbranch setzt einen minimalen CloudFormation-Stack um.
-Vorgabe:
+## Observability-Nachweis
 
-### Zweistufiger Bootstrap im selben Stack
-
-Kein Express Service darf vor einem verfügbaren Image-Digest erstellt werden.
-Der Ablauf ist verbindlich zweistufig im selben Template:
-
-1. Stack mit ECR, IAM, Log Group, stackeigener öffentlicher VPC-Netzwerkbasis
-   und Secrets-Manager-Verdrahtung erstellen, jedoch **ohne** Express Service
-   (`DeployService="false"`).
-2. Image in ECR pushen, unveränderlichen Digest bestimmen und den Stack mit
-   aktiviertem Express Service aktualisieren
-   (`DeployService="true"`, `ImageUri=<repo>@<digest>`).
-
-Parameter (CloudFormation kennt keinen `Boolean`-Parametertyp; Strings mit
-`AllowedValues` verwenden):
-
-```yaml
-DeployService:
-  Type: String
-  Default: "false"
-  AllowedValues:
-    - "true"
-    - "false"
-
-ImageUri:
-  Type: String
-  Default: ""
-```
-
-Conditions so definieren, dass `AWS::ECS::ExpressGatewayService` nur erstellt
-wird, wenn `DeployService` gleich `"true"` ist und `ImageUri` nicht leer ist,
-beispielsweise:
-
-```yaml
-Conditions:
-  DeployExpressService:
-    Fn::And:
-      - Fn::Equals:
-          - Ref: DeployService
-          - "true"
-      - Fn::Not:
-          - Fn::Equals:
-              - Ref: ImageUri
-              - ""
-```
-
-Die Express-Service-Ressource trägt `Condition: DeployExpressService`.
-
-### Ressourcen und Konfiguration
-
-1. Amazon ECR Repository in `eu-central-1` mit `EmptyOnDelete: true`
-2. IAM: Task Execution Role und Express-Mode Infrastructure Role
-3. stackverwaltete `AWS::Logs::LogGroup` mit `RetentionInDays: 14`
-4. AWS Secrets Manager als Template-Bestandteil mit konditionalem Opt-in:
-   - Default: keine Secret-Injection; `FakeModelProvider` bleibt aktiv
-   - Opt-in: Secret-Ressource und/oder vorhandene Secret-ARN plus
-     Container-Injection über die Task Execution Role
-   - keine echten Secret-Werte im Repository oder Template
-5. stackeigene öffentliche Netzwerkbasis (immer im Stack, auch ohne Service):
-   - eine IPv4-VPC mit `EnableDnsSupport` und `EnableDnsHostnames`
-   - zwei öffentliche Subnetze mit nicht überlappenden CIDRs in zwei AZs und
-     `MapPublicIpOnLaunch: true`
-   - Internet Gateway, VPC-Attachment, öffentliche Route Table, Route
-     `0.0.0.0/0` und beide Subnetz-Assoziationen
-6. konditional `AWS::ECS::ExpressGatewayService` mit:
-   - `ImageUri` per unveränderlichem Digest
-   - `containerPort: 8000`
-   - Health-Check-Pfad `/health`
-   - `MinTaskCount: 1`, `MaxTaskCount: 1` (höchstens `2`)
-   - `PrimaryContainer.AwsLogsConfiguration` auf die stackverwaltete Log Group
-     inkl. `LogStreamPrefix`
-   - `NetworkConfiguration.Subnets` auf beide stackeigenen öffentlichen
-     Subnetze; ohne `NetworkConfiguration.SecurityGroups`
-7. Stack-Delete als Abschaltpfad dokumentieren und manuell verifizieren,
-   einschließlich Löschung von Log Group, geleertem ECR-Repository und der
-   stackeigenen VPC-Netzwerkbasis
-
-Nicht Teil des Standard-Stacks:
-
-- echte Secret-Werte
-- Datenbank
-- Authentifizierung
-- Custom-Domain-Pflicht
-- Multi-Region
-- erweiterte Dashboards oder Alarmflut
-- Default-VPC-Abhängigkeit
-- NAT Gateway, Elastic IP, private Subnetze oder VPC Endpoints
-- eigene ALB-, Target-Group- oder Security-Group-Ressourcen
-- Verlass auf die automatisch von Express Mode erzeugte Log Group
-- Express Service vor verfügbarem Image-Digest
-
-## Observability
-
-Die Log-Senke und die Aufbewahrung bleiben die stackverwaltete CloudWatch Log
-Group mit `RetentionInDays: 14` und `PrimaryContainer.AwsLogsConfiguration`.
-Strukturierte Runtime-Logs sind am HTTP-Systemrand vorhanden: jeder
-`POST /ai/draft`-Aufruf schreibt genau ein einzeiliges JSON-Event nach stdout
-und setzt eine serverseitige `X-Request-ID`. Das Event ist ein gültiges
-[CloudWatch Embedded Metric Format](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)-Dokument
-laut
-[EMF-Spezifikation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html).
-Die Anwendung verwendet dafür die Python-Standardbibliothek; es gibt kein
-AWS-SDK, keine CloudWatch-API, keinen `PutMetricData`-Aufruf und keine neue
-Dependency. `logs:PutLogEvents` über den bestehenden awslogs-Pfad bleibt
-ausreichend.
-
-Namespace `SteuerberaterCopilot/Runtime`. Nur die statischen Dimensionen
+Die Anwendung schreibt fuer jeden `POST /ai/draft` genau ein einzeiliges
+JSON-Event nach stdout und setzt eine serverseitige `X-Request-ID`. Das Event
+enthaelt CloudWatch Embedded Metric Format im Namespace
+`SteuerberaterCopilot/Runtime` mit den statischen Dimensionen
 `service=steuerberater-copilot` und `operation=POST /ai/draft`.
-`request_id`, `provider_name`, `model_name` und `prompt_version` sind keine
-CloudWatch-Dimensionen. `/health` und `/version` erzeugen keine
-Runtime-Metriken.
 
-Technische HTTP-Quoten, keine fachliche Bewertung:
+Der AWS-Nachweis muss belegen:
 
-- Erfolgsquote: `SUM(success_count) / SUM(request_count)`
-- Fehlerquote: `SUM(error_count) / SUM(request_count)`
-- Abstention Rate: `SUM(abstention_count) / SUM(request_count)`
-- P95-Latenz: p95-Statistik von `duration_ms`
-- Fehlerzähler jeweils als Sum
-- Modellkosten nur über vorhandene numerische `model_cost_usd`-Werte
+- das Runtime-Event erscheint in der stackverwalteten Log Group
+- Request-ID, Workflowstatus, Gatewayentscheidung, technischer
+  Review-Gate-Status, Provider-/Modellname, Promptversion, Laufzeit, Parse- und
+  Validierungsstatus sowie Fehlerklasse bleiben sichtbar
+- CloudWatch extrahiert mindestens `request_count`, Erfolgs-/Fehlerzaehler,
+  `duration_ms`, Fehlerzaehler und `abstention_count` als EMF-Metriken
+- Request-/Response-Bodys, Prompts, Modellantworten, Exception-Texte, Secrets
+  und personenbezogene Daten erscheinen nicht im Event
 
-Kontrollierter Block und Abstention mit HTTP 200 zählen technisch als
-erfolgreicher HTTP-Aufruf; die fachliche Bedeutung bleibt in
-`workflow_status`. Geschätzte Modellkosten sind nicht implementiert;
-`model_cost_usd` ist `0.0` oder `null`. Ist der Wert `null`, wird er nicht
-als EMF-MetricDefinition referenziert.
+`review_gate_status` bleibt ein technischer Status und keine menschliche
+Reviewentscheidung. Die reale EMF-Extraktion ist erst nach einem gesondert
+freigegebenen Live-Test bestaetigt. Ein Dashboard und Alarme sind dafuer keine
+Pflicht.
 
-EMF stellt mindestens-einmal-Verarbeitung sicher; gelegentliche doppelte
-Metrikwerte sind möglich. Benutzerdefinierte CloudWatch-Metriken können
-Kosten verursachen; siehe
-[Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/).
-Die niedrig-kardinalen Dimensionen begrenzen die Zahl der Zeitreihen. Es gibt
-kein verwaltetes Dashboard und keine Alarme in diesem Stand. Die reale
-EMF-Extraktion in CloudWatch bleibt bis zu einer bewussten AWS-Verifikation
-unbestätigt. Ein AWS-Live-Test ist nicht Teil dieses Stands.
+Quellen:
 
-`review_gate_status` ist der technische Review-Gate-Status, keine menschliche
-Reviewentscheidung. Request-/Response-Bodys, Prompts, Modellantworten,
-Exception-Texte, Secrets und personenbezogene Daten gehören nicht ins Event.
+- [Embedding metrics within logs](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format.html)
+- [CloudWatch Embedded Metric Format specification](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html)
+
+## Kosten- und Cleanup-Vertrag
+
+Vor einem spaeteren Live-Test muessen ein enges Zeitfenster und eine
+accountweite Kostenkontrolle, etwa Budget oder Kostenalarm, bestaetigt sein.
+Fuer den Stack gelten:
+
+- `MinTaskCount: 1`, `MaxTaskCount: 1`
+- Log-Aufbewahrung 14 Tage waehrend der Existenz des Stacks
+- ECR `EmptyOnDelete: true` ausschliesslich fuer diese kurzlebige synthetische
+  Demo
+- kein NAT Gateway, keine Datenbank und kein Dauerbetrieb
+- Stack unmittelbar nach dem Nachweis loeschen
+
+Express Mode verursacht keine eigene Zusatzgebuehr, aber die darunterliegenden
+Ressourcen wie Fargate, Load Balancer, CloudWatch und Datentransfer koennen
+Kosten verursachen. Benutzerdefinierte EMF-Metriken koennen ebenfalls Kosten
+verursachen.
+
+Vollstaendiger Cleanup bedeutet fuer diesen Nachweis:
+
+1. Stack loeschen und `DELETE_COMPLETE` abwarten.
+2. ECR-Repository, stackverwaltete Log Group und VPC-Netzwerkbasis auf
+   Abwesenheit pruefen.
+3. den Express Service sowie die ihm zurechenbaren Tasks, Task Definitions,
+   Target Groups, Service Security Groups, Auto-Scaling-Ressourcen und
+   sonstigen Express-Randressourcen inventarisieren und auf Abwesenheit
+   pruefen.
+4. von Express Mode moeglicherweise behaltene oder geteilte Ressourcen vor
+   jeder manuellen Bereinigung eindeutig attribuieren; geteilte Ressourcen
+   niemals blind loeschen.
+5. die beiden vorab deklarierten statischen Rollen gesondert ausweisen. Sie
+   gehoeren bewusst nicht zum kurzlebigen Stack und sind daher kein
+   unerkannter Stack-Rest.
+
+AWS dokumentiert, dass beim Loeschen eines Express-Mode-Diensts die eindeutig
+dienstbezogenen Ressourcen entfernt werden, geteilte Ressourcen aber erhalten
+bleiben koennen. Deshalb ist Stack-Delete allein noch kein ausreichender
+Cleanup-Nachweis.
+
+Quellen:
+
+- [Delete Amazon ECS Express Mode services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-delete-task.html)
+- [Amazon ECS Express Mode pricing](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html#express-service-pricing)
+- [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
+
+## Abnahmekriterien fuer den spaeteren Portfolio-Nachweis
+
+Der Nachweis ist erst erbracht, wenn eine separat freigegebene Ausfuehrung
+folgende Evidenz liefert:
+
+- finaler Review-Commit und gepruefte IaC-Artefakte
+- erfolgreicher zweistufiger Stack-Ablauf mit Digest-Image
+- erfolgreicher HTTPS-Aufruf von `/health`
+- erfolgreicher synthetischer `POST /ai/draft` mit `FakeModelProvider` und
+  unveraenderten Human-Review-/Gateway-Grenzen
+- zugehoeriges Runtime-Event in CloudWatch Logs und bestaetigte EMF-Extraktion
+- dokumentiertes Kostenfenster
+- `DELETE_COMPLETE` und bestandene Post-Delete-Inventur
+
+Bis das vereinfachte Template, seine Tests und das neue ausfuehrbare Runbook
+vorliegen, besteht kein AWS-Live-Test-Go.
 
 ## Revisit
 
 Diese Architektur wird neu bewertet bei:
 
-- Wegfall oder regionaler Nichtverfügbarkeit von ECS Express Mode in
+- Wegfall oder regionaler Nichtverfuegbarkeit von ECS Express Mode in
   `eu-central-1`
-- verbindlicher Anforderung an private Subnetze, NAT oder VPC Endpoints
-- Einführung echter Daten oder produktiver Integrationen
-- wesentlicher Änderung des Portfolioziels
+- Einfuehrung eines echten Modellproviders oder Runtime-Secrets
+- verbindlicher Anforderung an Authentifizierung, private Netzwerke oder
+  produktive Daten
+- wesentlicher Aenderung des Portfolioziels
