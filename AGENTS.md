@@ -97,6 +97,15 @@ Binding detail: `docs/02-security/security-baseline-policy.md`,
 `docs/15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md`,
 `docs/15-decisions/adr/adr-004-select-reference-cloud.md`.
 
+## German prose
+
+German prose uses standard UTF-8 orthography with `ä`, `ö`, `ü`, and `ß`.
+Do not replace umlauts with `ae`, `oe`, or `ue`. Do not use `ss` as a
+substitute for `ß`. Legitimate German `ss` such as in `dass`, `muss`, or
+`wissen` remains correct. ASCII forms remain allowed only where technically
+required, for example identifiers, filenames, regexes, commands, or external
+literal values. Do not bulk-normalize historical documents.
+
 ## Validation
 
 After changes:
