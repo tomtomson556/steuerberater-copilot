@@ -2,12 +2,12 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Minimal AWS reference-cloud stack for the local FastAPI/Docker demo.
   Synthetic-data portfolio demo only. Default DeployService=false for
-  two-stage bootstrap (ECR/IAM/LogGroup/VPC first, Express service after
+  two-stage bootstrap (ECR/LogGroup/VPC first, Express service after
   digest push). Stack-owned public IPv4 VPC (no default-VPC dependency).
-  Fixed names, paths, tags, and runtime-role boundaries per IAM/lifecycle
-  model v2.3. Static secret-read policy from stage 1. No TaskRoleArn.
-  No secret values in this template. Region expectation: eu-central-1.
-  Create and update only via reviewed change sets with CAPABILITY_NAMED_IAM.
+  Task Execution Role and Express Infrastructure Role are external static
+  roles referenced by required ARN parameters. No stack-owned IAM roles,
+  no TaskRoleArn, no Secrets Manager, and no secret values in this
+  template. Region expectation: eu-central-1.
 
 Parameters:
   DeployService:
@@ -30,28 +30,23 @@ Parameters:
       DeployService=true.
     Description: Fixed private ECR repository URI by digest only.
 
-  CreateManagedSecret:
+  TaskExecutionRoleArn:
     Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role(/[A-Za-z0-9+=,.@_-]+)*/[A-Za-z0-9+=,.@_-]+$'
+    ConstraintDescription: >
+      IAM role ARN for the external static Task Execution Role assumed by
+      ecs-tasks.amazonaws.com. This stack does not create the role.
     Description: >
-      When true, create an empty AWS::SecretsManager::Secret (no SecretString,
-      no GenerateSecretString). Set a value outside this repository before
-      enabling injection.
+      ARN of the external Task Execution Role used for image pull and awslogs.
 
-  InjectManagedSecret:
+  ExpressInfrastructureRoleArn:
     Type: String
-    Default: "false"
-    AllowedValues:
-      - "true"
-      - "false"
+    AllowedPattern: '^arn:aws:iam::[0-9]{12}:role(/[A-Za-z0-9+=,.@_-]+)*/[A-Za-z0-9+=,.@_-]+$'
+    ConstraintDescription: >
+      IAM role ARN for the external static Express Infrastructure Role assumed
+      by ecs.amazonaws.com. This stack does not create the role.
     Description: >
-      When true with CreateManagedSecret=true and DeployService=true, inject the
-      managed secret into the Express container. The task execution role already
-      has a static, ARN-pattern-scoped secretsmanager:GetSecretValue policy
-      from stage 1.
+      ARN of the external Express Infrastructure Role used by ECS Express Mode.
 
 Conditions:
   DeployExpressService:
@@ -63,18 +58,6 @@ Conditions:
           - Fn::Equals:
               - Ref: ImageUri
               - ""
-  CreateManagedSecretEnabled:
-    Fn::Equals:
-      - Ref: CreateManagedSecret
-      - "true"
-  InjectManagedSecretEnabled:
-    Fn::And:
-      - Fn::Equals:
-          - Ref: CreateManagedSecret
-          - "true"
-      - Fn::Equals:
-          - Ref: InjectManagedSecret
-          - "true"
 
 Rules:
   DeployServiceRequiresDigestImageUri:
@@ -89,30 +72,6 @@ Rules:
         AssertDescription: >
           DeployService=true requires a non-empty ImageUri. AllowedPattern
           enforces digest form repository@sha256:<64 hex>.
-
-  InjectRequiresCreateManagedSecret:
-    RuleCondition: !Equals
-      - !Ref InjectManagedSecret
-      - "true"
-    Assertions:
-      - Assert: !Equals
-          - !Ref CreateManagedSecret
-          - "true"
-        AssertDescription: >
-          InjectManagedSecret=true requires CreateManagedSecret=true.
-          External secret ARNs are not supported in this stack.
-
-  InjectRequiresDeployService:
-    RuleCondition: !Equals
-      - !Ref InjectManagedSecret
-      - "true"
-    Assertions:
-      - Assert: !Equals
-          - !Ref DeployService
-          - "true"
-        AssertDescription: >
-          InjectManagedSecret=true requires DeployService=true so the secret
-          can be wired into PrimaryContainer.Secrets.
 
 Resources:
   ReferenceDemoRepository:
@@ -267,99 +226,6 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRouteTable
 
-  TaskExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: task-execution
-      Path: /steuerberater-copilot/reference-demo/
-      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/task-execution-boundary
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-            Condition:
-              StringEquals:
-                aws:SourceAccount: !Ref AWS::AccountId
-              ArnLike:
-                aws:SourceArn: !Sub arn:aws:ecs:eu-central-1:${AWS::AccountId}:*
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      Policies:
-        - PolicyName: ManagedSecretGetSecretValue
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action: secretsmanager:GetSecretValue
-                Resource: !Sub arn:aws:secretsmanager:eu-central-1:${AWS::AccountId}:secret:steuerberater-copilot/reference-demo/synthetic-*
-      Tags:
-        - Key: Project
-          Value: steuerberater-copilot
-        - Key: Component
-          Value: reference-demo
-        - Key: Environment
-          Value: portfolio-test
-        - Key: ManagedBy
-          Value: cloudformation
-        - Key: Lifecycle
-          Value: ephemeral
-
-  ExpressInfrastructureRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: express-infrastructure
-      Path: /steuerberater-copilot/reference-demo/
-      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-boundary
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Sid: AllowAccessToECSForInfrastructureManagement
-            Effect: Allow
-            Principal:
-              Service: ecs.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices
-        - !Sub arn:aws:iam::${AWS::AccountId}:policy/steuerberater-copilot/reference-demo/express-infrastructure-acm-request-policy
-      Tags:
-        - Key: Project
-          Value: steuerberater-copilot
-        - Key: Component
-          Value: reference-demo
-        - Key: Environment
-          Value: portfolio-test
-        - Key: ManagedBy
-          Value: cloudformation
-        - Key: Lifecycle
-          Value: ephemeral
-
-  ManagedSecret:
-    Type: AWS::SecretsManager::Secret
-    Condition: CreateManagedSecretEnabled
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
-    Properties:
-      Name: steuerberater-copilot/reference-demo/synthetic
-      Description: >
-        Empty stack-managed secret for the reference-demo opt-in path.
-        Set the value outside the repository with PutSecretValue before
-        enabling InjectManagedSecret. No SecretString and no
-        GenerateSecretString in this template.
-      Tags:
-        - Key: Project
-          Value: steuerberater-copilot
-        - Key: Component
-          Value: reference-demo
-        - Key: Environment
-          Value: portfolio-test
-        - Key: ManagedBy
-          Value: cloudformation
-        - Key: Lifecycle
-          Value: ephemeral
-
   ExpressGatewayService:
     Type: AWS::ECS::ExpressGatewayService
     Condition: DeployExpressService
@@ -372,8 +238,8 @@ Resources:
       ServiceName: steuerberater-copilot-reference-demo
       Cpu: "256"
       Memory: "512"
-      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-      InfrastructureRoleArn: !GetAtt ExpressInfrastructureRole.Arn
+      ExecutionRoleArn: !Ref TaskExecutionRoleArn
+      InfrastructureRoleArn: !Ref ExpressInfrastructureRoleArn
       HealthCheckPath: /health
       NetworkConfiguration:
         Subnets:
@@ -385,11 +251,6 @@ Resources:
         AwsLogsConfiguration:
           LogGroup: !Ref ApplicationLogGroup
           LogStreamPrefix: ecs
-        Secrets: !If
-          - InjectManagedSecretEnabled
-          - - Name: REFERENCE_DEMO_SECRET
-              ValueFrom: !Ref ManagedSecret
-          - !Ref AWS::NoValue
       ScalingTarget:
         MinTaskCount: 1
         MaxTaskCount: 1
@@ -418,8 +279,3 @@ Outputs:
     Condition: DeployExpressService
     Description: HTTPS endpoint of the Express Gateway service.
     Value: !GetAtt ExpressGatewayService.Endpoint
-
-  ManagedSecretArn:
-    Condition: CreateManagedSecretEnabled
-    Description: ARN of the empty stack-managed Secrets Manager secret.
-    Value: !Ref ManagedSecret
