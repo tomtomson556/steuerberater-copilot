@@ -97,6 +97,13 @@ Binding detail: `docs/02-security/security-baseline-policy.md`,
 `docs/15-decisions/adr/adr-003-local-first-cloud-neutral-single-reference-cloud.md`,
 `docs/15-decisions/adr/adr-004-select-reference-cloud.md`.
 
+## German prose
+
+German prose uses normal UTF-8 orthography (`ä`, `ö`, `ü`, `ß`). ASCII
+transliterations (`ae`, `oe`, `ue`, `ss`) remain valid only where technically
+required, for example identifiers, filenames, regexes, external literal values,
+or commands. Do not bulk-normalize historical documents.
+
 ## Validation
 
 After changes:
