@@ -1,0 +1,87 @@
+#
+# CloudFormation Guard allowlist for the static ECS Express IAM roles.
+# Offline pytest invokes the Guard CLI against this file. These roles stay
+# outside the ephemeral reference-demo stack.
+#
+
+let allowed_resource_types = [
+  "AWS::IAM::Role"
+]
+
+let forbidden_resource_types = [
+  "AWS::IAM::Policy",
+  "AWS::IAM::ManagedPolicy",
+  "AWS::IAM::InstanceProfile",
+  "AWS::IAM::User",
+  "AWS::SecretsManager::Secret",
+  "AWS::ECS::ExpressGatewayService",
+  "AWS::ECR::Repository",
+  "AWS::Logs::LogGroup",
+  "AWS::EC2::VPC"
+]
+
+rule template_contains_exactly_two_iam_roles {
+  Parameters not exists
+  let resource_count = count(Resources.*)
+  %resource_count == 2
+  Resources.TaskExecutionRole exists
+  Resources.ExpressInfrastructureRole exists
+  Resources.TaskExecutionRole.Type == "AWS::IAM::Role"
+  Resources.ExpressInfrastructureRole.Type == "AWS::IAM::Role"
+}
+
+rule resources_are_allowlisted {
+  Resources.* {
+    Type IN %allowed_resource_types
+  }
+}
+
+rule forbidden_resource_types_are_absent {
+  Resources.* {
+    Type not IN %forbidden_resource_types
+  }
+}
+
+rule roles_use_fixed_names_and_aws_managed_policies_only {
+  Resources.TaskExecutionRole.Properties.RoleName == "steuerberater-copilot-reference-demo-task-execution"
+  Resources.TaskExecutionRole.Properties.ManagedPolicyArns == ["arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"]
+  Resources.ExpressInfrastructureRole.Properties.RoleName == "steuerberater-copilot-reference-demo-express-infrastructure"
+  Resources.ExpressInfrastructureRole.Properties.ManagedPolicyArns == ["arn:aws:iam::aws:policy/service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"]
+}
+
+rule roles_have_no_inline_policies_boundaries_or_customer_managed_extras {
+  Resources.* {
+    Properties.Policies not exists
+    Properties.PermissionsBoundary not exists
+    Properties.Path not exists
+  }
+}
+
+rule task_execution_role_trusts_only_ecs_tasks {
+  let statements = Resources.TaskExecutionRole.Properties.AssumeRolePolicyDocument.Statement
+  let statement_count = count(%statements)
+  %statement_count == 1
+  %statements[0].Effect == "Allow"
+  %statements[0].Principal.Service == "ecs-tasks.amazonaws.com"
+  %statements[0].Action == "sts:AssumeRole"
+  %statements[0].Condition not exists
+}
+
+rule express_infrastructure_role_trusts_only_ecs {
+  let statements = Resources.ExpressInfrastructureRole.Properties.AssumeRolePolicyDocument.Statement
+  let statement_count = count(%statements)
+  %statement_count == 1
+  %statements[0].Effect == "Allow"
+  %statements[0].Principal.Service == "ecs.amazonaws.com"
+  %statements[0].Action == "sts:AssumeRole"
+  %statements[0].Condition not exists
+}
+
+rule outputs_export_both_role_arns {
+  let output_count = count(Outputs.*)
+  %output_count == 2
+  Outputs.TaskExecutionRoleArn exists
+  Outputs.ExpressInfrastructureRoleArn exists
+  Outputs.TaskExecutionRoleArn.Value["Fn::GetAtt"] == "TaskExecutionRole.Arn"
+  Outputs.ExpressInfrastructureRoleArn.Value["Fn::GetAtt"] == "ExpressInfrastructureRole.Arn"
+}
