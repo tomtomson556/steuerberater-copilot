@@ -24,7 +24,12 @@ from .models import (
     ReviewStatus,
     RiskClassification,
 )
-from .privacy_gateway import combine_gateway_results, run_response_gateway_check
+from .privacy_gateway import (
+    combine_gateway_results,
+    privacy_gateway_retrieval_context_from_document_ids,
+    run_response_gateway_check,
+    run_retrieval_context_gateway_check,
+)
 from .prompt_builder import build_synthetic_grounded_model_request
 from .structured_output_validator import validate_structured_draft_output
 from .workflow import classify_internal_risk, run_human_review_gate, run_mock_gateway
@@ -59,9 +64,14 @@ def build_synthetic_rag_workflow(
 ) -> SyntheticRAGWorkflowOutput:
     """Run the separate synthetic RAG path after existing offline MVP controls.
 
-    Gateway and human review run before retrieval and provider invocation. The
-    same ``retrieved_documents`` tuple is passed to the grounded prompt and the
-    grounding validator. Empty retrieval abstains without a provider call.
+    Gateway and human review run before retrieval and provider invocation.
+    After a non-empty retrieval, retrieved document identifiers pass an
+    explicit Privacy Gateway check before prompt construction. Disallowed
+    retrieval context stops without calling the prompt builder or provider
+    and keeps gateway, risk, and review state on the existing block or
+    escalation path. The same ``retrieved_documents`` tuple is passed to the
+    grounded prompt and the grounding validator. Empty retrieval abstains
+    without a provider call.
     """
 
     gateway = run_mock_gateway(case)
@@ -94,6 +104,28 @@ def build_synthetic_rag_workflow(
             model_response=None,
             grounded_draft=None,
             abstained_for_missing_evidence=True,
+        )
+
+    gateway = combine_gateway_results(
+        gateway,
+        run_retrieval_context_gateway_check(
+            privacy_gateway_retrieval_context_from_document_ids(
+                document.document_id for document in retrieved_documents
+            )
+        ),
+    )
+    if gateway.decision is not GatewayDecision.ALLOW_DRAFT:
+        risk_classification = classify_internal_risk(case, gateway)
+        review_gate = run_human_review_gate(risk_classification)
+        return SyntheticRAGWorkflowOutput(
+            intake=case,
+            gateway=gateway,
+            risk_classification=risk_classification,
+            review_gate=review_gate,
+            retrieved_documents=retrieved_documents,
+            model_response=None,
+            grounded_draft=None,
+            abstained_for_missing_evidence=False,
         )
 
     request = build_synthetic_grounded_model_request(

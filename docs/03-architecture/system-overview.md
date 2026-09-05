@@ -79,9 +79,11 @@ IntakeCase
 
 The RAG path runs the same gateway and review controls first, then retrieves
 local synthetic sources. Empty retrieval abstains without a provider call.
-Retrieved `SourceDocument` content currently has no separate gateway check
-before prompt construction; this known security gap remains an open
-follow-up fix. Citations remain part of the grounded draft contract.
+After a non-empty retrieval, an explicit deterministic retrieval-context
+gateway check runs before prompt construction. Disallowed retrieval context
+stops before the prompt builder and provider; gateway, risk, and review
+state follow the existing block or escalation path. Citations remain part of
+the grounded draft contract.
 
 Semantic validation checks structured draft claims. It is not a tax
 correctness check. Human Review remains mandatory for any tax-relevant

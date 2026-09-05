@@ -20,9 +20,12 @@ from steuerberater_copilot.offline_mvp.models import (
 from steuerberater_copilot.offline_mvp.privacy_gateway import (
     PrivacyDataClass,
     PrivacyGatewayRequest,
+    PrivacyGatewayRetrievalContext,
     privacy_gateway_request_from_case,
+    privacy_gateway_retrieval_context_from_document_ids,
     run_request_gateway_check,
     run_response_gateway_check,
+    run_retrieval_context_gateway_check,
 )
 from steuerberater_copilot.offline_mvp.workflow import build_mock_workflow, load_fixture_cases
 
@@ -55,6 +58,82 @@ def test_request_gateway_blocks_forbidden_data_class():
     assert gateway.decision == GatewayDecision.BLOCK
     assert gateway.escalation_reasons == ()
     assert gateway.block_reasons == ("forbidden_data_class:original_pii",)
+
+
+def test_retrieval_context_gateway_allows_synthetic_source_ids():
+    context = privacy_gateway_retrieval_context_from_document_ids(
+        ("SYNTHETIC_SOURCE_001", "SYNTHETIC_RAG_ABSTENTION_WITH_EVIDENCE_ORCHARD")
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert context.data_classes == (PrivacyDataClass.SYNTHETIC_FIXTURE,)
+    assert gateway.decision == GatewayDecision.ALLOW_DRAFT
+    assert gateway.escalation_reasons == ()
+    assert gateway.block_reasons == ()
+    assert gateway.checks == (
+        "retrieval_context_purpose_documented",
+        "retrieval_context_data_classes_allowed",
+        "retrieval_context_pseudonyms_non_reidentifying",
+        "retrieval_context_review_path_present",
+        "retrieval_context_minimized",
+    )
+
+
+def test_retrieval_context_gateway_blocks_declared_forbidden_data_class():
+    context = privacy_gateway_retrieval_context_from_document_ids(
+        ("SYNTHETIC_SOURCE_FORBIDDEN_ORIGINAL_PII",)
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert PrivacyDataClass.ORIGINAL_PII in context.data_classes
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.escalation_reasons == ()
+    assert gateway.block_reasons == ("forbidden_data_class:original_pii",)
+
+
+def test_retrieval_context_gateway_escalates_non_synthetic_source_id():
+    context = privacy_gateway_retrieval_context_from_document_ids(
+        ("UNMARKED_SOURCE_001",)
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert context.data_classes == (PrivacyDataClass.SYNTHETIC_FIXTURE,)
+    assert gateway.decision == GatewayDecision.ESCALATE
+    assert gateway.escalation_reasons == ("document_id_must_be_synthetic",)
+    assert gateway.block_reasons == ()
+
+
+def test_retrieval_context_gateway_escalates_declared_reidentification_risk():
+    context = privacy_gateway_retrieval_context_from_document_ids(
+        ("SYNTHETIC_SOURCE_REIDENTIFICATION_RISK",)
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert context.reidentification_risk is True
+    assert gateway.decision == GatewayDecision.ESCALATE
+    assert gateway.escalation_reasons == ("reidentification_risk",)
+
+
+def test_retrieval_context_gateway_keeps_data_class_block_over_identity_escalation():
+    context = PrivacyGatewayRetrievalContext(
+        purpose="offline_validation",
+        data_classes=(
+            PrivacyDataClass.SYNTHETIC_FIXTURE,
+            PrivacyDataClass.SECRET,
+        ),
+        document_refs=("UNMARKED_SOURCE_001",),
+        review_path_present=True,
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert gateway.decision == GatewayDecision.BLOCK
+    assert gateway.block_reasons == ("forbidden_data_class:secret",)
+    assert gateway.escalation_reasons == ("document_id_must_be_synthetic",)
 
 
 def test_request_gateway_escalates_unclear_purpose():
