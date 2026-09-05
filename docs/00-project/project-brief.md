@@ -67,8 +67,8 @@ Provider-, HTTP- und Cloud-Komponenten liegen an den Systemrändern.
 
 ## Kontrollschichten
 
-1. **Policy- und Privacy-Gateway** - Filterung und Markerprüfung vor und nach
-   dem Modellaufruf
+1. **Policy- und Privacy-Gateway** - deterministische Prüfungen vor dem
+   Modellaufruf sowie Markerprüfung des Modelloutputs
 2. **Risikoklassifikation und Human Review Gate** - interne Routing-Marker
    und Pflichtstopp vor automatischer Fortsetzung
 3. **Model Invocation Policy** - erlaubte Prompt-ID/Version und
@@ -92,7 +92,9 @@ Nicht aktuelle Portfolio-Pfade sind insbesondere:
 - Next.js oder eine vollständige Weboberfläche
 
 Die lokale RAG-Baseline nutzt einen deterministischen Token-Overlap-Retriever
-über synthetische `SourceDocument`-Objekte.
+über synthetische `SourceDocument`-Objekte. Der abgerufene Retrieval-Kontext
+besitzt derzeit noch keine separate Gateway-Prüfung vor dem Promptaufbau;
+diese bekannte Security-Lücke ist als kleiner Folgefix offen.
 
 ## Nicht-Ziele
 
