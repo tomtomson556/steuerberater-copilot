@@ -3,28 +3,42 @@
 ## Status: Legacy und superseded
 
 Dieses Dokument bewahrt den historischen Betriebs- und Deployment-Ablauf für
-den vorhandenen v2.3-Referenz-Stack
-(`infra/cloudformation/reference-demo.yaml`). Der Ablauf ist durch das aktuelle
-vereinfachte Zielbild in
+den v2.3-Referenz-Stack. Der Ablauf ist durch das aktuelle vereinfachte
+Zielbild in
 `docs/03-architecture/aws-reference-cloud-deployment.md` superseded. Er ist
 weder die aktuelle Zielarchitektur noch eine Anleitung für den nächsten
 AWS-Test und erteilt ausdrücklich kein AWS-Live-Go.
 
-Das vorhandene Template, die Guard-Regeln und die nachfolgenden Kommandos
-bleiben als historische Engineering-/IAM-Evidenz erhalten. Alle normativen
-Formulierungen unterhalb dieses Statushinweises gelten ausschließlich
-innerhalb des alten v2.3-Vertrags. Sie dürfen nicht auf die neue normale
-AWS-Referenzdemo-Arbeit übertragen oder ausgeführt werden.
+Die aktuellen Dateien `infra/cloudformation/reference-demo.yaml` und
+`infra/cloudformation/guards/reference-demo.guard` auf `main` sind der
+vereinfachte Stack und keine v2.3-Artefakte.
 
-Ein neues ausführbares Deployment-Runbook wird erst zusammen mit der
-vereinfachten Implementierung erstellt. Bis dahin gibt es für das aktuelle
-Zielbild keinen ausführbaren AWS-Deployment-Pfad.
+Das historische v2.3-Template und die historische Guard-Datei sind
+unveränderlich über den letzten Stand vor #149 zu referenzieren:
+
+```text
+9a8465ec9f19ec4db8635004ec009dad14d7665d:infra/cloudformation/reference-demo.yaml
+9a8465ec9f19ec4db8635004ec009dad14d7665d:infra/cloudformation/guards/reference-demo.guard
+```
+
+Relative Template- und Guard-Pfade im historischen Kommandoteil gelten nur
+im Kontext dieses historischen Commits. Sie zeigen nicht auf die heutigen
+Dateien auf `main`.
+
+Die nachfolgenden Kommandos bleiben als historische Engineering-/IAM-Evidenz
+erhalten. Alle normativen Formulierungen unterhalb dieses Statushinweises
+gelten ausschließlich innerhalb des alten v2.3-Vertrags. Sie dürfen nicht auf
+die neue normale AWS-Referenzdemo-Arbeit übertragen oder ausgeführt werden.
+
+Ein neues ausführbares Runbook für den vereinfachten Stack steht noch aus.
+Bis dahin gibt es für das aktuelle Zielbild keinen ausführbaren
+AWS-Deployment-Pfad.
 
 Historischer Scope: synthetische Portfolio-Demo nur; keine echten Mandanten-,
-Kanzlei- oder Steuerdaten. Das Legacy-Runbook bindet Template, Guard-Regeln und
-Betrieb an das IAM-/Lifecycle-Modell v2.3 und die Artefakte unter
-`infra/iam/reference-demo/v2.3/`. Create und Update laufen in diesem alten Pfad
-ausschließlich über geprüfte Change Sets mit der festen
+Kanzlei- oder Steuerdaten. Das Legacy-Runbook bindet den historischen
+v2.3-Stack und seine Guard-Regeln an das IAM-/Lifecycle-Modell v2.3 und die
+Artefakte unter `infra/iam/reference-demo/v2.3/`. Create und Update laufen in
+diesem alten Pfad ausschließlich über geprüfte Change Sets mit der festen
 CloudFormation-Service-Rolle. Direkte `create-stack`- und `update-stack`-
 Aufrufe sind nicht Teil dieses Legacy-Pfads.
 

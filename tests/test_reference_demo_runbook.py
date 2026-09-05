@@ -12,7 +12,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNBOOK_PATH = ROOT / "docs" / "09-operations" / "aws-reference-demo-runbook.md"
+TEMPLATE_PATH = ROOT / "infra" / "cloudformation" / "reference-demo.yaml"
 GUARD_PATH = ROOT / "infra" / "cloudformation" / "guards" / "reference-demo.guard"
+TEMPLATE_RELATIVE_PATH = "infra/cloudformation/reference-demo.yaml"
+GUARD_RELATIVE_PATH = "infra/cloudformation/guards/reference-demo.guard"
+HISTORICAL_V23_COMMIT = "9a8465ec9f19ec4db8635004ec009dad14d7665d"
+STATUS_HEADING = "## Status: Legacy und superseded"
+VORAUSSETZUNGEN_HEADING = "## Voraussetzungen"
 
 FIXED_STACK_TAGS = (
     "Key=Project,Value=steuerberater-copilot",
@@ -75,6 +81,13 @@ FORBIDDEN_OPERATION_PREFIXES = (
 def load_runbook() -> str:
     assert RUNBOOK_PATH.is_file(), RUNBOOK_PATH
     return RUNBOOK_PATH.read_text(encoding="utf-8")
+
+
+def status_section(text: str) -> str:
+    start = text.index(STATUS_HEADING)
+    end = text.index(VORAUSSETZUNGEN_HEADING)
+    assert start < end
+    return text[start:end]
 
 
 def preflight_section(text: str) -> str:
@@ -207,6 +220,54 @@ def test_runbook_requires_offline_hash_guard_and_change_set_review() -> None:
     assert "13" in text
     assert "aws cloudformation create-stack" not in text
     assert "aws cloudformation update-stack" not in text
+
+
+def test_runbook_status_scopes_relative_template_guard_paths_to_historical_commit() -> None:
+    text = load_runbook()
+    status = status_section(text)
+    commands = text[text.index(VORAUSSETZUNGEN_HEADING) :]
+    historical_template = f"{HISTORICAL_V23_COMMIT}:{TEMPLATE_RELATIVE_PATH}"
+    historical_guard = f"{HISTORICAL_V23_COMMIT}:{GUARD_RELATIVE_PATH}"
+
+    status_text = " ".join(status.split())
+    assert HISTORICAL_V23_COMMIT in status
+    assert "vor #149" in status
+    assert historical_template in status
+    assert historical_guard in status
+    assert "vereinfachte Stack" in status
+    assert "keine v2.3-Artefakte" in status
+    assert "historischen Kommandoteil" in status
+    assert "nur im Kontext dieses historischen Commits" in status_text
+    assert "nicht auf die heutigen Dateien auf `main`" in status_text
+    assert re.search(
+        r"v2\.3-Referenz-Stack\s*\(\s*`infra/cloudformation/reference-demo\.yaml`\s*\)",
+        status,
+    ) is None
+    assert "Das vorhandene Template, die Guard-Regeln" not in status
+
+    assert f"sha256sum {TEMPLATE_RELATIVE_PATH}" in commands
+    assert f"sha256sum {GUARD_RELATIVE_PATH}" in commands
+    assert "cfn-guard validate" in commands
+    assert f"--data {TEMPLATE_RELATIVE_PATH}" in commands
+    assert f"--rules {GUARD_RELATIVE_PATH}" in commands
+
+    current_template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    current_guard = GUARD_PATH.read_text(encoding="utf-8")
+    allowed_types = re.search(
+        r"let allowed_resource_types = \[(.*?)]",
+        current_guard,
+        flags=re.DOTALL,
+    )
+    assert allowed_types, current_guard
+    allowed = allowed_types.group(1)
+    assert "TaskExecutionRoleArn" in current_template
+    assert "CreateManagedSecret" not in current_template
+    assert "AWS::IAM::Role" not in current_template
+    assert "AWS::SecretsManager::Secret" not in current_template
+    assert "AWS::IAM::Role" not in allowed
+    assert "AWS::SecretsManager::Secret" not in allowed
+    assert "AWS::IAM::Role" in current_guard
+    assert "AWS::SecretsManager::Secret" in current_guard
 
 
 def test_runbook_documents_secret_force_delete_and_x86_image() -> None:
@@ -516,3 +577,4 @@ def test_runbook_static_checks_stay_network_free() -> None:
     }
     assert "preflight_aws_operations" in source
     assert "load_runbook" in source
+    assert "status_section" in source
