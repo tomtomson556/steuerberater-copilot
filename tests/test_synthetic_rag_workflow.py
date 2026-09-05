@@ -40,6 +40,7 @@ from steuerberater_copilot.offline_mvp.models import (
     RiskLevel,
     SyntheticDocument,
 )
+from steuerberater_copilot.offline_mvp.privacy_gateway import PrivacyDataClass
 from steuerberater_copilot.offline_mvp.prompt_builder import (
     build_synthetic_grounded_model_request,
 )
@@ -52,6 +53,10 @@ from steuerberater_copilot.offline_mvp.structured_output_validator import (
     StructuredDraftOutputValidationError,
 )
 from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
+from steuerberater_copilot.rag.source_document import (
+    SYNTHETIC_FIXTURE_DATA_CLASS,
+    UNTRUSTED_DATA_CLASS,
+)
 
 RETRIEVAL_QUERY = "synthetic invoice retention"
 RETRIEVAL_TOP_K = 1
@@ -147,6 +152,11 @@ def test_synthetic_rag_workflow_runs_successful_controlled_path() -> None:
         ),
     )
     assert result.gateway.checks[5:] == (
+        "retrieval_context_purpose_documented",
+        "retrieval_context_data_classes_allowed",
+        "retrieval_context_pseudonyms_non_reidentifying",
+        "retrieval_context_review_path_present",
+        "retrieval_context_minimized",
         "response_keeps_draft_status",
         "response_requires_human_review_when_needed",
         "response_no_productive_transmission",
@@ -280,10 +290,27 @@ def test_synthetic_rag_workflow_uses_rag_invocation_boundary(monkeypatch) -> Non
 def test_synthetic_rag_workflow_runs_boundaries_in_controlled_order(monkeypatch) -> None:
     provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
     calls: list[str] = []
+    original_retrieval_check = rag_workflow.run_retrieval_context_gateway_check
+    original_prompt_builder = rag_workflow.build_synthetic_grounded_model_request
     original_parser = rag_workflow.parse_grounded_draft
     original_semantic_validator = rag_workflow.validate_structured_draft_output
     original_grounding_validator = rag_workflow.validate_grounded_draft
     original_gateway_check = rag_workflow.run_response_gateway_check
+
+    def retrieval_spy(context):
+        calls.append("retrieval_gateway")
+        return original_retrieval_check(context)
+
+    def prompt_spy(
+        prompt_case: IntakeCase,
+        *,
+        retrieved_documents: tuple[SourceDocument, ...],
+    ) -> ModelRequest:
+        calls.append("prompt_builder")
+        return original_prompt_builder(
+            prompt_case,
+            retrieved_documents=retrieved_documents,
+        )
 
     def parse_spy(content: str) -> GroundedDraft:
         calls.append("parser")
@@ -308,6 +335,16 @@ def test_synthetic_rag_workflow_runs_boundaries_in_controlled_order(monkeypatch)
         calls.append("response_gateway")
         return original_gateway_check(draft_package)
 
+    monkeypatch.setattr(
+        rag_workflow,
+        "run_retrieval_context_gateway_check",
+        retrieval_spy,
+    )
+    monkeypatch.setattr(
+        rag_workflow,
+        "build_synthetic_grounded_model_request",
+        prompt_spy,
+    )
     monkeypatch.setattr(rag_workflow, "parse_grounded_draft", parse_spy)
     monkeypatch.setattr(
         rag_workflow,
@@ -330,6 +367,8 @@ def test_synthetic_rag_workflow_runs_boundaries_in_controlled_order(monkeypatch)
     )
 
     assert calls == [
+        "retrieval_gateway",
+        "prompt_builder",
         "parser",
         "semantic_validator",
         "grounding_validator",
@@ -365,6 +404,7 @@ def test_synthetic_rag_workflow_gateway_stop_skips_retrieval_and_provider(
     assert result.review_gate.allows_offline_mock_continuation is False
     assert result.retrieved_documents == ()
     assert result.abstained_for_missing_evidence is False
+    assert "retrieval_context_data_classes_allowed" not in result.gateway.checks
     assert provider.requests == ()
     assert result.model_response is None
     assert result.grounded_draft is None
@@ -400,6 +440,7 @@ def test_synthetic_rag_workflow_review_gate_stop_skips_retrieval_and_provider(
     assert result.review_gate.allows_offline_mock_continuation is False
     assert result.retrieved_documents == ()
     assert result.abstained_for_missing_evidence is False
+    assert "retrieval_context_data_classes_allowed" not in result.gateway.checks
     assert provider.requests == ()
     assert result.model_response is None
     assert result.grounded_draft is None
@@ -431,6 +472,148 @@ def test_synthetic_rag_workflow_abstains_without_provider_when_retrieval_empty()
     assert result.review_gate.allows_offline_mock_continuation is True
     assert result.retrieved_documents == ()
     assert result.abstained_for_missing_evidence is True
+    assert "retrieval_context_data_classes_allowed" not in result.gateway.checks
+    assert provider.requests == ()
+    assert result.model_response is None
+    assert result.grounded_draft is None
+
+
+def test_synthetic_rag_workflow_blocks_forbidden_retrieval_context_before_prompt(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    documents = (
+        SourceDocument(
+            document_id="SYNTHETIC_SOURCE_001",
+            title="Synthetic invoice retention note",
+            content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=PrivacyDataClass.ORIGINAL_PII.value,
+        ),
+    )
+    provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError(
+            "prompt builder must not run after retrieval-context block"
+        )
+
+    monkeypatch.setattr(
+        rag_workflow,
+        "build_synthetic_grounded_model_request",
+        fail_if_called,
+    )
+
+    result = build_synthetic_rag_workflow(
+        case,
+        provider=provider,
+        retriever=LocalDocumentRetriever(documents=documents),
+        retrieval_query=RETRIEVAL_QUERY,
+        top_k=RETRIEVAL_TOP_K,
+    )
+
+    assert result.retrieved_documents == documents
+    assert result.gateway.decision is GatewayDecision.BLOCK
+    assert result.gateway.block_reasons == ("forbidden_data_class:original_pii",)
+    assert "retrieval_context_data_classes_allowed" in result.gateway.checks
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_D
+    assert result.risk_classification.review_required is True
+    assert "forbidden_data_class:original_pii" in result.risk_classification.basis
+    assert result.review_gate.allows_offline_mock_continuation is False
+    assert result.abstained_for_missing_evidence is False
+    assert provider.requests == ()
+    assert result.model_response is None
+    assert result.grounded_draft is None
+
+
+def test_synthetic_rag_workflow_escalates_non_synthetic_retrieval_context_before_prompt(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    documents = (
+        SourceDocument(
+            document_id="UNMARKED_SOURCE_001",
+            title="Synthetic invoice retention note",
+            content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
+        ),
+    )
+    provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError(
+            "prompt builder must not run after retrieval-context escalation"
+        )
+
+    monkeypatch.setattr(
+        rag_workflow,
+        "build_synthetic_grounded_model_request",
+        fail_if_called,
+    )
+
+    result = build_synthetic_rag_workflow(
+        case,
+        provider=provider,
+        retriever=LocalDocumentRetriever(documents=documents),
+        retrieval_query=RETRIEVAL_QUERY,
+        top_k=RETRIEVAL_TOP_K,
+    )
+
+    assert result.retrieved_documents == documents
+    assert result.gateway.decision is GatewayDecision.ESCALATE
+    assert result.gateway.escalation_reasons == ("document_id_must_be_synthetic",)
+    assert "retrieval_context_pseudonyms_non_reidentifying" in result.gateway.checks
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_C
+    assert result.risk_classification.review_required is True
+    assert "document_id_must_be_synthetic" in result.risk_classification.basis
+    assert result.review_gate.allows_offline_mock_continuation is False
+    assert result.abstained_for_missing_evidence is False
+    assert provider.requests == ()
+    assert result.model_response is None
+    assert result.grounded_draft is None
+
+
+def test_synthetic_rag_workflow_rejects_synthetic_id_without_declared_data_class(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    documents = (
+        SourceDocument(
+            document_id="SYNTHETIC_SOURCE_001",
+            title="Synthetic invoice retention note",
+            content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=UNTRUSTED_DATA_CLASS,
+        ),
+    )
+    provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError(
+            "prompt builder must not run for undeclared retrieval data class"
+        )
+
+    monkeypatch.setattr(
+        rag_workflow,
+        "build_synthetic_grounded_model_request",
+        fail_if_called,
+    )
+
+    result = build_synthetic_rag_workflow(
+        case,
+        provider=provider,
+        retriever=LocalDocumentRetriever(documents=documents),
+        retrieval_query=RETRIEVAL_QUERY,
+        top_k=RETRIEVAL_TOP_K,
+    )
+
+    assert result.retrieved_documents == documents
+    assert result.gateway.decision is GatewayDecision.ESCALATE
+    assert result.gateway.escalation_reasons == ("retrieval_data_class_untrusted",)
+    assert "retrieval_context_data_classes_allowed" in result.gateway.checks
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_C
+    assert result.risk_classification.review_required is True
+    assert "retrieval_data_class_untrusted" in result.risk_classification.basis
+    assert result.review_gate.allows_offline_mock_continuation is False
+    assert result.abstained_for_missing_evidence is False
     assert provider.requests == ()
     assert result.model_response is None
     assert result.grounded_draft is None
@@ -766,11 +949,13 @@ def _matching_source_documents() -> tuple[SourceDocument, ...]:
             document_id="SYNTHETIC_SOURCE_001",
             title="Synthetic invoice retention note",
             content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
         SourceDocument(
             document_id="SYNTHETIC_SOURCE_002",
             title="Synthetic invoice archive note",
             content="Secondary synthetic invoice archive content.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
     )
 

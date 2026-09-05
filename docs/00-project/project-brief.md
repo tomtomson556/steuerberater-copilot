@@ -92,9 +92,11 @@ Nicht aktuelle Portfolio-Pfade sind insbesondere:
 - Next.js oder eine vollständige Weboberfläche
 
 Die lokale RAG-Baseline nutzt einen deterministischen Token-Overlap-Retriever
-über synthetische `SourceDocument`-Objekte. Der abgerufene Retrieval-Kontext
-besitzt derzeit noch keine separate Gateway-Prüfung vor dem Promptaufbau;
-diese bekannte Security-Lücke ist als kleiner Folgefix offen.
+über synthetische `SourceDocument`-Objekte. Nach erfolgreichem Retrieval prüft
+das Policy- und Privacy-Gateway den abgerufenen Retrieval-Kontext
+deterministisch anhand explizit deklarierter Datenklassen, deny-by-default.
+Eine synthetisch aussehende Dokument-ID allein autorisiert den Modellkontext
+nicht. Leeres Retrieval bleibt ohne Provider-Aufruf eine Abstention.
 
 ## Nicht-Ziele
 

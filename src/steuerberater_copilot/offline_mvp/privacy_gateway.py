@@ -7,6 +7,7 @@ import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
 
 from ._response_markers import (
     PRODUCTIVE_TRANSMISSION_MARKER,
@@ -19,6 +20,9 @@ from ._response_markers import (
 from .models import DraftPackage, GatewayDecision, GatewayResult, IntakeCase, MockRiskSignal
 
 PSEUDONYM_RE = re.compile(r"^(CLIENT|CASE|DOCUMENT)_[0-9]{3}$")
+SYNTHETIC_RETRIEVAL_SOURCE_ID_RE = re.compile(
+    r"^SYNTHETIC_[A-Z0-9]+(?:_[A-Z0-9]+)*$"
+)
 
 
 class PrivacyDataClass(StrEnum):
@@ -96,6 +100,28 @@ class PrivacyGatewayRequest:
     reidentification_risk: bool = False
 
 
+@dataclass(frozen=True)
+class PrivacyGatewayRetrievalContext:
+    """Retrieved material inspected after retrieval and before prompt construction."""
+
+    purpose: str
+    data_classes: tuple[PrivacyDataClass, ...]
+    document_refs: tuple[str, ...]
+    review_path_present: bool
+    reidentification_risk: bool = False
+    untrusted_classification: bool = False
+
+
+class RetrievalContextDocument(Protocol):
+    """Structural retrieval item for gateway classification.
+
+    Implemented by ``SourceDocument`` without importing the rag package here.
+    """
+
+    document_id: str
+    data_class: str
+
+
 def privacy_gateway_request_from_case(case: IntakeCase) -> PrivacyGatewayRequest:
     """Build a deterministic request check input from a synthetic intake case."""
 
@@ -136,21 +162,12 @@ def run_request_gateway_check(request: PrivacyGatewayRequest) -> GatewayResult:
         "request_review_path_present",
         "request_context_minimized",
     ]
-    escalation_reasons: list[str] = []
-    block_reasons: list[str] = []
-
-    if request.purpose not in ALLOWED_PURPOSES:
-        escalation_reasons.append("request_purpose_unclear")
-
-    for data_class in request.data_classes:
-        if data_class in FORBIDDEN_DATA_CLASSES:
-            block_reasons.append(f"forbidden_data_class:{data_class.value}")
-
-    if not request.review_path_present:
-        escalation_reasons.append("review_path_missing")
-
-    if request.reidentification_risk:
-        escalation_reasons.append("reidentification_risk")
+    escalation_reasons, block_reasons = _shared_gateway_policy_reasons(
+        purpose=request.purpose,
+        data_classes=request.data_classes,
+        review_path_present=request.review_path_present,
+        reidentification_risk=request.reidentification_risk,
+    )
 
     case_ref, client_ref = request.case_refs
     if not PSEUDONYM_RE.fullmatch(case_ref):
@@ -158,6 +175,70 @@ def run_request_gateway_check(request: PrivacyGatewayRequest) -> GatewayResult:
     if not PSEUDONYM_RE.fullmatch(client_ref):
         escalation_reasons.append("client_ref_must_be_synthetic")
     if not _all_pseudonyms_are_synthetic(request.document_refs):
+        escalation_reasons.append("document_id_must_be_synthetic")
+
+    return _gateway_result(
+        checks=checks,
+        escalation_reasons=escalation_reasons,
+        block_reasons=block_reasons,
+    )
+
+
+def privacy_gateway_retrieval_context_from_documents(
+    documents: Iterable[RetrievalContextDocument],
+    *,
+    purpose: str = "offline_validation",
+) -> PrivacyGatewayRetrievalContext:
+    """Map retrieved documents onto gateway data classes.
+
+    Classification uses each document's declared ``data_class``. Undeclared or
+    unknown classes are untrusted. Title and body text are not scanned.
+    ``document_id`` is not a data-class grant.
+    """
+
+    document_refs: list[str] = []
+    data_classes: list[PrivacyDataClass] = []
+    untrusted_classification = False
+
+    for document in documents:
+        document_refs.append(document.document_id)
+        mapped = _privacy_data_class_from_declared(document.data_class)
+        if mapped is None:
+            untrusted_classification = True
+            continue
+        data_classes.append(mapped)
+
+    return PrivacyGatewayRetrievalContext(
+        purpose=purpose,
+        data_classes=tuple(dict.fromkeys(data_classes)),
+        document_refs=tuple(document_refs),
+        review_path_present=True,
+        reidentification_risk=False,
+        untrusted_classification=untrusted_classification,
+    )
+
+
+def run_retrieval_context_gateway_check(
+    context: PrivacyGatewayRetrievalContext,
+) -> GatewayResult:
+    """Run deterministic Privacy Gateway checks on retrieved context."""
+
+    checks = [
+        "retrieval_context_purpose_documented",
+        "retrieval_context_data_classes_allowed",
+        "retrieval_context_pseudonyms_non_reidentifying",
+        "retrieval_context_review_path_present",
+        "retrieval_context_minimized",
+    ]
+    escalation_reasons, block_reasons = _shared_gateway_policy_reasons(
+        purpose=context.purpose,
+        data_classes=context.data_classes,
+        review_path_present=context.review_path_present,
+        reidentification_risk=context.reidentification_risk,
+    )
+    if context.untrusted_classification or not context.data_classes:
+        escalation_reasons.append("retrieval_data_class_untrusted")
+    if not _all_retrieval_source_ids_are_synthetic(context.document_refs):
         escalation_reasons.append("document_id_must_be_synthetic")
 
     return _gateway_result(
@@ -218,7 +299,7 @@ def run_response_gateway_check(draft_package: DraftPackage) -> GatewayResult:
 
 
 def combine_gateway_results(*results: GatewayResult) -> GatewayResult:
-    """Combine request- and response-side checks into one workflow result."""
+    """Combine request-, retrieval-, and response-side checks into one result."""
 
     checks: list[str] = []
     escalation_reasons: list[str] = []
@@ -257,8 +338,50 @@ def _gateway_result(
     )
 
 
+def _shared_gateway_policy_reasons(
+    *,
+    purpose: str,
+    data_classes: Iterable[PrivacyDataClass],
+    review_path_present: bool,
+    reidentification_risk: bool,
+) -> tuple[list[str], list[str]]:
+    escalation_reasons: list[str] = []
+    block_reasons: list[str] = []
+
+    if purpose not in ALLOWED_PURPOSES:
+        escalation_reasons.append("request_purpose_unclear")
+
+    for data_class in data_classes:
+        if data_class in FORBIDDEN_DATA_CLASSES:
+            block_reasons.append(f"forbidden_data_class:{data_class.value}")
+
+    if not review_path_present:
+        escalation_reasons.append("review_path_missing")
+
+    if reidentification_risk:
+        escalation_reasons.append("reidentification_risk")
+
+    return escalation_reasons, block_reasons
+
+
 def _all_pseudonyms_are_synthetic(references: Iterable[str]) -> bool:
     return all(PSEUDONYM_RE.fullmatch(reference) for reference in references)
+
+
+def _all_retrieval_source_ids_are_synthetic(references: Iterable[str]) -> bool:
+    return all(
+        SYNTHETIC_RETRIEVAL_SOURCE_ID_RE.fullmatch(reference)
+        for reference in references
+    )
+
+
+def _privacy_data_class_from_declared(declared: str) -> PrivacyDataClass | None:
+    if not isinstance(declared, str) or not declared or declared.isspace():
+        return None
+    try:
+        return PrivacyDataClass(declared)
+    except ValueError:
+        return None
 
 
 def _response_text_fragments(draft_package: DraftPackage) -> tuple[str, ...]:

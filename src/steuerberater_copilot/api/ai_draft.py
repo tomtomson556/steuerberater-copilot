@@ -32,6 +32,7 @@ from steuerberater_copilot.offline_mvp import (
 from steuerberater_copilot.offline_mvp.rag_workflow import SyntheticRAGWorkflowOutput
 from steuerberater_copilot.offline_mvp.workflow import load_fixture_cases, run_mock_gateway
 from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
+from steuerberater_copilot.rag.source_document import SYNTHETIC_FIXTURE_DATA_CLASS
 
 from .contracts import (
     AIDraftCitation,
@@ -170,11 +171,13 @@ def _demo_cases() -> dict[str, SyntheticAIDraftDemoCase]:
             document_id="SYNTHETIC_SOURCE_001",
             title="Synthetic invoice retention note",
             content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
         SourceDocument(
             document_id="SYNTHETIC_SOURCE_002",
             title="Synthetic invoice archive note",
             content="Secondary synthetic invoice archive content.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
     )
     unrelated_documents = (
@@ -182,6 +185,7 @@ def _demo_cases() -> dict[str, SyntheticAIDraftDemoCase]:
             document_id="SYNTHETIC_SOURCE_UNRELATED",
             title="Payroll calendar overview",
             content="Completely unrelated payroll calendar body text.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
     )
     canned_response = ModelResponse(

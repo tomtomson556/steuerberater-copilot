@@ -5,6 +5,7 @@ from __future__ import annotations
 from steuerberater_copilot.offline_mvp import IntakeCase, SyntheticDocument
 from steuerberater_copilot.offline_mvp.models import MockRiskSignal
 from steuerberater_copilot.rag import SourceDocument
+from steuerberater_copilot.rag.source_document import SYNTHETIC_FIXTURE_DATA_CLASS
 
 from .rag_abstention_case import RAGAbstentionEvaluationCase
 
@@ -49,6 +50,7 @@ def _missing_evidence_case() -> RAGAbstentionEvaluationCase:
         document_id="SYNTHETIC_RAG_ABSTENTION_MISSING_MEADOW",
         title="Synthetic meadow reference",
         content=MISSING_EVIDENCE_PASSAGE,
+        data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
     )
     return RAGAbstentionEvaluationCase(
         evaluation_id="EVAL_RAG_ABSTENTION_BASELINE_MISSING_EVIDENCE",
@@ -66,6 +68,7 @@ def _with_evidence_case() -> RAGAbstentionEvaluationCase:
         document_id="SYNTHETIC_RAG_ABSTENTION_WITH_EVIDENCE_ORCHARD",
         title="Synthetic orchard reference",
         content=f"Prefix. {WITH_EVIDENCE_PASSAGE} Suffix.",
+        data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
     )
     return RAGAbstentionEvaluationCase(
         evaluation_id="EVAL_RAG_ABSTENTION_BASELINE_WITH_EVIDENCE",
@@ -83,6 +86,7 @@ def _gateway_stop_case() -> RAGAbstentionEvaluationCase:
         document_id="SYNTHETIC_RAG_ABSTENTION_GATEWAY_ORCHARD",
         title="Synthetic orchard reference",
         content=WITH_EVIDENCE_PASSAGE,
+        data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
     )
     return RAGAbstentionEvaluationCase(
         evaluation_id="EVAL_RAG_ABSTENTION_BASELINE_GATEWAY_STOP",
@@ -100,6 +104,7 @@ def _review_gate_stop_case() -> RAGAbstentionEvaluationCase:
         document_id="SYNTHETIC_RAG_ABSTENTION_REVIEW_ORCHARD",
         title="Synthetic orchard reference",
         content=WITH_EVIDENCE_PASSAGE,
+        data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
     )
     return RAGAbstentionEvaluationCase(
         evaluation_id="EVAL_RAG_ABSTENTION_BASELINE_REVIEW_GATE_STOP",

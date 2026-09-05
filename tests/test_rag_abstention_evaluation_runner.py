@@ -14,6 +14,7 @@ from steuerberater_copilot.evaluation import (
 from steuerberater_copilot.offline_mvp import IntakeCase, SyntheticDocument
 from steuerberater_copilot.offline_mvp.models import MockRiskSignal
 from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
+from steuerberater_copilot.rag.source_document import SYNTHETIC_FIXTURE_DATA_CLASS
 
 SUPPORTING_PASSAGE = "Synthetic orchard passage for abstention runner testing."
 
@@ -368,6 +369,7 @@ def _document(
         document_id=document_id,
         title=title,
         content=content,
+        data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
     )
 
 
