@@ -7,6 +7,7 @@ import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Protocol
 
 from ._response_markers import (
     PRODUCTIVE_TRANSMISSION_MARKER,
@@ -108,6 +109,17 @@ class PrivacyGatewayRetrievalContext:
     document_refs: tuple[str, ...]
     review_path_present: bool
     reidentification_risk: bool = False
+    untrusted_classification: bool = False
+
+
+class RetrievalContextDocument(Protocol):
+    """Structural retrieval item for gateway classification.
+
+    Implemented by ``SourceDocument`` without importing the rag package here.
+    """
+
+    document_id: str
+    data_class: str
 
 
 def privacy_gateway_request_from_case(case: IntakeCase) -> PrivacyGatewayRequest:
@@ -172,46 +184,37 @@ def run_request_gateway_check(request: PrivacyGatewayRequest) -> GatewayResult:
     )
 
 
-def privacy_gateway_retrieval_context_from_document_ids(
-    document_ids: Iterable[str],
+def privacy_gateway_retrieval_context_from_documents(
+    documents: Iterable[RetrievalContextDocument],
     *,
     purpose: str = "offline_validation",
 ) -> PrivacyGatewayRetrievalContext:
-    """Map retrieved document identifiers onto gateway data classes.
+    """Map retrieved documents onto gateway data classes.
 
-    Classification uses declared synthetic fixture signals in identifiers and
-    the existing data-class table. Title and body text are not scanned.
+    Classification uses each document's declared ``data_class``. Undeclared or
+    unknown classes are untrusted. Title and body text are not scanned.
+    ``document_id`` is not a data-class grant.
     """
 
-    document_refs = tuple(document_ids)
-    data_classes: list[PrivacyDataClass] = [PrivacyDataClass.SYNTHETIC_FIXTURE]
-    review_path_present = True
-    reidentification_risk = False
-    resolved_purpose = purpose
+    document_refs: list[str] = []
+    data_classes: list[PrivacyDataClass] = []
+    untrusted_classification = False
 
-    for document_id in document_refs:
-        for signal, data_class in SIGNAL_DATA_CLASSES.items():
-            if _identifier_declares_signal(document_id, signal):
-                data_classes.append(data_class)
-        if _identifier_declares_signal(
-            document_id, MockRiskSignal.REIDENTIFICATION_RISK.value
-        ):
-            reidentification_risk = True
-        if _identifier_declares_signal(
-            document_id, MockRiskSignal.UNCLEAR_PURPOSE.value
-        ):
-            resolved_purpose = "unclear"
-        if _identifier_declares_signal(
-            document_id, MockRiskSignal.MISSING_REVIEW_PATH.value
-        ):
-            review_path_present = False
+    for document in documents:
+        document_refs.append(document.document_id)
+        mapped = _privacy_data_class_from_declared(document.data_class)
+        if mapped is None:
+            untrusted_classification = True
+            continue
+        data_classes.append(mapped)
 
     return PrivacyGatewayRetrievalContext(
-        purpose=resolved_purpose,
+        purpose=purpose,
         data_classes=tuple(dict.fromkeys(data_classes)),
-        document_refs=document_refs,
-        review_path_present=review_path_present,
-        reidentification_risk=reidentification_risk,
+        document_refs=tuple(document_refs),
+        review_path_present=True,
+        reidentification_risk=False,
+        untrusted_classification=untrusted_classification,
     )
 
 
@@ -233,6 +236,8 @@ def run_retrieval_context_gateway_check(
         review_path_present=context.review_path_present,
         reidentification_risk=context.reidentification_risk,
     )
+    if context.untrusted_classification or not context.data_classes:
+        escalation_reasons.append("retrieval_data_class_untrusted")
     if not _all_retrieval_source_ids_are_synthetic(context.document_refs):
         escalation_reasons.append("document_id_must_be_synthetic")
 
@@ -370,14 +375,13 @@ def _all_retrieval_source_ids_are_synthetic(references: Iterable[str]) -> bool:
     )
 
 
-def _identifier_declares_signal(identifier: str, signal: str) -> bool:
-    tokens = identifier.casefold().split("_")
-    signal_tokens = signal.casefold().split("_")
-    window = len(signal_tokens)
-    return any(
-        tokens[index : index + window] == signal_tokens
-        for index in range(len(tokens) - window + 1)
-    )
+def _privacy_data_class_from_declared(declared: str) -> PrivacyDataClass | None:
+    if not isinstance(declared, str) or not declared or declared.isspace():
+        return None
+    try:
+        return PrivacyDataClass(declared)
+    except ValueError:
+        return None
 
 
 def _response_text_fragments(draft_package: DraftPackage) -> tuple[str, ...]:

@@ -26,7 +26,7 @@ from .models import (
 )
 from .privacy_gateway import (
     combine_gateway_results,
-    privacy_gateway_retrieval_context_from_document_ids,
+    privacy_gateway_retrieval_context_from_documents,
     run_response_gateway_check,
     run_retrieval_context_gateway_check,
 )
@@ -65,13 +65,14 @@ def build_synthetic_rag_workflow(
     """Run the separate synthetic RAG path after existing offline MVP controls.
 
     Gateway and human review run before retrieval and provider invocation.
-    After a non-empty retrieval, retrieved document identifiers pass an
-    explicit Privacy Gateway check before prompt construction. Disallowed
-    retrieval context stops without calling the prompt builder or provider
-    and keeps gateway, risk, and review state on the existing block or
-    escalation path. The same ``retrieved_documents`` tuple is passed to the
-    grounded prompt and the grounding validator. Empty retrieval abstains
-    without a provider call.
+    After a non-empty retrieval, retrieved documents pass an explicit Privacy
+    Gateway check before prompt construction. Classification uses each
+    document's declared data class and is deny-by-default; a synthetic-looking
+    ``document_id`` is not a grant. Disallowed or untrusted retrieval context
+    stops without calling the prompt builder or provider and keeps gateway,
+    risk, and review state on the existing block or escalation path. The same
+    ``retrieved_documents`` tuple is passed to the grounded prompt and the
+    grounding validator. Empty retrieval abstains without a provider call.
     """
 
     gateway = run_mock_gateway(case)
@@ -109,9 +110,7 @@ def build_synthetic_rag_workflow(
     gateway = combine_gateway_results(
         gateway,
         run_retrieval_context_gateway_check(
-            privacy_gateway_retrieval_context_from_document_ids(
-                document.document_id for document in retrieved_documents
-            )
+            privacy_gateway_retrieval_context_from_documents(retrieved_documents)
         ),
     )
     if gateway.decision is not GatewayDecision.ALLOW_DRAFT:

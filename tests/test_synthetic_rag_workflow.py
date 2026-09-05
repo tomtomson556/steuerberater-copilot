@@ -40,6 +40,7 @@ from steuerberater_copilot.offline_mvp.models import (
     RiskLevel,
     SyntheticDocument,
 )
+from steuerberater_copilot.offline_mvp.privacy_gateway import PrivacyDataClass
 from steuerberater_copilot.offline_mvp.prompt_builder import (
     build_synthetic_grounded_model_request,
 )
@@ -52,6 +53,10 @@ from steuerberater_copilot.offline_mvp.structured_output_validator import (
     StructuredDraftOutputValidationError,
 )
 from steuerberater_copilot.rag import LocalDocumentRetriever, SourceDocument
+from steuerberater_copilot.rag.source_document import (
+    SYNTHETIC_FIXTURE_DATA_CLASS,
+    UNTRUSTED_DATA_CLASS,
+)
 
 RETRIEVAL_QUERY = "synthetic invoice retention"
 RETRIEVAL_TOP_K = 1
@@ -479,9 +484,10 @@ def test_synthetic_rag_workflow_blocks_forbidden_retrieval_context_before_prompt
     case = _allowed_class_a_case()
     documents = (
         SourceDocument(
-            document_id="SYNTHETIC_SOURCE_FORBIDDEN_ORIGINAL_PII",
+            document_id="SYNTHETIC_SOURCE_001",
             title="Synthetic invoice retention note",
             content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=PrivacyDataClass.ORIGINAL_PII.value,
         ),
     )
     provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
@@ -528,6 +534,7 @@ def test_synthetic_rag_workflow_escalates_non_synthetic_retrieval_context_before
             document_id="UNMARKED_SOURCE_001",
             title="Synthetic invoice retention note",
             content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
     )
     provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
@@ -558,6 +565,53 @@ def test_synthetic_rag_workflow_escalates_non_synthetic_retrieval_context_before
     assert result.risk_classification.risk_level is RiskLevel.CLASS_C
     assert result.risk_classification.review_required is True
     assert "document_id_must_be_synthetic" in result.risk_classification.basis
+    assert result.review_gate.allows_offline_mock_continuation is False
+    assert result.abstained_for_missing_evidence is False
+    assert provider.requests == ()
+    assert result.model_response is None
+    assert result.grounded_draft is None
+
+
+def test_synthetic_rag_workflow_rejects_synthetic_id_without_declared_data_class(
+    monkeypatch,
+) -> None:
+    case = _allowed_class_a_case()
+    documents = (
+        SourceDocument(
+            document_id="SYNTHETIC_SOURCE_001",
+            title="Synthetic invoice retention note",
+            content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=UNTRUSTED_DATA_CLASS,
+        ),
+    )
+    provider = FakeModelProvider(_model_response(VALID_GROUNDED_CONTENT))
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError(
+            "prompt builder must not run for undeclared retrieval data class"
+        )
+
+    monkeypatch.setattr(
+        rag_workflow,
+        "build_synthetic_grounded_model_request",
+        fail_if_called,
+    )
+
+    result = build_synthetic_rag_workflow(
+        case,
+        provider=provider,
+        retriever=LocalDocumentRetriever(documents=documents),
+        retrieval_query=RETRIEVAL_QUERY,
+        top_k=RETRIEVAL_TOP_K,
+    )
+
+    assert result.retrieved_documents == documents
+    assert result.gateway.decision is GatewayDecision.ESCALATE
+    assert result.gateway.escalation_reasons == ("retrieval_data_class_untrusted",)
+    assert "retrieval_context_data_classes_allowed" in result.gateway.checks
+    assert result.risk_classification.risk_level is RiskLevel.CLASS_C
+    assert result.risk_classification.review_required is True
+    assert "retrieval_data_class_untrusted" in result.risk_classification.basis
     assert result.review_gate.allows_offline_mock_continuation is False
     assert result.abstained_for_missing_evidence is False
     assert provider.requests == ()
@@ -895,11 +949,13 @@ def _matching_source_documents() -> tuple[SourceDocument, ...]:
             document_id="SYNTHETIC_SOURCE_001",
             title="Synthetic invoice retention note",
             content=f"Prefix. {SUPPORTING_PASSAGE} Suffix.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
         SourceDocument(
             document_id="SYNTHETIC_SOURCE_002",
             title="Synthetic invoice archive note",
             content="Secondary synthetic invoice archive content.",
+            data_class=SYNTHETIC_FIXTURE_DATA_CLASS,
         ),
     )
 

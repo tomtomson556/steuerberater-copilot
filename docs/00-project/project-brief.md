@@ -94,9 +94,9 @@ Nicht aktuelle Portfolio-Pfade sind insbesondere:
 Die lokale RAG-Baseline nutzt einen deterministischen Token-Overlap-Retriever
 über synthetische `SourceDocument`-Objekte. Nach erfolgreichem Retrieval prüft
 das Policy- und Privacy-Gateway den abgerufenen Retrieval-Kontext
-deterministisch über Datenklassen- und Identitätsregeln, bevor Prompt Builder
-oder Provider aufgerufen werden. Leeres Retrieval bleibt ohne Provider-Aufruf
-eine Abstention.
+deterministisch anhand explizit deklarierter Datenklassen, deny-by-default.
+Eine synthetisch aussehende Dokument-ID allein autorisiert den Modellkontext
+nicht. Leeres Retrieval bleibt ohne Provider-Aufruf eine Abstention.
 
 ## Nicht-Ziele
 

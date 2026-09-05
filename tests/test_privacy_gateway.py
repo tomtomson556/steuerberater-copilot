@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from steuerberater_copilot.offline_mvp._response_markers import (
     DRAFT_REVIEW_DISCLAIMER,
     NO_TAX_ADVICE_OR_PRODUCTIVE_TRANSMISSION_DISCLAIMER,
@@ -22,7 +24,7 @@ from steuerberater_copilot.offline_mvp.privacy_gateway import (
     PrivacyGatewayRequest,
     PrivacyGatewayRetrievalContext,
     privacy_gateway_request_from_case,
-    privacy_gateway_retrieval_context_from_document_ids,
+    privacy_gateway_retrieval_context_from_documents,
     run_request_gateway_check,
     run_response_gateway_check,
     run_retrieval_context_gateway_check,
@@ -60,14 +62,18 @@ def test_request_gateway_blocks_forbidden_data_class():
     assert gateway.block_reasons == ("forbidden_data_class:original_pii",)
 
 
-def test_retrieval_context_gateway_allows_synthetic_source_ids():
-    context = privacy_gateway_retrieval_context_from_document_ids(
-        ("SYNTHETIC_SOURCE_001", "SYNTHETIC_RAG_ABSTENTION_WITH_EVIDENCE_ORCHARD")
+def test_retrieval_context_gateway_allows_declared_synthetic_fixture():
+    context = privacy_gateway_retrieval_context_from_documents(
+        (
+            _retrieval_document("SYNTHETIC_SOURCE_001"),
+            _retrieval_document("SYNTHETIC_RAG_ABSTENTION_WITH_EVIDENCE_ORCHARD"),
+        )
     )
 
     gateway = run_retrieval_context_gateway_check(context)
 
     assert context.data_classes == (PrivacyDataClass.SYNTHETIC_FIXTURE,)
+    assert context.untrusted_classification is False
     assert gateway.decision == GatewayDecision.ALLOW_DRAFT
     assert gateway.escalation_reasons == ()
     assert gateway.block_reasons == ()
@@ -81,21 +87,45 @@ def test_retrieval_context_gateway_allows_synthetic_source_ids():
 
 
 def test_retrieval_context_gateway_blocks_declared_forbidden_data_class():
-    context = privacy_gateway_retrieval_context_from_document_ids(
-        ("SYNTHETIC_SOURCE_FORBIDDEN_ORIGINAL_PII",)
+    context = privacy_gateway_retrieval_context_from_documents(
+        (
+            _retrieval_document(
+                "SYNTHETIC_SOURCE_001",
+                data_class=PrivacyDataClass.ORIGINAL_PII.value,
+            ),
+        )
     )
 
     gateway = run_retrieval_context_gateway_check(context)
 
-    assert PrivacyDataClass.ORIGINAL_PII in context.data_classes
+    assert context.data_classes == (PrivacyDataClass.ORIGINAL_PII,)
     assert gateway.decision == GatewayDecision.BLOCK
     assert gateway.escalation_reasons == ()
     assert gateway.block_reasons == ("forbidden_data_class:original_pii",)
 
 
+def test_retrieval_context_gateway_rejects_synthetic_id_without_declared_data_class():
+    context = privacy_gateway_retrieval_context_from_documents(
+        (
+            _retrieval_document(
+                "SYNTHETIC_SOURCE_001",
+                data_class="untrusted",
+            ),
+        )
+    )
+
+    gateway = run_retrieval_context_gateway_check(context)
+
+    assert context.data_classes == ()
+    assert context.untrusted_classification is True
+    assert gateway.decision == GatewayDecision.ESCALATE
+    assert gateway.escalation_reasons == ("retrieval_data_class_untrusted",)
+    assert gateway.block_reasons == ()
+
+
 def test_retrieval_context_gateway_escalates_non_synthetic_source_id():
-    context = privacy_gateway_retrieval_context_from_document_ids(
-        ("UNMARKED_SOURCE_001",)
+    context = privacy_gateway_retrieval_context_from_documents(
+        (_retrieval_document("UNMARKED_SOURCE_001"),)
     )
 
     gateway = run_retrieval_context_gateway_check(context)
@@ -104,18 +134,6 @@ def test_retrieval_context_gateway_escalates_non_synthetic_source_id():
     assert gateway.decision == GatewayDecision.ESCALATE
     assert gateway.escalation_reasons == ("document_id_must_be_synthetic",)
     assert gateway.block_reasons == ()
-
-
-def test_retrieval_context_gateway_escalates_declared_reidentification_risk():
-    context = privacy_gateway_retrieval_context_from_document_ids(
-        ("SYNTHETIC_SOURCE_REIDENTIFICATION_RISK",)
-    )
-
-    gateway = run_retrieval_context_gateway_check(context)
-
-    assert context.reidentification_risk is True
-    assert gateway.decision == GatewayDecision.ESCALATE
-    assert gateway.escalation_reasons == ("reidentification_risk",)
 
 
 def test_retrieval_context_gateway_keeps_data_class_block_over_identity_escalation():
@@ -427,6 +445,14 @@ def test_generated_draft_text_keeps_response_gateway_markers_visible():
         assert gateway.decision == GatewayDecision.ALLOW_DRAFT
         assert gateway.escalation_reasons == ()
         assert gateway.block_reasons == ()
+
+
+def _retrieval_document(
+    document_id: str,
+    *,
+    data_class: str = PrivacyDataClass.SYNTHETIC_FIXTURE.value,
+) -> SimpleNamespace:
+    return SimpleNamespace(document_id=document_id, data_class=data_class)
 
 
 def _case(
