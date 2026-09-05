@@ -18,6 +18,9 @@ vereinfachten Stack mit externen Rollen-ARNs:
 - `infra/cloudformation/reference-demo.yaml` und
   `infra/cloudformation/guards/reference-demo.guard` bilden den vereinfachten
   Stack ab, nicht den alten v2.3-IAM-/Secret-Pfad.
+- `infra/cloudformation/reference-demo-static-roles.yaml` und
+  `infra/cloudformation/guards/reference-demo-static-roles.guard` definieren die
+  beiden statischen Express-Rollen außerhalb dieses kurzlebigen Stacks.
 - `docs/09-operations/aws-reference-demo-runbook.md` bleibt Legacy v2.3. Seine
   Kommandos sind kein ausführbarer Pfad für den aktuellen Stack.
 - Ein neues ausführbares Runbook für den vereinfachten Stack steht noch aus.
@@ -183,31 +186,37 @@ Modellprovider-Wahl und Laufzeit-Cloud bleiben getrennte Entscheidungen.
 
 Die Task Execution Role liegt außerhalb des kurzlebigen Demo-Stacks und wird
 von `ecs-tasks.amazonaws.com` angenommen. Sie dient dem ECS-/Fargate-Agenten,
-nicht dem Anwendungscode. Für diesen Nachweis ist sie auf die für den Pull
-aus privatem ECR und den `awslogs`-Pfad benötigten Berechtigungen begrenzt;
-AWS dokumentiert dafür `AmazonECSTaskExecutionRolePolicy` oder äquivalente
-Berechtigungen.
+nicht dem Anwendungscode. Das separate Template
+`infra/cloudformation/reference-demo-static-roles.yaml` legt sie mit dem festen
+Namen `steuerberater-copilot-reference-demo-task-execution` an und hängt
+ausschließlich `AmazonECSTaskExecutionRolePolicy` an. AWS dokumentiert diese
+Managed Policy für den Pull aus privatem ECR und den `awslogs`-Pfad.
 
-Die Rolle erhält insbesondere keine Secret-Leserechte, weil die
+Die Rolle erhält insbesondere keine zusätzlichen Secret-Leserechte, weil die
 Task-Definition kein Secret referenziert. AWS verlangt zusätzliche
 Secrets-Manager-Berechtigungen erst, wenn eine Task-Definition entsprechende
-sensitive Daten referenziert.
+sensitive Daten referenziert. Inline-Policies, kundenverwaltete Policies und
+Permissions Boundaries gehören nicht zu dieser Rolle.
 
-Quelle:
-[Amazon ECS task execution IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html).
+Quellen:
+
+- [Amazon ECS task execution IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html)
+- [`AmazonECSTaskExecutionRolePolicy`](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonECSTaskExecutionRolePolicy.html)
 
 ### Statische Express Infrastructure Role
 
 Die Express Infrastructure Role liegt ebenfalls außerhalb des kurzlebigen
 Stacks und wird von `ecs.amazonaws.com` angenommen. ECS verwendet sie für die
 von Express Mode verwalteten Infrastrukturkomponenten wie Load Balancing,
-Security Groups und Auto Scaling. Der vereinfachte Pfad orientiert sich am
-aktuellen AWS-Vertrag mit
-`AmazonECSInfrastructureRoleforExpressGatewayServices` oder nachweislich
-äquivalenten Berechtigungen.
+Security Groups und Auto Scaling. Dasselbe statische Rollen-Template legt sie
+mit dem festen Namen
+`steuerberater-copilot-reference-demo-express-infrastructure` an und hängt
+ausschließlich `AmazonECSInfrastructureRoleforExpressGatewayServices` an.
 
-Die Rolle wird nicht dem Container bereitgestellt. Die alte v2.3-Boundary- und
-Zusatzpolicy-Architektur wird nicht als Voraussetzung übernommen.
+Die Rolle wird nicht dem Container bereitgestellt. Inline-Policies,
+kundenverwaltete Policies und Permissions Boundaries gehören nicht zu dieser
+Rolle. Die alte v2.3-Boundary- und Zusatzpolicy-Architektur wird nicht als
+Voraussetzung übernommen.
 
 Quellen:
 
@@ -299,7 +308,9 @@ Ressourcen:
 
 Nicht in den Stack gehören IAM-Rollen, Permissions Boundaries, IAM-Policies
 oder Secrets-Manager-Ressourcen. Die statischen Rollen werden dem Service nur
-per ARN referenziert.
+per ARN referenziert. Ihre IaC bleibt das separate Template
+`infra/cloudformation/reference-demo-static-roles.yaml`; es ist nicht Teil des
+kurzlebigen Demo-Stacks und kein ausführbares Live-Test-Go.
 
 Weil das vom Stack erzeugte ECR-Repository vor dem Image-Push existieren muss,
 bleibt der Ablauf zweistufig im selben Stack:

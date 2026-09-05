@@ -40,6 +40,8 @@ Apply when the user or files concern any of:
 - pre-live review or AWS live-test readiness (routing only; no Go)
 - `infra/cloudformation/reference-demo.yaml` or
   `infra/cloudformation/guards/reference-demo.guard`
+- `infra/cloudformation/reference-demo-static-roles.yaml` or
+  `infra/cloudformation/guards/reference-demo-static-roles.guard`
 - explicitly named legacy or historical IAM lifecycle v2.3 work
 - explicitly named IAM Policy Simulator evidence or a `SIM-*` case
 - explicitly named `tools/aws_reference_demo_iam_control_plane.py`
@@ -96,7 +98,7 @@ Load only the rows that match the current task.
 | When the task is about | Load |
 | --- | --- |
 | Current AWS architecture, deployment scope, roles, secrets, costs, cleanup, or evidence target | Current architecture. Add `docs/02-security/security-baseline-policy.md` when the task needs security-policy detail |
-| Current CloudFormation template, Guard, stack shape, or template freeze | `infra/cloudformation/reference-demo.yaml`; `infra/cloudformation/guards/reference-demo.guard`; `tests/test_reference_cloudformation_template.py`; `tests/test_reference_demo_runbook.py` when runbook/template coupling is relevant. Treat any documented legacy mismatch explicitly; do not route to v2.3 IAM evidence by default |
+| Current CloudFormation template, Guard, stack shape, or template freeze | `infra/cloudformation/reference-demo.yaml`; `infra/cloudformation/guards/reference-demo.guard`; `tests/test_reference_cloudformation_template.py`; `tests/test_reference_demo_runbook.py` when runbook/template coupling is relevant. For the two static Express roles outside the ephemeral stack, add `infra/cloudformation/reference-demo-static-roles.yaml`; `infra/cloudformation/guards/reference-demo-static-roles.guard`; `tests/test_reference_demo_static_roles.py`. Treat any documented legacy mismatch explicitly; do not route to v2.3 IAM evidence by default |
 | Current operations or a new executable runbook | Current architecture and the implemented template/tests. Load `docs/09-operations/aws-reference-demo-runbook.md` only when the task targets that file; if it is marked Legacy/Superseded, its commands are historical context and not a current execution path |
 | Broad current pre-live review or live-test readiness | Current architecture, actual implementation, relevant tests, and current operational status. Do not load v2.3 IAM evidence or simulator results unless the task explicitly asks whether that historical path is relevant |
 | Explicit legacy, v2.3, historical IAM, bootstrap-role, old operator-policy, or old CloudFormation-service-role task | `infra/iam/reference-demo/v2.3/README.md`; only the named JSON artifacts; relevant IAM tests |
